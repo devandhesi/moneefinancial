@@ -5,10 +5,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import Search from "./pages/Search";
+import Chat from "./pages/Chat";
 import Invest from "./pages/Invest";
+import StockDetail from "./pages/StockDetail";
 import Learn from "./pages/Learn";
 import Profile from "./pages/Profile";
+import Transactions from "./pages/Transactions";
+import Orders from "./pages/Orders";
+import Calendar from "./pages/Calendar";
+import SimulationLab from "./pages/SimulationLab";
+import RiskMap from "./pages/RiskMap";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,10 +28,16 @@ const App = () => (
         <AppLayout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/search" element={<Search />} />
+            <Route path="/chat" element={<Chat />} />
             <Route path="/invest" element={<Invest />} />
+            <Route path="/invest/:symbol" element={<StockDetail />} />
             <Route path="/learn" element={<Learn />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/simulation" element={<SimulationLab />} />
+            <Route path="/risk" element={<RiskMap />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>
