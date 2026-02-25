@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2, Share2, ZoomIn, RotateCcw } from "lucide-react";
 import {
-  ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
+  ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Brush, ReferenceArea,
 } from "recharts";
 import { getStockQuote, type StockQuote } from "@/lib/market-api";
 import { toast } from "sonner";
@@ -35,6 +35,11 @@ const StockDetail = () => {
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeRange, setActiveRange] = useState<typeof timeRanges[number]>("3M");
   const [pendingOrders, setPendingOrders] = useState<Array<{type: string; shares: number; price: number; time: string}>>([]);
+  const [zoomLeft, setZoomLeft] = useState<string | null>(null);
+  const [zoomRight, setZoomRight] = useState<string | null>(null);
+  const [zoomRefAreaLeft, setZoomRefAreaLeft] = useState<string>("");
+  const [zoomRefAreaRight, setZoomRefAreaRight] = useState<string>("");
+  const [isZooming, setIsZooming] = useState(false);
 
   // Load watchlist state from localStorage
   useEffect(() => {
@@ -87,6 +92,33 @@ const StockDetail = () => {
       };
     });
   }, [quote]);
+
+  const visibleData = useMemo(() => {
+    if (!zoomLeft || !zoomRight) return chartData;
+    const leftIdx = chartData.findIndex((d) => d.date === zoomLeft);
+    const rightIdx = chartData.findIndex((d) => d.date === zoomRight);
+    if (leftIdx === -1 || rightIdx === -1) return chartData;
+    return chartData.slice(Math.min(leftIdx, rightIdx), Math.max(leftIdx, rightIdx) + 1);
+  }, [chartData, zoomLeft, zoomRight]);
+
+  const handleZoom = () => {
+    if (!zoomRefAreaLeft || !zoomRefAreaRight || zoomRefAreaLeft === zoomRefAreaRight) {
+      setZoomRefAreaLeft("");
+      setZoomRefAreaRight("");
+      return;
+    }
+    setZoomLeft(zoomRefAreaLeft);
+    setZoomRight(zoomRefAreaRight);
+    setZoomRefAreaLeft("");
+    setZoomRefAreaRight("");
+    setIsZooming(true);
+  };
+
+  const resetZoom = () => {
+    setZoomLeft(null);
+    setZoomRight(null);
+    setIsZooming(false);
+  };
 
   const currentPrice = quote?.price ?? 0;
   const changePercent = quote?.changePercent ?? 0;
@@ -298,9 +330,30 @@ const StockDetail = () => {
 
       {/* Chart */}
       <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        {chartData.length > 0 ? (
+        {isZooming && (
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <ZoomIn size={12} /> Showing {visibleData.length} of {chartData.length} data points
+            </div>
+            <button onClick={resetZoom} className="flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <RotateCcw size={10} /> Reset Zoom
+            </button>
+          </div>
+        )}
+        {!isZooming && chartData.length > 0 && (
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <ZoomIn size={12} /> Drag on chart to zoom in
+          </div>
+        )}
+        {visibleData.length > 0 ? (
           <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <ComposedChart
+              data={visibleData}
+              margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+              onMouseDown={(e: any) => { if (e?.activeLabel) setZoomRefAreaLeft(e.activeLabel); }}
+              onMouseMove={(e: any) => { if (zoomRefAreaLeft && e?.activeLabel) setZoomRefAreaRight(e.activeLabel); }}
+              onMouseUp={handleZoom}
+            >
               <defs>
                 <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={isPositive ? "hsl(152,28%,40%)" : "hsl(0,32%,52%)"} stopOpacity={0.12} />
@@ -308,7 +361,7 @@ const StockDetail = () => {
                 </linearGradient>
               </defs>
               {chartMode !== "Simple" && <CartesianGrid strokeDasharray="3 3" stroke="hsl(40,15%,89%)" strokeOpacity={0.5} />}
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(220,8%,50%)" }} interval={Math.floor(chartData.length / 6)} />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(220,8%,50%)" }} interval={Math.floor(visibleData.length / 6)} />
               <YAxis yAxisId="price" hide domain={["dataMin - 5", "dataMax + 5"]} />
               <YAxis yAxisId="volume" hide orientation="right" domain={[0, "dataMax + 50"]} />
               <Tooltip content={<CustomTooltip />} />
@@ -316,6 +369,12 @@ const StockDetail = () => {
               {chartMode !== "Candle" && <Area yAxisId="price" type="monotone" dataKey="price" stroke={isPositive ? "hsl(152,28%,40%)" : "hsl(0,32%,52%)"} strokeWidth={chartMode === "Simple" ? 2 : 1.5} fill="url(#priceGrad)" />}
               {chartMode === "Candle" && <Bar yAxisId="price" dataKey="candleBody" shape={<CandleShape />} />}
               {activeIndicators.has("SMA20") && <Line yAxisId="price" type="monotone" dataKey="sma20" stroke="hsl(215,60%,55%)" strokeWidth={1} dot={false} />}
+              {zoomRefAreaLeft && zoomRefAreaRight && (
+                <ReferenceArea yAxisId="price" x1={zoomRefAreaLeft} x2={zoomRefAreaRight} strokeOpacity={0.3} fill="hsl(215,60%,55%)" fillOpacity={0.1} />
+              )}
+              {!isZooming && (
+                <Brush dataKey="date" height={28} stroke="hsl(220,8%,70%)" travellerWidth={8} fill="hsl(var(--secondary))" tickFormatter={(v) => ""} />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
