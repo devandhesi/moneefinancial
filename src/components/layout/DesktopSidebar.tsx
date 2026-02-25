@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Shield,
   Settings,
+  Users,
 } from "lucide-react";
 
 const mainLinks = [
@@ -26,6 +27,7 @@ const secondaryLinks = [
   { path: "/calendar", icon: CalendarDays, label: "Calendar" },
   { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
   { path: "/risk", icon: Shield, label: "Risk Map" },
+  { path: "/social", icon: Users, label: "Social" },
   { path: "/profile", icon: User, label: "Profile" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
