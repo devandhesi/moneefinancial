@@ -1,13 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Sparkles, ArrowUpRight, ArrowDownRight, Plus, Repeat, FlaskConical, SlidersHorizontal, X, Check } from "lucide-react";
+import { Eye, EyeOff, Sparkles, ArrowUpRight, ArrowDownRight, Plus, Repeat, FlaskConical, SlidersHorizontal, X, Check, Sun, Moon } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import ContextSidebar from "@/components/layout/ContextSidebar";
 import PortfolioHealthWidget from "@/components/widgets/PortfolioHealthWidget";
 import MarketMoodWidget from "@/components/widgets/MarketMoodWidget";
 import ProjectionWidget from "@/components/widgets/ProjectionWidget";
 import AchievementsWidget from "@/components/widgets/AchievementsWidget";
+import { useTimezone } from "@/hooks/use-timezone";
+
+/* ── Market status hook ───────────────────────────────────────── */
+function useMarketStatus(userTimezone: string) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = et.getDay();
+  const mins = et.getHours() * 60 + et.getMinutes();
+  const isOpen = day >= 1 && day <= 5 && mins >= 570 && mins < 960;
+
+  const displayTime = now.toLocaleTimeString("en-US", {
+    timeZone: userTimezone, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true,
+  });
+  const tzLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: userTimezone, timeZoneName: "short",
+  }).formatToParts(now).find(p => p.type === "timeZoneName")?.value || "";
+
+  let statusText: string;
+  if (isOpen) {
+    const closeMin = 960 - mins;
+    const h = Math.floor(closeMin / 60);
+    const m = closeMin % 60;
+    statusText = `Closes in ${h}h ${m}m`;
+  } else {
+    statusText = "Opens Mon–Fri 9:30 AM ET";
+  }
+
+  return { isOpen, displayTime, tzLabel, statusText };
+}
 
 const chartData = [
   { date: "Jan", value: 10000 },
@@ -73,6 +107,8 @@ const Dashboard = () => {
   const [activeTimeframe, setActiveTimeframe] = useState("ALL");
   const [showCustomize, setShowCustomize] = useState(false);
   const [visibility, setVisibility] = useState<Record<WidgetKey, boolean>>(loadVisibility);
+  const { timezone } = useTimezone();
+  const { isOpen: marketOpen, displayTime, tzLabel, statusText: marketStatusText } = useMarketStatus(timezone);
 
   const navigate = useNavigate();
 
@@ -104,15 +140,28 @@ const Dashboard = () => {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Good morning</p>
-            <button
-              onClick={() => setShowCustomize(!showCustomize)}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all ${
-                showCustomize ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <SlidersHorizontal size={13} />
-              Customize
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Market Clock */}
+              <div className="glass-card flex items-center gap-2 px-3 py-1.5">
+                {marketOpen ? <Sun size={13} className="text-gain" /> : <Moon size={13} className="text-muted-foreground" />}
+                <div className="text-right">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${marketOpen ? "bg-gain animate-pulse" : "bg-muted-foreground/40"}`} />
+                    <span className="text-[11px] font-medium">{displayTime} {tzLabel}</span>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground">{marketOpen ? "Market Open" : "Closed"} · {marketStatusText}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCustomize(!showCustomize)}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all ${
+                  showCustomize ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <SlidersHorizontal size={13} />
+                Customize
+              </button>
+            </div>
           </div>
           <div className="mt-1 flex items-center gap-3">
             <h1 className="text-4xl font-semibold tracking-tight">
