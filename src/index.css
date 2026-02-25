@@ -123,3 +123,42 @@
     background: hsl(var(--loss) / 0.08);
   }
 }
+
+/* Recharts Brush slider — liquid glass style */
+.recharts-brush {
+  .recharts-brush-slide {
+    fill: hsl(var(--primary) / 0.08);
+    stroke: hsl(var(--primary) / 0.15);
+    stroke-width: 1;
+    rx: 4;
+    ry: 4;
+  }
+
+  .recharts-brush-traveller {
+    rect {
+      fill: white;
+      stroke: hsl(var(--border));
+      stroke-width: 1.5;
+      rx: 4;
+      ry: 4;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.1));
+    }
+
+    line {
+      stroke: hsl(var(--muted-foreground));
+      stroke-width: 1;
+      opacity: 0.5;
+    }
+  }
+
+  /* Background track */
+  > rect:first-of-type {
+    fill: hsl(var(--secondary));
+    rx: 6;
+    ry: 6;
+  }
+
+  .recharts-brush-texts {
+    display: none;
+  }
+}
