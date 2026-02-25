@@ -1,59 +1,19 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2 } from "lucide-react";
 import {
-  ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine,
+  ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
 } from "recharts";
-
-// Generate mock chart data with OHLC for candle
-const generateChartData = () => {
-  const data = [];
-  let price = 180;
-  for (let i = 0; i < 60; i++) {
-    const open = price;
-    const close = open + (Math.random() - 0.48) * 4;
-    const high = Math.max(open, close) + Math.random() * 2;
-    const low = Math.min(open, close) - Math.random() * 2;
-    price = close;
-    const sma20 = price + (Math.random() - 0.5) * 3;
-    const sma50 = price + (Math.random() - 0.5) * 5;
-    const ema12 = price + (Math.random() - 0.5) * 2;
-    const ema26 = price + (Math.random() - 0.5) * 4;
-    data.push({
-      date: `Day ${i + 1}`,
-      price: +close.toFixed(2),
-      open: +open.toFixed(2),
-      high: +high.toFixed(2),
-      low: +low.toFixed(2),
-      close: +close.toFixed(2),
-      volume: Math.floor(Math.random() * 80 + 20),
-      sma20: +sma20.toFixed(2),
-      sma50: +sma50.toFixed(2),
-      ema12: +ema12.toFixed(2),
-      ema26: +ema26.toFixed(2),
-      rsi: +(30 + Math.random() * 40).toFixed(1),
-      macd: +((Math.random() - 0.5) * 4).toFixed(2),
-      candleBody: [+Math.min(open, close).toFixed(2), +Math.max(open, close).toFixed(2)],
-      candleWick: [+low.toFixed(2), +high.toFixed(2)],
-      bullish: close >= open,
-    });
-  }
-  return data;
-};
-
-const eventMarkers = [
-  { day: 15, type: "earnings", label: "Q4 Earnings" },
-  { day: 30, type: "order", label: "Limit Buy Filled" },
-  { day: 45, type: "trade", label: "Paper Sell Executed" },
-];
+import { getStockQuote, type StockQuote } from "@/lib/market-api";
+import { toast } from "sonner";
 
 const chartModes = ["Simple", "Advanced", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
 
 const simpleIndicators = ["Volume"] as const;
-const advancedIndicators = ["SMA20", "SMA50", "EMA12", "EMA26", "RSI14", "MACD", "Volume", "Events"] as const;
-const candleIndicators = ["SMA20", "SMA50", "EMA12", "EMA26", "Volume", "Events"] as const;
+const advancedIndicators = ["SMA20", "Volume"] as const;
+const candleIndicators = ["SMA20", "Volume"] as const;
 
 type AnyIndicator = typeof advancedIndicators[number] | typeof simpleIndicators[number] | typeof candleIndicators[number];
 
@@ -63,11 +23,24 @@ const StockDetail = () => {
   const [chartMode, setChartMode] = useState<ChartMode>("Simple");
   const [activeIndicators, setActiveIndicators] = useState<Set<AnyIndicator>>(new Set());
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
-  const [chartData] = useState(generateChartData);
   const [shares, setShares] = useState(1);
   const [showWhatIf, setShowWhatIf] = useState(false);
   const [coachMode, setCoachMode] = useState(true);
   const [showCoachWarning, setShowCoachWarning] = useState(false);
+  const [quote, setQuote] = useState<StockQuote | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!symbol) return;
+    setIsLoading(true);
+    getStockQuote(symbol)
+      .then(setQuote)
+      .catch((e) => {
+        console.error(e);
+        toast.error("Failed to load stock data");
+      })
+      .finally(() => setIsLoading(false));
+  }, [symbol]);
 
   const availableIndicators = useMemo(() => {
     if (chartMode === "Simple") return simpleIndicators;
@@ -83,15 +56,28 @@ const StockDetail = () => {
     });
   };
 
-  const currentPrice = chartData[chartData.length - 1]?.price ?? 0;
-  const prevPrice = chartData[chartData.length - 2]?.price ?? currentPrice;
-  const change = ((currentPrice - prevPrice) / prevPrice * 100);
-  const isPositive = change >= 0;
+  // Compute SMA20 for chart data
+  const chartData = useMemo(() => {
+    if (!quote?.chart) return [];
+    return quote.chart.map((point, i, arr) => {
+      const sma20Window = arr.slice(Math.max(0, i - 19), i + 1);
+      const sma20 = sma20Window.reduce((sum, p) => sum + p.price, 0) / sma20Window.length;
+      return {
+        ...point,
+        sma20: +sma20.toFixed(2),
+        bullish: point.close >= point.open,
+        candleBody: [Math.min(point.open, point.close), Math.max(point.open, point.close)],
+      };
+    });
+  }, [quote]);
 
-  // What-If calculations
+  const currentPrice = quote?.price ?? 0;
+  const changePercent = quote?.changePercent ?? 0;
+  const isPositive = changePercent >= 0;
+
   const purchaseValue = shares * currentPrice;
-  const currentTechPct = 68;
   const portfolioValue = 12438.5;
+  const currentTechPct = 68;
   const newPortfolioValue = portfolioValue + purchaseValue;
   const newTechPct = ((currentTechPct / 100 * portfolioValue + purchaseValue) / newPortfolioValue * 100).toFixed(1);
   const healthChange = Number(newTechPct) > 72 ? -3 : Number(newTechPct) > 70 ? -1 : 1;
@@ -102,24 +88,27 @@ const StockDetail = () => {
     return (
       <div className="glass-card-strong px-3 py-2 text-xs">
         <p className="font-semibold">{label}</p>
-        {chartMode === "Candle" && (
+        {chartMode === "Candle" ? (
           <>
             <p>O: ${d?.open} H: ${d?.high}</p>
             <p>L: ${d?.low} C: ${d?.close}</p>
           </>
+        ) : (
+          <p>Price: <span className="font-medium">${d?.price}</span></p>
         )}
-        {chartMode !== "Candle" && <p>Price: <span className="font-medium">${d?.price}</span></p>}
         <p>Volume: <span className="font-medium">{d?.volume}M</span></p>
       </div>
     );
   };
 
   const CandleShape = (props: any) => {
-    const { x, y, width, height, payload } = props;
+    const { x, width, payload } = props;
     if (!payload) return null;
     const { open, close, high, low, bullish } = payload;
+    const allLows = chartData.map(d => d.low).filter(Boolean);
+    const allHighs = chartData.map(d => d.high).filter(Boolean);
     const yScale = (val: number) => {
-      const domain = [Math.min(...chartData.map(d => d.low)) - 5, Math.max(...chartData.map(d => d.high)) + 5];
+      const domain = [Math.min(...allLows) - 5, Math.max(...allHighs) + 5];
       const range = [280, 8];
       return range[0] + ((val - domain[0]) / (domain[1] - domain[0])) * (range[1] - range[0]);
     };
@@ -144,9 +133,16 @@ const StockDetail = () => {
       setShowCoachWarning(true);
       return;
     }
-    // Execute paper trade
     setShowCoachWarning(false);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-5 pt-14 pb-8 lg:pt-8">
@@ -157,7 +153,7 @@ const StockDetail = () => {
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">{symbol}</h1>
-          <p className="text-sm text-muted-foreground">Stock Detail</p>
+          <p className="text-sm text-muted-foreground">{quote?.name || "Stock Detail"}</p>
         </div>
         <button className="rounded-xl p-2 hover:bg-secondary">
           <Star size={18} className="text-muted-foreground" />
@@ -169,37 +165,29 @@ const StockDetail = () => {
         <p className="text-3xl font-semibold">${currentPrice.toFixed(2)}</p>
         <p className={`mt-1 flex items-center gap-1 text-sm ${isPositive ? "text-gain" : "text-loss"}`}>
           {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-          {Math.abs(change).toFixed(2)}% today
+          {Math.abs(changePercent).toFixed(2)}% today
         </p>
       </motion.div>
 
-      {/* Simulated Trade Banner */}
       <div className="mt-3 rounded-lg bg-secondary px-3 py-2 text-center text-[11px] text-muted-foreground">
-        📄 Simulated Trading · Not a real transaction
+        📄 Simulated Trading · Real market data, paper trades
       </div>
 
-      {/* Chart Mode Selector */}
+      {/* Chart Mode */}
       <div className="mt-4 flex gap-1.5">
         {chartModes.map((mode) => (
-          <button
-            key={mode}
-            onClick={() => { setChartMode(mode); setActiveIndicators(new Set()); }}
-            className={`rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${chartMode === mode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
-          >
+          <button key={mode} onClick={() => { setChartMode(mode); setActiveIndicators(new Set()); }}
+            className={`rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${chartMode === mode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
             {mode}
           </button>
         ))}
       </div>
 
-      {/* Indicator Pills */}
       {availableIndicators.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {availableIndicators.map((ind) => (
-            <button
-              key={ind}
-              onClick={() => toggleIndicator(ind)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${activeIndicators.has(ind) ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
-            >
+            <button key={ind} onClick={() => toggleIndicator(ind)}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${activeIndicators.has(ind) ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
               {ind}
             </button>
           ))}
@@ -208,90 +196,48 @@ const StockDetail = () => {
 
       {/* Chart */}
       <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        <ResponsiveContainer width="100%" height={320}>
-          <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(152,28%,40%)" stopOpacity={0.12} />
-                <stop offset="100%" stopColor="hsl(152,28%,40%)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            {chartMode !== "Simple" && <CartesianGrid strokeDasharray="3 3" stroke="hsl(40,15%,89%)" strokeOpacity={0.5} />}
-            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(220,8%,50%)" }} interval={9} />
-            <YAxis yAxisId="price" hide domain={["dataMin - 5", "dataMax + 5"]} />
-            <YAxis yAxisId="volume" hide orientation="right" domain={[0, "dataMax + 50"]} />
-            <Tooltip content={<CustomTooltip />} />
-            {activeIndicators.has("Events") && eventMarkers.map((e) => (
-              <ReferenceLine key={e.day} x={`Day ${e.day}`} yAxisId="price" stroke="hsl(220,8%,70%)" strokeDasharray="2 4" label={{ value: e.label, position: "top", fontSize: 9, fill: "hsl(220,8%,50%)" }} />
-            ))}
-            {activeIndicators.has("Volume") && <Bar yAxisId="volume" dataKey="volume" fill="hsl(220,8%,85%)" opacity={0.4} />}
-            {chartMode !== "Candle" && <Area yAxisId="price" type="monotone" dataKey="price" stroke="hsl(152,28%,40%)" strokeWidth={chartMode === "Simple" ? 2 : 1.5} fill="url(#priceGrad)" />}
-            {chartMode === "Candle" && <Bar yAxisId="price" dataKey="candleBody" shape={<CandleShape />} />}
-            {activeIndicators.has("SMA20") && <Line yAxisId="price" type="monotone" dataKey="sma20" stroke="hsl(215,60%,55%)" strokeWidth={1} dot={false} />}
-            {activeIndicators.has("SMA50") && <Line yAxisId="price" type="monotone" dataKey="sma50" stroke="hsl(280,40%,55%)" strokeWidth={1} dot={false} />}
-            {activeIndicators.has("EMA12") && <Line yAxisId="price" type="monotone" dataKey="ema12" stroke="hsl(30,70%,50%)" strokeWidth={1} dot={false} />}
-            {activeIndicators.has("EMA26") && <Line yAxisId="price" type="monotone" dataKey="ema26" stroke="hsl(350,50%,50%)" strokeWidth={1} dot={false} />}
-          </ComposedChart>
-        </ResponsiveContainer>
-
-        {chartMode === "Advanced" && (activeIndicators.has("RSI14") || activeIndicators.has("MACD")) && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {activeIndicators.has("RSI14") && (
-              <div className="rounded-lg bg-secondary/50 p-2">
-                <p className="text-[10px] font-medium text-muted-foreground">RSI (14)</p>
-                <ResponsiveContainer width="100%" height={60}>
-                  <ComposedChart data={chartData}>
-                    <Line type="monotone" dataKey="rsi" stroke="hsl(215,60%,55%)" strokeWidth={1} dot={false} />
-                    <ReferenceLine y={70} stroke="hsl(0,32%,52%)" strokeDasharray="2 2" />
-                    <ReferenceLine y={30} stroke="hsl(152,28%,40%)" strokeDasharray="2 2" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-            {activeIndicators.has("MACD") && (
-              <div className="rounded-lg bg-secondary/50 p-2">
-                <p className="text-[10px] font-medium text-muted-foreground">MACD</p>
-                <ResponsiveContainer width="100%" height={60}>
-                  <ComposedChart data={chartData}>
-                    <Bar dataKey="macd" fill="hsl(220,8%,75%)" />
-                    <ReferenceLine y={0} stroke="hsl(220,8%,60%)" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={isPositive ? "hsl(152,28%,40%)" : "hsl(0,32%,52%)"} stopOpacity={0.12} />
+                  <stop offset="100%" stopColor={isPositive ? "hsl(152,28%,40%)" : "hsl(0,32%,52%)"} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              {chartMode !== "Simple" && <CartesianGrid strokeDasharray="3 3" stroke="hsl(40,15%,89%)" strokeOpacity={0.5} />}
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(220,8%,50%)" }} interval={Math.floor(chartData.length / 6)} />
+              <YAxis yAxisId="price" hide domain={["dataMin - 5", "dataMax + 5"]} />
+              <YAxis yAxisId="volume" hide orientation="right" domain={[0, "dataMax + 50"]} />
+              <Tooltip content={<CustomTooltip />} />
+              {activeIndicators.has("Volume") && <Bar yAxisId="volume" dataKey="volume" fill="hsl(220,8%,85%)" opacity={0.4} />}
+              {chartMode !== "Candle" && <Area yAxisId="price" type="monotone" dataKey="price" stroke={isPositive ? "hsl(152,28%,40%)" : "hsl(0,32%,52%)"} strokeWidth={chartMode === "Simple" ? 2 : 1.5} fill="url(#priceGrad)" />}
+              {chartMode === "Candle" && <Bar yAxisId="price" dataKey="candleBody" shape={<CandleShape />} />}
+              {activeIndicators.has("SMA20") && <Line yAxisId="price" type="monotone" dataKey="sma20" stroke="hsl(215,60%,55%)" strokeWidth={1} dot={false} />}
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">No chart data available</div>
         )}
       </motion.div>
 
-      {/* What If Button */}
-      <motion.button
-        onClick={() => setShowWhatIf(!showWhatIf)}
+      {/* What If */}
+      <motion.button onClick={() => setShowWhatIf(!showWhatIf)}
         className="glass-card mt-4 flex w-full items-center justify-center gap-2 p-3 text-sm font-medium transition-all hover:shadow-md"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}
-      >
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}>
         <Zap size={14} className="text-muted-foreground" />
         What If I…
       </motion.button>
 
-      {/* What If Panel */}
       <AnimatePresence>
         {showWhatIf && (
-          <motion.div
-            className="glass-card mt-2 p-4"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div className="glass-card mt-2 p-4" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-xs text-muted-foreground">Shares:</span>
               <div className="flex items-center gap-2">
                 {[1, 5, 10, 25].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setShares(n)}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${shares === n ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
-                  >
+                  <button key={n} onClick={() => setShares(n)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${shares === n ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
                     {n}
                   </button>
                 ))}
@@ -307,17 +253,17 @@ const StockDetail = () => {
         )}
       </AnimatePresence>
 
-      {/* Key Stats */}
+      {/* Key Stats - Real Data */}
       <motion.div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
         {[
-          { label: "Open", value: `$${(currentPrice - 1.2).toFixed(2)}` },
-          { label: "High", value: `$${(currentPrice + 2.3).toFixed(2)}` },
-          { label: "Low", value: `$${(currentPrice - 3.1).toFixed(2)}` },
-          { label: "Mkt Cap", value: "2.87T" },
-          { label: "P/E", value: "31.2" },
-          { label: "52W High", value: `$${(currentPrice + 40).toFixed(2)}` },
-          { label: "52W Low", value: `$${(currentPrice - 60).toFixed(2)}` },
-          { label: "Avg Vol", value: "52.4M" },
+          { label: "Open", value: quote ? `$${quote.open.toFixed(2)}` : "—" },
+          { label: "High", value: quote ? `$${quote.dayHigh.toFixed(2)}` : "—" },
+          { label: "Low", value: quote ? `$${quote.dayLow.toFixed(2)}` : "—" },
+          { label: "Mkt Cap", value: quote?.marketCap || "—" },
+          { label: "P/E", value: quote?.peRatio || "—" },
+          { label: "52W High", value: quote ? `$${quote.fiftyTwoWeekHigh.toFixed(2)}` : "—" },
+          { label: "52W Low", value: quote ? `$${quote.fiftyTwoWeekLow.toFixed(2)}` : "—" },
+          { label: "Avg Vol", value: quote?.avgVolume || "—" },
         ].map((s) => (
           <div key={s.label} className="glass-card px-3 py-2.5">
             <p className="text-[10px] text-muted-foreground">{s.label}</p>
@@ -333,7 +279,14 @@ const StockDetail = () => {
           <span>Maven Analysis</span>
         </div>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          Based on your tech concentration ({symbol} would increase it to {newTechPct}%) and average 3-week hold time, this stock aligns with your short-term momentum exposure pattern. RSI shows moderate levels suggesting neutral entry conditions.
+          {quote ? (
+            <>
+              {quote.name} ({symbol}) is trading at ${quote.price.toFixed(2)}, {isPositive ? "up" : "down"} {Math.abs(quote.changePercent).toFixed(2)}% today.
+              {quote.peRatio !== "N/A" && ` P/E ratio of ${quote.peRatio}.`}
+              {quote.beta && ` Beta of ${quote.beta.toFixed(2)} suggests ${quote.beta > 1 ? "higher" : "lower"} volatility than the market.`}
+              {" "}Adding {shares} share{shares > 1 ? "s" : ""} would shift your tech allocation to {newTechPct}%.
+            </>
+          ) : "Loading analysis..."}
         </p>
       </motion.div>
 
@@ -341,10 +294,8 @@ const StockDetail = () => {
       <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Simulated Order</h3>
-          <button
-            onClick={() => setCoachMode(!coachMode)}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${coachMode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
-          >
+          <button onClick={() => setCoachMode(!coachMode)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${coachMode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
             <Sparkles size={10} />
             Coach {coachMode ? "ON" : "OFF"}
           </button>
@@ -364,35 +315,19 @@ const StockDetail = () => {
           <input type="number" value={shares} onChange={(e) => setShares(Number(e.target.value) || 1)} className="mt-0.5 w-full bg-transparent text-sm font-medium outline-none" />
         </div>
 
-        {/* Coach Warning */}
         <AnimatePresence>
           {showCoachWarning && (
-            <motion.div
-              className="mt-3 rounded-xl bg-loss/5 border border-loss/10 p-3"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-            >
+            <motion.div className="mt-3 rounded-xl bg-loss/5 border border-loss/10 p-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
               <div className="flex items-center gap-2 text-xs font-medium text-loss">
                 <Sparkles size={12} />
                 Maven Coach
               </div>
               <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                This increases your tech exposure to {newTechPct}%. Your portfolio health score would drop by {Math.abs(healthChange)} points. Are you comfortable with that?
+                This increases your tech exposure to {newTechPct}%. Your portfolio health score would drop by {Math.abs(healthChange)} points.
               </p>
               <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => setShowCoachWarning(false)}
-                  className="rounded-lg bg-foreground px-3 py-1.5 text-[11px] font-medium text-primary-foreground"
-                >
-                  Proceed Anyway
-                </button>
-                <button
-                  onClick={() => setShowCoachWarning(false)}
-                  className="rounded-lg glass-card px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
-                >
-                  Cancel
-                </button>
+                <button onClick={() => setShowCoachWarning(false)} className="rounded-lg bg-foreground px-3 py-1.5 text-[11px] font-medium text-primary-foreground">Proceed Anyway</button>
+                <button onClick={() => setShowCoachWarning(false)} className="rounded-lg glass-card px-3 py-1.5 text-[11px] font-medium text-muted-foreground">Cancel</button>
               </div>
             </motion.div>
           )}
