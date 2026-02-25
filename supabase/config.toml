@@ -1,1 +1,13 @@
 project_id = "ebybportigybqlwjuhzj"
+
+[functions.stock-search]
+verify_jwt = false
+
+[functions.stock-quote]
+verify_jwt = false
+
+[functions.chat]
+verify_jwt = false
+
+[functions.trending-stocks]
+verify_jwt = false
