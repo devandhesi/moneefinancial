@@ -6,12 +6,14 @@ import { streamChat } from "@/lib/chat-stream";
 import { toast } from "sonner";
 
 const suggestions = [
-  "How diversified is my portfolio?",
-  "Should I rebalance my tech exposure?",
-  "Explain my risk profile",
-  "What's the impact of adding bonds?",
   "Analyze NVDA for me",
-  "What are the best ETFs for beginners?",
+  "Should I buy AAPL right now?",
+  "How diversified is my portfolio?",
+  "Compare MSFT vs GOOGL",
+  "Explain dollar-cost averaging",
+  "What's the risk of adding more tech?",
+  "Break down my portfolio health",
+  "What are good defensive stocks?",
 ];
 
 interface Message {
@@ -26,7 +28,7 @@ const ChatPage = () => {
     {
       role: "assistant",
       content:
-        "Hello! I'm **Maven**, your portfolio intelligence assistant. Ask me about any stock, market trend, trading strategy, risk analysis, or portfolio optimization. I can analyze any ticker, explain financial concepts, and help you think through trades.\n\n*Everything here is educational analysis only.*",
+        "Hey — I'm **Maven**. Ask me about any ticker, your portfolio, or a trade idea.\n\nI'll give you the price, what's moving it, how it fits your portfolio, and my take.\n\n*Educational analysis only.*",
     },
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -103,7 +105,7 @@ const ChatPage = () => {
             <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${msg.role === "user" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>
               {msg.role === "assistant" && <Sparkles size={12} className="mb-1 text-muted-foreground" />}
               {msg.role === "assistant" ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1 [&>ol]:mt-1">
+                <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1 [&>ol]:mt-1 [&>h2]:text-[13px] [&>h2]:font-bold [&>h2]:mt-3 [&>h2]:mb-1 [&>h2]:tracking-tight [&>hr]:my-2 [&>hr]:border-border/30">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               ) : (
