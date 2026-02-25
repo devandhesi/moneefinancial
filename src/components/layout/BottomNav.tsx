@@ -1,10 +1,10 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Search, TrendingUp, BookOpen, User } from "lucide-react";
+import { LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 const tabs = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/search", icon: Search, label: "Search" },
+  { path: "/chat", icon: MessageCircle, label: "Chat" },
   { path: "/invest", icon: TrendingUp, label: "Invest" },
   { path: "/learn", icon: BookOpen, label: "Learn" },
   { path: "/profile", icon: User, label: "Profile" },
@@ -14,7 +14,7 @@ const BottomNav = () => {
   const location = useLocation();
 
   return (
-    <nav className="glass-nav fixed bottom-0 left-0 right-0 z-50 px-2 pb-[env(safe-area-inset-bottom)]">
+    <nav className="glass-nav fixed bottom-0 left-0 right-0 z-50 px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="mx-auto flex max-w-lg items-center justify-around py-2">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
