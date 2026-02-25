@@ -12,7 +12,10 @@ import {
   Shield,
   Settings,
   Users,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "@/hooks/use-theme";
 
 const mainLinks = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -34,7 +37,7 @@ const secondaryLinks = [
 
 const DesktopSidebar = () => {
   const location = useLocation();
-
+  const { theme, toggleTheme } = useTheme();
   const linkClass = (path: string) => {
     const active = location.pathname === path;
     return `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
@@ -78,8 +81,15 @@ const DesktopSidebar = () => {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border/50 px-6 py-4">
-        <p className="text-[10px] text-muted-foreground">
+      <div className="border-t border-border/50 px-4 py-4 space-y-3">
+        <button
+          onClick={toggleTheme}
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+        </button>
+        <p className="px-4 text-[10px] text-muted-foreground">
           📄 Paper Trading Mode · Educational only
         </p>
       </div>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, ExternalLink, Shield, Link2 } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@/hooks/use-theme";
 
 interface Broker {
   id: string;
@@ -26,6 +27,7 @@ const brokers: Broker[] = [
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(new Set());
   const [connecting, setConnecting] = useState<string | null>(null);
 
@@ -52,6 +54,28 @@ const Settings = () => {
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage your connected accounts</p>
         </div>
+      </motion.div>
+
+      {/* Appearance */}
+      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Appearance</h2>
+        <button
+          onClick={toggleTheme}
+          className="glass-card flex w-full items-center justify-between p-4 transition-shadow hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+              {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium">Theme</p>
+              <p className="text-[11px] text-muted-foreground">{theme === "dark" ? "Dark mode" : "Light mode"}</p>
+            </div>
+          </div>
+          <div className={`relative h-6 w-11 rounded-full transition-colors ${theme === "dark" ? "bg-foreground" : "bg-border"}`}>
+            <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform ${theme === "dark" ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+          </div>
+        </button>
       </motion.div>
 
       {/* Broker Connections */}
