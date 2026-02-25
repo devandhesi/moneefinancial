@@ -15,11 +15,13 @@ const projData = generateProjection();
 const finalValue = projData[projData.length - 1].value;
 
 const ProjectionWidget = () => (
-  <motion.div className="glass-card p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-    <h3 className="text-xs font-medium text-muted-foreground">Long-Term Projection</h3>
-    <p className="mt-1 text-[11px] text-muted-foreground">If you invest $500/month for 10 years</p>
-    <p className="mt-1 text-lg font-semibold">${finalValue.toLocaleString()}</p>
-    <ResponsiveContainer width="100%" height={80}>
+  <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+    <div className="mb-3">
+      <h3 className="text-sm font-medium">Long-Term Projection</h3>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">If you invest $500/month for 10 years</p>
+      <p className="mt-1.5 text-xl font-semibold">${finalValue.toLocaleString()}</p>
+    </div>
+    <ResponsiveContainer width="100%" height={100}>
       <AreaChart data={projData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
