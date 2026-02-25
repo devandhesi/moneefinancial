@@ -17,33 +17,27 @@ serve(async (req) => {
       });
     }
 
-    // Fetch quote + chart data in parallel
-    const [quoteRes, chartRes] = await Promise.all([
-      fetch(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price,summaryDetail,defaultKeyStatistics`, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-      }),
-      fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=3mo`, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-      }),
-    ]);
+    const chartRes = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=3mo&includePrePost=false`,
+      { headers: { "User-Agent": "Mozilla/5.0" } }
+    );
 
-    if (!quoteRes.ok || !chartRes.ok) {
-      throw new Error(`Yahoo Finance API failed: quote=${quoteRes.status}, chart=${chartRes.status}`);
+    if (!chartRes.ok) {
+      const txt = await chartRes.text();
+      console.error("Chart API error:", chartRes.status, txt);
+      throw new Error(`Chart API failed: ${chartRes.status}`);
     }
 
-    const [quoteData, chartData] = await Promise.all([quoteRes.json(), chartRes.json()]);
-
-    const price = quoteData?.quoteSummary?.result?.[0]?.price;
-    const summary = quoteData?.quoteSummary?.result?.[0]?.summaryDetail;
-    const keyStats = quoteData?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+    const chartData = await chartRes.json();
     const chart = chartData?.chart?.result?.[0];
-
+    const meta = chart?.meta || {};
     const timestamps = chart?.timestamp || [];
-    const closes = chart?.indicators?.quote?.[0]?.close || [];
-    const opens = chart?.indicators?.quote?.[0]?.open || [];
-    const highs = chart?.indicators?.quote?.[0]?.high || [];
-    const lows = chart?.indicators?.quote?.[0]?.low || [];
-    const volumes = chart?.indicators?.quote?.[0]?.volume || [];
+    const quote = chart?.indicators?.quote?.[0] || {};
+    const closes = quote.close || [];
+    const opens = quote.open || [];
+    const highs = quote.high || [];
+    const lows = quote.low || [];
+    const volumes = quote.volume || [];
 
     const chartPoints = timestamps.map((ts: number, i: number) => ({
       date: new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
@@ -55,24 +49,42 @@ serve(async (req) => {
       volume: volumes[i] != null ? Math.round(volumes[i] / 1_000_000) : 0,
     })).filter((p: any) => p.price !== null);
 
+    // Extract price info from meta + last data points
+    const lastClose = closes[closes.length - 1] ?? meta.regularMarketPrice ?? 0;
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? (closes.length > 1 ? closes[closes.length - 2] : lastClose);
+    const change = lastClose - prevClose;
+    const changePercent = prevClose ? (change / prevClose) * 100 : 0;
+
+    // Compute stats from chart data
+    const validHighs = highs.filter((v: number | null) => v != null);
+    const validLows = lows.filter((v: number | null) => v != null);
+    const dayHigh = validHighs.length ? validHighs[validHighs.length - 1] : lastClose;
+    const dayLow = validLows.length ? validLows[validLows.length - 1] : lastClose;
+    const dayOpen = opens.length ? opens[opens.length - 1] ?? lastClose : lastClose;
+    const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh ?? (validHighs.length ? Math.max(...validHighs) : lastClose);
+    const fiftyTwoWeekLow = meta.fiftyTwoWeekLow ?? (validLows.length ? Math.min(...validLows) : lastClose);
+
+    const totalVolume = volumes.reduce((sum: number, v: number | null) => sum + (v || 0), 0);
+    const avgVolume = volumes.length ? totalVolume / volumes.length : 0;
+
     const result = {
-      symbol: price?.symbol || symbol,
-      name: price?.shortName || price?.longName || symbol,
-      price: price?.regularMarketPrice?.raw ?? 0,
-      previousClose: price?.regularMarketPreviousClose?.raw ?? 0,
-      change: price?.regularMarketChange?.raw ?? 0,
-      changePercent: price?.regularMarketChangePercent?.raw ?? 0,
-      open: price?.regularMarketOpen?.raw ?? 0,
-      dayHigh: price?.regularMarketDayHigh?.raw ?? 0,
-      dayLow: price?.regularMarketDayLow?.raw ?? 0,
-      volume: price?.regularMarketVolume?.raw ?? 0,
-      marketCap: price?.marketCap?.fmt ?? "N/A",
-      peRatio: summary?.trailingPE?.fmt ?? keyStats?.trailingPE?.fmt ?? "N/A",
-      fiftyTwoWeekHigh: summary?.fiftyTwoWeekHigh?.raw ?? 0,
-      fiftyTwoWeekLow: summary?.fiftyTwoWeekLow?.raw ?? 0,
-      avgVolume: summary?.averageVolume?.fmt ?? "N/A",
-      dividendYield: summary?.dividendYield?.fmt ?? "N/A",
-      beta: summary?.beta?.raw ?? keyStats?.beta?.raw ?? null,
+      symbol: meta.symbol || symbol,
+      name: meta.shortName || meta.longName || symbol,
+      price: +lastClose.toFixed(2),
+      previousClose: +prevClose.toFixed(2),
+      change: +change.toFixed(2),
+      changePercent: +changePercent.toFixed(2),
+      open: dayOpen != null ? +dayOpen.toFixed(2) : 0,
+      dayHigh: dayHigh != null ? +dayHigh.toFixed(2) : 0,
+      dayLow: dayLow != null ? +dayLow.toFixed(2) : 0,
+      volume: volumes[volumes.length - 1] ?? 0,
+      marketCap: "N/A",
+      peRatio: "N/A",
+      fiftyTwoWeekHigh: +fiftyTwoWeekHigh.toFixed(2),
+      fiftyTwoWeekLow: +fiftyTwoWeekLow.toFixed(2),
+      avgVolume: formatLargeNumber(Math.round(avgVolume)),
+      dividendYield: "N/A",
+      beta: null,
       chart: chartPoints,
     };
 
@@ -87,3 +99,11 @@ serve(async (req) => {
     });
   }
 });
+
+function formatLargeNumber(n: number): string {
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + "T";
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return n.toString();
+}
