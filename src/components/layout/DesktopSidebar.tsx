@@ -78,7 +78,7 @@ const DesktopSidebar = () => {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border/50 bg-background lg:flex lg:flex-col">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/20 bg-white/10 backdrop-blur-2xl lg:flex lg:flex-col">
       <div className="flex h-16 items-center px-6">
         <span className="text-xl font-semibold tracking-tight">monee</span>
         <span className="ml-2 text-xs text-muted-foreground">Money, made easy.</span>
