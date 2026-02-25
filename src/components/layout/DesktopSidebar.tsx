@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   MessageCircle,
@@ -14,6 +15,10 @@ import {
   Users,
   Moon,
   Sun,
+  Star,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -37,7 +42,31 @@ const secondaryLinks = [
 
 const DesktopSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [watchlistOpen, setWatchlistOpen] = useState(true);
+
+  // Sync watchlist from localStorage
+  useEffect(() => {
+    const load = () => {
+      try {
+        setWatchlist(JSON.parse(localStorage.getItem("monee-watchlist") || "[]"));
+      } catch { setWatchlist([]); }
+    };
+    load();
+    // Listen for storage changes from other components
+    window.addEventListener("storage", load);
+    const interval = setInterval(load, 2000); // poll for same-tab updates
+    return () => { window.removeEventListener("storage", load); clearInterval(interval); };
+  }, []);
+
+  const removeFromWatchlist = (symbol: string) => {
+    const updated = watchlist.filter(s => s !== symbol);
+    localStorage.setItem("monee-watchlist", JSON.stringify(updated));
+    setWatchlist(updated);
+  };
+
   const linkClass = (path: string) => {
     const active = location.pathname === path;
     return `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
@@ -56,7 +85,7 @@ const DesktopSidebar = () => {
       </div>
 
       {/* Main Nav */}
-      <nav className="flex-1 space-y-1 px-4 pt-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 pt-2">
         {mainLinks.map((link) => {
           const Icon = link.icon;
           return (
@@ -78,6 +107,51 @@ const DesktopSidebar = () => {
             </NavLink>
           );
         })}
+
+        {/* Watchlist */}
+        <div className="my-4 h-px bg-border/50" />
+        <button
+          onClick={() => setWatchlistOpen(!watchlistOpen)}
+          className="flex w-full items-center justify-between px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+        >
+          <span className="flex items-center gap-2">
+            <Star size={14} />
+            Watchlist
+            {watchlist.length > 0 && (
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                {watchlist.length}
+              </span>
+            )}
+          </span>
+          {watchlistOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
+        {watchlistOpen && (
+          <div className="space-y-0.5">
+            {watchlist.length === 0 ? (
+              <p className="px-4 py-2 text-[11px] text-muted-foreground">
+                No stocks saved yet. Star a stock to add it here.
+              </p>
+            ) : (
+              watchlist.map((symbol) => (
+                <div
+                  key={symbol}
+                  className="group flex items-center justify-between rounded-xl px-4 py-2 text-sm transition-all hover:bg-secondary cursor-pointer"
+                  onClick={() => navigate(`/invest/${symbol}`)}
+                >
+                  <span className="font-medium">{symbol}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeFromWatchlist(symbol); }}
+                    className="rounded-lg p-1 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                    title="Remove"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Footer */}
