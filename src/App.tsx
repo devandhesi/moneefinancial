@@ -20,6 +20,7 @@ import Orders from "./pages/Orders";
 import Calendar from "./pages/Calendar";
 import SimulationLab from "./pages/SimulationLab";
 import RiskMap from "./pages/RiskMap";
+import Watchlist from "./pages/Watchlist";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/simulation" element={<SimulationLab />} />
               <Route path="/risk" element={<RiskMap />} />
+              <Route path="/watchlist" element={<Watchlist />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
