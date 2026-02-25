@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2 } from "lucide-react";
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2, Star, ChevronDown, ChevronUp } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useNavigate } from "react-router-dom";
 import PendingTradesWidget from "@/components/widgets/PendingTradesWidget";
@@ -20,7 +20,27 @@ const Invest = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [trendingStocks, setTrendingStocks] = useState<TrendingStock[]>([]);
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [watchlistOpen, setWatchlistOpen] = useState(true);
   const navigate = useNavigate();
+
+  // Load watchlist
+  useEffect(() => {
+    const load = () => {
+      try { setWatchlist(JSON.parse(localStorage.getItem("monee-watchlist") || "[]")); } catch { setWatchlist([]); }
+    };
+    load();
+    const handleStorage = (e: StorageEvent) => { if (e.key === "monee-watchlist") load(); };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const removeFromWatchlist = (symbol: string) => {
+    const updated = watchlist.filter(s => s !== symbol);
+    localStorage.setItem("monee-watchlist", JSON.stringify(updated));
+    setWatchlist(updated);
+    toast.success(`${symbol} removed from watchlist`);
+  };
 
   // Load trending stocks on mount
   useEffect(() => {
@@ -123,10 +143,45 @@ const Invest = () => {
         )}
       </AnimatePresence>
 
+      {/* Watchlist */}
+      {!showSearchResults && watchlist.length > 0 && (
+        <motion.div className="mt-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+          <button onClick={() => setWatchlistOpen(!watchlistOpen)} className="flex w-full items-center justify-between text-sm font-medium">
+            <span className="flex items-center gap-2">
+              <Star size={14} className="text-muted-foreground" />
+              Watchlist
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">{watchlist.length}</span>
+            </span>
+            {watchlistOpen ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+          </button>
+          <AnimatePresence>
+            {watchlistOpen && (
+              <motion.div className="mt-2 flex gap-2 overflow-x-auto pb-1" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+                {watchlist.map((symbol) => (
+                  <button
+                    key={symbol}
+                    onClick={() => navigate(`/invest/${symbol}`)}
+                    className="glass-card group flex shrink-0 items-center gap-2 px-3 py-2 transition-shadow hover:shadow-md"
+                  >
+                    <Star size={12} className="fill-foreground text-foreground" />
+                    <span className="text-xs font-semibold">{symbol}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeFromWatchlist(symbol); }}
+                      className="ml-1 rounded-md p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                    >
+                      <X size={10} />
+                    </button>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
+
       {/* Rest of page hidden during search */}
       {!showSearchResults && (
         <>
-          {/* Suggested For You */}
           <motion.div className="mt-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <Sparkles size={14} className="text-muted-foreground" />
