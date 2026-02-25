@@ -14,7 +14,7 @@ import {
 
 const mainLinks = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/chat", icon: MessageCircle, label: "Chat" },
+  { path: "/chat", icon: MessageCircle, label: "Maven" },
   { path: "/invest", icon: TrendingUp, label: "Invest" },
   { path: "/learn", icon: BookOpen, label: "Learn" },
 ];
