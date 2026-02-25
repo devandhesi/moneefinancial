@@ -576,11 +576,12 @@ const LearnCourse = () => {
     );
   }
 
-  const lesson = course.lessons[activeLesson];
+  const safeActiveLesson = Math.min(activeLesson, course.lessons.length - 1);
+  const lesson = course.lessons[safeActiveLesson];
   const completedCount = course.lessons.filter((l) => l.completed).length;
   const currentCourseIdx = courseKeys.indexOf(courseId!);
-  const hasQuiz = !!lesson.quiz;
-  const quizDone = quizPassed.has(activeLesson) || lesson.completed;
+  const hasQuiz = !!lesson?.quiz;
+  const quizDone = quizPassed.has(safeActiveLesson) || !!lesson?.completed;
   const canProceed = !hasQuiz || quizDone;
 
   const handleQuizPass = () => {
@@ -698,9 +699,9 @@ const LearnCourse = () => {
                     <p className="text-[11px] text-muted-foreground">You've demonstrated understanding of this concept.</p>
                   </div>
                 </motion.div>
-              ) : (
-                <QuizCard quiz={lesson.quiz!} onPass={handleQuizPass} />
-              )}
+              ) : lesson?.quiz ? (
+                <QuizCard quiz={lesson.quiz} onPass={handleQuizPass} />
+              ) : null}
             </div>
           )}
 
