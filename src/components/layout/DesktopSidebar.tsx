@@ -19,35 +19,37 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
+import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 
-const mainLinks = [
-  { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/chat", icon: MessageCircle, label: "Maven" },
-  { path: "/invest", icon: TrendingUp, label: "Invest" },
-  { path: "/learn", icon: BookOpen, label: "Learn" },
-];
-
-const secondaryLinks = [
-  { path: "/transactions", icon: Receipt, label: "Transactions" },
-  { path: "/orders", icon: ClipboardList, label: "Orders" },
-  { path: "/calendar", icon: CalendarDays, label: "Calendar" },
-  { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
-  { path: "/risk", icon: Shield, label: "Risk Map" },
-  { path: "/social", icon: Users, label: "Social" },
-  { path: "/profile", icon: User, label: "Profile" },
-  { path: "/settings", icon: Settings, label: "Settings" },
-];
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  MessageCircle,
+  TrendingUp,
+  BookOpen,
+  User,
+  Receipt,
+  ClipboardList,
+  CalendarDays,
+  FlaskConical,
+  Shield,
+  Settings,
+  Users,
+};
 
 const DesktopSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { links } = useSidebarConfig();
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [watchlistOpen, setWatchlistOpen] = useState(true);
 
-  // Sync watchlist from localStorage
+  const mainLinks = links.filter(l => l.section === "main" && l.visible);
+  const secondaryLinks = links.filter(l => l.section === "secondary" && l.visible);
+
   useEffect(() => {
     const load = () => {
       try {
@@ -55,9 +57,8 @@ const DesktopSidebar = () => {
       } catch { setWatchlist([]); }
     };
     load();
-    // Listen for storage changes from other components
     window.addEventListener("storage", load);
-    const interval = setInterval(load, 2000); // poll for same-tab updates
+    const interval = setInterval(load, 2000);
     return () => { window.removeEventListener("storage", load); clearInterval(interval); };
   }, []);
 
@@ -78,16 +79,14 @@ const DesktopSidebar = () => {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border/50 bg-background lg:flex lg:flex-col">
-      {/* Logo */}
       <div className="flex h-16 items-center px-6">
         <span className="text-xl font-semibold tracking-tight">monee</span>
         <span className="ml-2 text-xs text-muted-foreground">Money, made easy.</span>
       </div>
 
-      {/* Main Nav */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 pt-2">
         {mainLinks.map((link) => {
-          const Icon = link.icon;
+          const Icon = iconMap[link.icon] || LayoutDashboard;
           return (
             <NavLink key={link.path} to={link.path} className={linkClass(link.path)}>
               <Icon size={18} />
@@ -96,10 +95,10 @@ const DesktopSidebar = () => {
           );
         })}
 
-        <div className="my-4 h-px bg-border/50" />
+        {secondaryLinks.length > 0 && <div className="my-4 h-px bg-border/50" />}
 
         {secondaryLinks.map((link) => {
-          const Icon = link.icon;
+          const Icon = iconMap[link.icon] || Settings;
           return (
             <NavLink key={link.path} to={link.path} className={linkClass(link.path)}>
               <Icon size={18} />
@@ -154,7 +153,6 @@ const DesktopSidebar = () => {
         )}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-border/50 px-4 py-4 space-y-3">
         <button
           onClick={toggleTheme}
