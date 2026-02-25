@@ -33,6 +33,7 @@ const Settings = () => {
   const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
   const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(new Set());
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [brokersOpen, setBrokersOpen] = useState(false);
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
@@ -158,60 +159,87 @@ const Settings = () => {
       </motion.div>
 
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="flex items-center gap-2 mb-4">
-          <Link2 size={16} className="text-muted-foreground" />
-          <h2 className="text-sm font-medium">Connect Your Broker</h2>
-        </div>
-        <p className="text-xs text-muted-foreground mb-4">Link your brokerage account to sync your real portfolio data. All connections use bank-level encryption.</p>
+        <button
+          onClick={() => setBrokersOpen(!brokersOpen)}
+          className="glass-card flex w-full items-center justify-between p-4 transition-shadow hover:shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+              <Link2 size={18} />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium">Connect Your Broker</p>
+              <p className="text-[11px] text-muted-foreground">
+                {connectedBrokers.size > 0
+                  ? `${connectedBrokers.size} connected`
+                  : "Link your brokerage account"}
+              </p>
+            </div>
+          </div>
+          <ChevronDown
+            size={16}
+            className={`text-muted-foreground transition-transform ${brokersOpen ? "rotate-180" : ""}`}
+          />
+        </button>
 
-        <div className="space-y-2">
-          {brokers.map((broker, i) => {
-            const isConnected = connectedBrokers.has(broker.id);
-            const isConnecting = connecting === broker.id;
-            return (
-              <motion.div
-                key={broker.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 * i + 0.15 }}
-                className="glass-card flex items-center justify-between p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary overflow-hidden">
-                    <img
-                      src={broker.logo}
-                      alt={broker.name}
-                      className="h-6 w-6 object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                        (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-xs font-bold text-muted-foreground">${broker.name.slice(0, 2).toUpperCase()}</span>`;
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{broker.name}</p>
-                    {isConnected && (
-                      <p className="text-[11px] text-gain flex items-center gap-1">
-                        <Check size={10} /> Connected
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleConnect(broker.id)}
-                  disabled={isConnecting}
-                  className={`rounded-xl px-4 py-2 text-xs font-medium transition-all active:scale-[0.97] ${
-                    isConnected
-                      ? "glass-card text-muted-foreground"
-                      : "bg-foreground text-primary-foreground"
-                  } ${isConnecting ? "opacity-50" : ""}`}
-                >
-                  {isConnecting ? "Connecting..." : isConnected ? "Disconnect" : "Connect"}
-                </button>
-              </motion.div>
-            );
-          })}
-        </div>
+        <AnimatePresence>
+          {brokersOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
+              <p className="text-xs text-muted-foreground mt-3 mb-3">All connections use bank-level encryption.</p>
+              <div className="space-y-1.5">
+                {brokers.map((broker) => {
+                  const isConnected = connectedBrokers.has(broker.id);
+                  const isConnecting = connecting === broker.id;
+                  return (
+                    <div
+                      key={broker.id}
+                      className="glass-card flex items-center justify-between px-4 py-2.5"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary overflow-hidden">
+                          <img
+                            src={broker.logo}
+                            alt={broker.name}
+                            className="h-5 w-5 object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                              (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[10px] font-bold text-muted-foreground">${broker.name.slice(0, 2).toUpperCase()}</span>`;
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{broker.name}</p>
+                          {isConnected && (
+                            <span className="text-[10px] text-gain flex items-center gap-0.5">
+                              <Check size={10} /> Connected
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleConnect(broker.id)}
+                        disabled={isConnecting}
+                        className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all active:scale-[0.97] ${
+                          isConnected
+                            ? "glass-card text-muted-foreground"
+                            : "bg-foreground text-primary-foreground"
+                        } ${isConnecting ? "opacity-50" : ""}`}
+                      >
+                        {isConnecting ? "..." : isConnected ? "Disconnect" : "Connect"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Security Note */}
