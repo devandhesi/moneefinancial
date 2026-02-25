@@ -12,6 +12,7 @@ import Learn from "./pages/Learn";
 import LearnCourse from "./pages/LearnCourse";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import Social from "./pages/Social";
 import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
 import Calendar from "./pages/Calendar";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/learn/:courseId" element={<LearnCourse />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/social" element={<Social />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/calendar" element={<Calendar />} />
