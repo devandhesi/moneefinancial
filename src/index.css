@@ -60,50 +60,50 @@
 
   .dark {
     --background: 228 18% 10%;
-    --foreground: 40 20% 92%;
+    --foreground: 40 20% 96%;
 
     --card: 228 16% 13%;
-    --card-foreground: 40 20% 92%;
+    --card-foreground: 40 20% 96%;
 
     --popover: 228 16% 13%;
-    --popover-foreground: 40 20% 92%;
+    --popover-foreground: 40 20% 96%;
 
-    --primary: 40 20% 92%;
+    --primary: 40 20% 96%;
     --primary-foreground: 228 18% 10%;
 
     --secondary: 228 14% 16%;
-    --secondary-foreground: 40 15% 85%;
+    --secondary-foreground: 40 15% 90%;
 
     --muted: 228 12% 18%;
-    --muted-foreground: 220 10% 55%;
+    --muted-foreground: 220 10% 65%;
 
     --accent: 215 20% 28%;
-    --accent-foreground: 40 20% 92%;
+    --accent-foreground: 40 20% 96%;
 
     --destructive: 0 40% 50%;
-    --destructive-foreground: 40 20% 92%;
+    --destructive-foreground: 40 20% 96%;
 
     --border: 228 12% 20%;
     --input: 228 12% 18%;
-    --ring: 40 20% 92%;
+    --ring: 40 20% 96%;
 
-    --gain: 152 35% 45%;
-    --gain-foreground: 152 40% 80%;
-    --loss: 0 40% 55%;
-    --loss-foreground: 0 40% 80%;
+    --gain: 152 40% 55%;
+    --gain-foreground: 152 45% 85%;
+    --loss: 0 45% 60%;
+    --loss-foreground: 0 45% 85%;
 
     --glass-bg: rgba(30, 33, 45, 0.55);
     --glass-bg-strong: rgba(30, 33, 45, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.1);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     --glass-blur: 24px;
 
     --sidebar-background: 228 18% 9%;
-    --sidebar-foreground: 40 15% 80%;
-    --sidebar-primary: 40 20% 92%;
+    --sidebar-foreground: 40 15% 88%;
+    --sidebar-primary: 40 20% 96%;
     --sidebar-primary-foreground: 228 18% 10%;
     --sidebar-accent: 228 14% 16%;
-    --sidebar-accent-foreground: 40 15% 85%;
+    --sidebar-accent-foreground: 40 15% 90%;
     --sidebar-border: 228 12% 18%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
