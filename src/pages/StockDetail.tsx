@@ -12,10 +12,10 @@ const chartModes = ["Simple", "Advanced", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
 
 const simpleIndicators = ["Volume"] as const;
-const advancedIndicators = ["SMA20", "EMA12", "Volume"] as const;
+const advancedIndicators = ["SMA20", "EMA12", "BB", "RSI", "MACD", "Volume"] as const;
 const candleIndicators = ["SMA20", "EMA12", "Volume"] as const;
 
-type AnyIndicator = "SMA20" | "EMA12" | "Volume";
+type AnyIndicator = "SMA20" | "EMA12" | "Volume" | "BB" | "RSI" | "MACD";
 
 const timeRanges = ["1D", "1W", "1M", "3M", "6M", "1Y"] as const;
 type TimeRange = typeof timeRanges[number];
@@ -117,27 +117,64 @@ const StockDetail = () => {
 
   const chartData = useMemo(() => {
     if (!quote?.chart) return [];
+    const prices = quote.chart.map(p => p.price);
+
+    // Pre-compute EMA series (iterative, not O(n²))
+    const ema = (data: number[], period: number) => {
+      const k = 2 / (period + 1);
+      const result: number[] = [data[0]];
+      for (let i = 1; i < data.length; i++) {
+        result.push(data[i] * k + result[i - 1] * (1 - k));
+      }
+      return result;
+    };
+
+    const ema12Series = ema(prices, 12);
+    const ema26Series = ema(prices, 26);
+
+    // MACD line = EMA12 - EMA26
+    const macdLine = ema12Series.map((v, i) => v - ema26Series[i]);
+    const signalLine = ema(macdLine, 9);
+
+    // RSI (14-period)
+    const rsiSeries: (number | null)[] = [];
+    let avgGain = 0, avgLoss = 0;
+    for (let i = 0; i < prices.length; i++) {
+      if (i === 0) { rsiSeries.push(null); continue; }
+      const delta = prices[i] - prices[i - 1];
+      const gain = delta > 0 ? delta : 0;
+      const loss = delta < 0 ? -delta : 0;
+      if (i <= 14) {
+        avgGain += gain; avgLoss += loss;
+        if (i === 14) { avgGain /= 14; avgLoss /= 14; rsiSeries.push(100 - 100 / (1 + avgGain / (avgLoss || 0.001))); }
+        else { rsiSeries.push(null); }
+      } else {
+        avgGain = (avgGain * 13 + gain) / 14;
+        avgLoss = (avgLoss * 13 + loss) / 14;
+        rsiSeries.push(100 - 100 / (1 + avgGain / (avgLoss || 0.001)));
+      }
+    }
+
     return quote.chart.map((point, i, arr) => {
       const sma20Window = arr.slice(Math.max(0, i - 19), i + 1);
       const sma20 = sma20Window.reduce((sum, p) => sum + p.price, 0) / sma20Window.length;
 
-      // EMA12
-      let ema12 = point.price;
-      if (i === 0) {
-        ema12 = point.price;
-      } else {
-        const k = 2 / (12 + 1);
-        const prevEma = i > 0 ? arr.slice(0, i + 1).reduce((prev, cur, idx) => {
-          if (idx === 0) return cur.price;
-          return cur.price * k + prev * (1 - k);
-        }, arr[0].price) : point.price;
-        ema12 = prevEma;
-      }
+      // Bollinger Bands (20-period, 2 std dev)
+      const stdDev = Math.sqrt(sma20Window.reduce((sum, p) => sum + (p.price - sma20) ** 2, 0) / sma20Window.length);
+      const bbUpper = sma20 + 2 * stdDev;
+      const bbLower = sma20 - 2 * stdDev;
 
       return {
         ...point,
         sma20: +sma20.toFixed(4),
-        ema12: +ema12.toFixed(4),
+        ema12: +ema12Series[i].toFixed(4),
+        bbUpper: +bbUpper.toFixed(4),
+        bbLower: +bbLower.toFixed(4),
+        bbBand: [+bbLower.toFixed(4), +bbUpper.toFixed(4)],
+        rsi: rsiSeries[i] != null ? +rsiSeries[i]!.toFixed(2) : null,
+        macd: +macdLine[i].toFixed(4),
+        macdSignal: +signalLine[i].toFixed(4),
+        macdHist: +(macdLine[i] - signalLine[i]).toFixed(4),
         bullish: point.close >= point.open,
         candleBody: [Math.min(point.open, point.close), Math.max(point.open, point.close)],
       };
@@ -410,6 +447,7 @@ const StockDetail = () => {
           </div>
         )}
         {visibleData.length > 0 ? (
+          <>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart
               data={visibleData}
@@ -422,6 +460,10 @@ const StockDetail = () => {
                 <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"} stopOpacity={0.15} />
                   <stop offset="100%" stopColor={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="bbGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(270, 50%, 55%)" stopOpacity={0.06} />
+                  <stop offset="100%" stopColor="hsl(270, 50%, 55%)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               {chartMode !== "Simple" && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />}
@@ -449,6 +491,13 @@ const StockDetail = () => {
               <Tooltip content={<CustomTooltip />} />
               {activeIndicators.has("Volume") && (
                 <Bar yAxisId="volume" dataKey="volume" fill="hsl(220, 8%, 85%)" opacity={0.3} />
+              )}
+              {activeIndicators.has("BB") && (
+                <>
+                  <Area yAxisId="price" type="monotone" dataKey="bbBand" stroke="none" fill="url(#bbGrad)" dot={false} animationDuration={300} />
+                  <Line yAxisId="price" type="monotone" dataKey="bbUpper" stroke="hsl(270, 50%, 55%)" strokeWidth={0.8} dot={false} strokeDasharray="3 2" animationDuration={300} />
+                  <Line yAxisId="price" type="monotone" dataKey="bbLower" stroke="hsl(270, 50%, 55%)" strokeWidth={0.8} dot={false} strokeDasharray="3 2" animationDuration={300} />
+                </>
               )}
               {chartMode !== "Candle" && (
                 <Area
@@ -479,6 +528,38 @@ const StockDetail = () => {
               )}
             </ComposedChart>
           </ResponsiveContainer>
+
+          {/* RSI Sub-chart */}
+          {activeIndicators.has("RSI") && chartMode === "Advanced" && (
+            <div className="mt-3 border-t border-border/40 pt-2">
+              <p className="text-[10px] text-muted-foreground font-medium mb-1">RSI (14)</p>
+              <ResponsiveContainer width="100%" height={80}>
+                <ComposedChart data={visibleData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                  <YAxis domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fontSize: 8, fill: "hsl(220, 8%, 50%)" }} axisLine={false} tickLine={false} width={65} />
+                  <XAxis dataKey="date" hide />
+                  <ReferenceArea y1={30} y2={70} fill="hsl(var(--secondary))" fillOpacity={0.5} />
+                  <Line type="monotone" dataKey="rsi" stroke="hsl(280, 60%, 55%)" strokeWidth={1.2} dot={false} animationDuration={300} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* MACD Sub-chart */}
+          {activeIndicators.has("MACD") && chartMode === "Advanced" && (
+            <div className="mt-3 border-t border-border/40 pt-2">
+              <p className="text-[10px] text-muted-foreground font-medium mb-1">MACD (12, 26, 9)</p>
+              <ResponsiveContainer width="100%" height={80}>
+                <ComposedChart data={visibleData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                  <YAxis tick={{ fontSize: 8, fill: "hsl(220, 8%, 50%)" }} axisLine={false} tickLine={false} width={65} tickCount={3} />
+                  <XAxis dataKey="date" hide />
+                  <Bar dataKey="macdHist" fill="hsl(220, 8%, 70%)" opacity={0.5} />
+                  <Line type="monotone" dataKey="macd" stroke="hsl(215, 60%, 55%)" strokeWidth={1} dot={false} animationDuration={300} />
+                  <Line type="monotone" dataKey="macdSignal" stroke="hsl(0, 50%, 55%)" strokeWidth={1} dot={false} strokeDasharray="3 2" animationDuration={300} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
         ) : (
           <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">No chart data available</div>
         )}
@@ -497,6 +578,15 @@ const StockDetail = () => {
             )}
             {activeIndicators.has("EMA12") && (
               <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded border-t border-dashed" style={{ borderColor: "hsl(35, 80%, 50%)" }} /> EMA 12</span>
+            )}
+            {activeIndicators.has("BB") && (
+              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm border border-dashed" style={{ borderColor: "hsl(270, 50%, 55%)", background: "hsl(270, 50%, 55%, 0.1)" }} /> Bollinger</span>
+            )}
+            {activeIndicators.has("RSI") && (
+              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(280, 60%, 55%)" }} /> RSI 14</span>
+            )}
+            {activeIndicators.has("MACD") && (
+              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(215, 60%, 55%)" }} /> MACD</span>
             )}
           </div>
         )}
