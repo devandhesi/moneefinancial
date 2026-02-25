@@ -15,6 +15,7 @@ import {
   Moon,
   Sun,
   Star,
+  Globe,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
@@ -34,6 +35,7 @@ const iconMap: Record<string, LucideIcon> = {
   Settings,
   Users,
   Star,
+  Globe,
 };
 
 const DesktopSidebar = () => {
