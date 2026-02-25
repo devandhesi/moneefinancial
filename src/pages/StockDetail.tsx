@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap } from "lucide-react";
 import {
   ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, ReferenceLine,
 } from "recharts";
@@ -34,7 +34,6 @@ const generateChartData = () => {
       ema26: +ema26.toFixed(2),
       rsi: +(30 + Math.random() * 40).toFixed(1),
       macd: +((Math.random() - 0.5) * 4).toFixed(2),
-      // For candle rendering
       candleBody: [+Math.min(open, close).toFixed(2), +Math.max(open, close).toFixed(2)],
       candleWick: [+low.toFixed(2), +high.toFixed(2)],
       bullish: close >= open,
@@ -65,6 +64,10 @@ const StockDetail = () => {
   const [activeIndicators, setActiveIndicators] = useState<Set<AnyIndicator>>(new Set());
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const [chartData] = useState(generateChartData);
+  const [shares, setShares] = useState(1);
+  const [showWhatIf, setShowWhatIf] = useState(false);
+  const [coachMode, setCoachMode] = useState(true);
+  const [showCoachWarning, setShowCoachWarning] = useState(false);
 
   const availableIndicators = useMemo(() => {
     if (chartMode === "Simple") return simpleIndicators;
@@ -85,6 +88,14 @@ const StockDetail = () => {
   const change = ((currentPrice - prevPrice) / prevPrice * 100);
   const isPositive = change >= 0;
 
+  // What-If calculations
+  const purchaseValue = shares * currentPrice;
+  const currentTechPct = 68;
+  const portfolioValue = 12438.5;
+  const newPortfolioValue = portfolioValue + purchaseValue;
+  const newTechPct = ((currentTechPct / 100 * portfolioValue + purchaseValue) / newPortfolioValue * 100).toFixed(1);
+  const healthChange = Number(newTechPct) > 72 ? -3 : Number(newTechPct) > 70 ? -1 : 1;
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0]?.payload;
@@ -103,14 +114,13 @@ const StockDetail = () => {
     );
   };
 
-  // Custom candle shape
   const CandleShape = (props: any) => {
     const { x, y, width, height, payload } = props;
     if (!payload) return null;
     const { open, close, high, low, bullish } = payload;
     const yScale = (val: number) => {
       const domain = [Math.min(...chartData.map(d => d.low)) - 5, Math.max(...chartData.map(d => d.high)) + 5];
-      const range = [280, 8]; // chart height
+      const range = [280, 8];
       return range[0] + ((val - domain[0]) / (domain[1] - domain[0])) * (range[1] - range[0]);
     };
     const color = bullish ? "hsl(152,28%,40%)" : "hsl(0,32%,52%)";
@@ -127,6 +137,15 @@ const StockDetail = () => {
         <rect x={cx - barW / 2} y={bodyTop} width={barW} height={Math.max(bodyBottom - bodyTop, 1)} fill={color} rx={1} />
       </g>
     );
+  };
+
+  const handleBuy = () => {
+    if (coachMode && Number(newTechPct) > 70) {
+      setShowCoachWarning(true);
+      return;
+    }
+    // Execute paper trade
+    setShowCoachWarning(false);
   };
 
   return (
@@ -164,13 +183,8 @@ const StockDetail = () => {
         {chartModes.map((mode) => (
           <button
             key={mode}
-            onClick={() => {
-              setChartMode(mode);
-              setActiveIndicators(new Set());
-            }}
-            className={`rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${
-              chartMode === mode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"
-            }`}
+            onClick={() => { setChartMode(mode); setActiveIndicators(new Set()); }}
+            className={`rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${chartMode === mode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
           >
             {mode}
           </button>
@@ -184,9 +198,7 @@ const StockDetail = () => {
             <button
               key={ind}
               onClick={() => toggleIndicator(ind)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                activeIndicators.has(ind) ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"
-              }`}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${activeIndicators.has(ind) ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
             >
               {ind}
             </button>
@@ -204,36 +216,17 @@ const StockDetail = () => {
                 <stop offset="100%" stopColor="hsl(152,28%,40%)" stopOpacity={0} />
               </linearGradient>
             </defs>
-
-            {chartMode !== "Simple" && (
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(40,15%,89%)" strokeOpacity={0.5} />
-            )}
-
+            {chartMode !== "Simple" && <CartesianGrid strokeDasharray="3 3" stroke="hsl(40,15%,89%)" strokeOpacity={0.5} />}
             <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(220,8%,50%)" }} interval={9} />
             <YAxis yAxisId="price" hide domain={["dataMin - 5", "dataMax + 5"]} />
             <YAxis yAxisId="volume" hide orientation="right" domain={[0, "dataMax + 50"]} />
             <Tooltip content={<CustomTooltip />} />
-
-            {/* Event markers */}
             {activeIndicators.has("Events") && eventMarkers.map((e) => (
               <ReferenceLine key={e.day} x={`Day ${e.day}`} yAxisId="price" stroke="hsl(220,8%,70%)" strokeDasharray="2 4" label={{ value: e.label, position: "top", fontSize: 9, fill: "hsl(220,8%,50%)" }} />
             ))}
-
-            {activeIndicators.has("Volume") && (
-              <Bar yAxisId="volume" dataKey="volume" fill="hsl(220,8%,85%)" opacity={0.4} />
-            )}
-
-            {/* Simple & Advanced: area chart */}
-            {chartMode !== "Candle" && (
-              <Area yAxisId="price" type="monotone" dataKey="price" stroke="hsl(152,28%,40%)" strokeWidth={chartMode === "Simple" ? 2 : 1.5} fill="url(#priceGrad)" />
-            )}
-
-            {/* Candle: use bars for body */}
-            {chartMode === "Candle" && (
-              <Bar yAxisId="price" dataKey="candleBody" shape={<CandleShape />} />
-            )}
-
-            {/* Overlay indicators */}
+            {activeIndicators.has("Volume") && <Bar yAxisId="volume" dataKey="volume" fill="hsl(220,8%,85%)" opacity={0.4} />}
+            {chartMode !== "Candle" && <Area yAxisId="price" type="monotone" dataKey="price" stroke="hsl(152,28%,40%)" strokeWidth={chartMode === "Simple" ? 2 : 1.5} fill="url(#priceGrad)" />}
+            {chartMode === "Candle" && <Bar yAxisId="price" dataKey="candleBody" shape={<CandleShape />} />}
             {activeIndicators.has("SMA20") && <Line yAxisId="price" type="monotone" dataKey="sma20" stroke="hsl(215,60%,55%)" strokeWidth={1} dot={false} />}
             {activeIndicators.has("SMA50") && <Line yAxisId="price" type="monotone" dataKey="sma50" stroke="hsl(280,40%,55%)" strokeWidth={1} dot={false} />}
             {activeIndicators.has("EMA12") && <Line yAxisId="price" type="monotone" dataKey="ema12" stroke="hsl(30,70%,50%)" strokeWidth={1} dot={false} />}
@@ -241,7 +234,6 @@ const StockDetail = () => {
           </ComposedChart>
         </ResponsiveContainer>
 
-        {/* RSI / MACD sub-charts (Advanced mode only) */}
         {chartMode === "Advanced" && (activeIndicators.has("RSI14") || activeIndicators.has("MACD")) && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             {activeIndicators.has("RSI14") && (
@@ -271,6 +263,50 @@ const StockDetail = () => {
         )}
       </motion.div>
 
+      {/* What If Button */}
+      <motion.button
+        onClick={() => setShowWhatIf(!showWhatIf)}
+        className="glass-card mt-4 flex w-full items-center justify-center gap-2 p-3 text-sm font-medium transition-all hover:shadow-md"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}
+      >
+        <Zap size={14} className="text-muted-foreground" />
+        What If I…
+      </motion.button>
+
+      {/* What If Panel */}
+      <AnimatePresence>
+        {showWhatIf && (
+          <motion.div
+            className="glass-card mt-2 p-4"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xs text-muted-foreground">Shares:</span>
+              <div className="flex items-center gap-2">
+                {[1, 5, 10, 25].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setShares(n)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${shares === n ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">Purchase Value</span><span className="font-medium">${purchaseValue.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">New Portfolio Value</span><span className="font-medium">${newPortfolioValue.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Tech Allocation</span><span className={`font-medium ${Number(newTechPct) > 70 ? "text-loss" : ""}`}>{currentTechPct}% → {newTechPct}%</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Health Score Impact</span><span className={`font-medium ${healthChange < 0 ? "text-loss" : "text-gain"}`}>{healthChange > 0 ? "+" : ""}{healthChange} pts</span></div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Key Stats */}
       <motion.div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
         {[
@@ -297,13 +333,22 @@ const StockDetail = () => {
           <span>Maven Analysis</span>
         </div>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          Based on your tech concentration ({symbol} would increase it to 72%) and average 3-week hold time, this stock aligns with your short-term momentum exposure pattern. RSI shows moderate levels suggesting neutral entry conditions.
+          Based on your tech concentration ({symbol} would increase it to {newTechPct}%) and average 3-week hold time, this stock aligns with your short-term momentum exposure pattern. RSI shows moderate levels suggesting neutral entry conditions.
         </p>
       </motion.div>
 
       {/* Order Ticket */}
       <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <h3 className="text-sm font-medium">Simulated Order</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Simulated Order</h3>
+          <button
+            onClick={() => setCoachMode(!coachMode)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${coachMode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}
+          >
+            <Sparkles size={10} />
+            Coach {coachMode ? "ON" : "OFF"}
+          </button>
+        </div>
         <div className="mt-3 flex gap-2">
           <button onClick={() => setOrderType("market")} className={`flex-1 rounded-xl py-2 text-xs font-medium transition-all ${orderType === "market" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>Market</button>
           <button onClick={() => setOrderType("limit")} className={`flex-1 rounded-xl py-2 text-xs font-medium transition-all ${orderType === "limit" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>Limit</button>
@@ -316,10 +361,45 @@ const StockDetail = () => {
         )}
         <div className="glass-input mt-2 px-3 py-2">
           <label className="text-[10px] text-muted-foreground">Shares</label>
-          <input type="number" defaultValue={1} className="mt-0.5 w-full bg-transparent text-sm font-medium outline-none" />
+          <input type="number" value={shares} onChange={(e) => setShares(Number(e.target.value) || 1)} className="mt-0.5 w-full bg-transparent text-sm font-medium outline-none" />
         </div>
+
+        {/* Coach Warning */}
+        <AnimatePresence>
+          {showCoachWarning && (
+            <motion.div
+              className="mt-3 rounded-xl bg-loss/5 border border-loss/10 p-3"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <div className="flex items-center gap-2 text-xs font-medium text-loss">
+                <Sparkles size={12} />
+                Maven Coach
+              </div>
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                This increases your tech exposure to {newTechPct}%. Your portfolio health score would drop by {Math.abs(healthChange)} points. Are you comfortable with that?
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => setShowCoachWarning(false)}
+                  className="rounded-lg bg-foreground px-3 py-1.5 text-[11px] font-medium text-primary-foreground"
+                >
+                  Proceed Anyway
+                </button>
+                <button
+                  onClick={() => setShowCoachWarning(false)}
+                  className="rounded-lg glass-card px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <button className="rounded-xl bg-foreground py-3 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98]">Buy (Paper)</button>
+          <button onClick={handleBuy} className="rounded-xl bg-foreground py-3 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98]">Buy (Paper)</button>
           <button className="glass-card py-3 text-sm font-medium transition-transform active:scale-[0.98]">Sell (Paper)</button>
         </div>
       </motion.div>

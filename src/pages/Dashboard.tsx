@@ -3,6 +3,10 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Sparkles, ArrowUpRight, ArrowDownRight, Plus, Repeat, FlaskConical } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import ContextSidebar from "@/components/layout/ContextSidebar";
+import PortfolioHealthWidget from "@/components/widgets/PortfolioHealthWidget";
+import MarketMoodWidget from "@/components/widgets/MarketMoodWidget";
+import ProjectionWidget from "@/components/widgets/ProjectionWidget";
+import AchievementsWidget from "@/components/widgets/AchievementsWidget";
 
 const chartData = [
   { date: "Jan", value: 10000 },
@@ -101,6 +105,15 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
+        {/* Health + Mood row */}
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <PortfolioHealthWidget />
+          <MarketMoodWidget />
+        </div>
+
+        {/* Projection */}
+        <ProjectionWidget />
+
         {/* AI Insight (mobile) */}
         <motion.div className="glass-card mt-4 p-4 xl:hidden" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -163,6 +176,11 @@ const Dashboard = () => {
               </button>
             ))}
           </div>
+        </motion.div>
+
+        {/* Achievements */}
+        <motion.div className="mt-6" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }}>
+          <AchievementsWidget />
         </motion.div>
 
         {/* Disclaimer */}

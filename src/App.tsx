@@ -9,7 +9,9 @@ import Chat from "./pages/Chat";
 import Invest from "./pages/Invest";
 import StockDetail from "./pages/StockDetail";
 import Learn from "./pages/Learn";
+import LearnCourse from "./pages/LearnCourse";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
 import Calendar from "./pages/Calendar";
@@ -32,7 +34,9 @@ const App = () => (
             <Route path="/invest" element={<Invest />} />
             <Route path="/invest/:symbol" element={<StockDetail />} />
             <Route path="/learn" element={<Learn />} />
+            <Route path="/learn/:courseId" element={<LearnCourse />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/calendar" element={<Calendar />} />

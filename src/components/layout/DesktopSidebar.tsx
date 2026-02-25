@@ -10,6 +10,7 @@ import {
   CalendarDays,
   FlaskConical,
   Shield,
+  Settings,
 } from "lucide-react";
 
 const mainLinks = [
@@ -26,6 +27,7 @@ const secondaryLinks = [
   { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
   { path: "/risk", icon: Shield, label: "Risk Map" },
   { path: "/profile", icon: User, label: "Profile" },
+  { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const DesktopSidebar = () => {
