@@ -1,11 +1,69 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2 } from "lucide-react";
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2, Sun, Moon } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useNavigate } from "react-router-dom";
 import PendingTradesWidget from "@/components/widgets/PendingTradesWidget";
 import { searchStocks, getTrendingStocks, type TrendingStock, type StockSearchResult } from "@/lib/market-api";
 import { toast } from "sonner";
+
+function useMarketStatus() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // NYSE hours: Mon-Fri 9:30-16:00 ET
+  const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = et.getDay();
+  const h = et.getHours();
+  const m = et.getMinutes();
+  const mins = h * 60 + m;
+  const isWeekday = day >= 1 && day <= 5;
+  const isOpen = isWeekday && mins >= 570 && mins < 960; // 9:30=570, 16:00=960
+
+  // Format ET time
+  const etTime = now.toLocaleTimeString("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  // Compute next open/close in user's local time
+  let statusText: string;
+  if (isOpen) {
+    const closeET = new Date(et);
+    closeET.setHours(16, 0, 0, 0);
+    const diffMs = closeET.getTime() - et.getTime();
+    const diffH = Math.floor(diffMs / 3_600_000);
+    const diffM = Math.floor((diffMs % 3_600_000) / 60_000);
+    statusText = diffH > 0 ? `Closes in ${diffH}h ${diffM}m` : `Closes in ${diffM}m`;
+  } else {
+    // Find next weekday 9:30 ET
+    const nextOpen = new Date(et);
+    if (mins >= 960 || !isWeekday) {
+      // Move to next day(s)
+      let daysToAdd = 1;
+      const nextDay = (day + 1) % 7;
+      if (nextDay === 0) daysToAdd = 2;
+      else if (nextDay === 6) daysToAdd = 3;
+      else if (day === 0) daysToAdd = 1;
+      nextOpen.setDate(nextOpen.getDate() + daysToAdd);
+    }
+    nextOpen.setHours(9, 30, 0, 0);
+    // Convert to local time for display
+    const localOpen = new Date(now.getTime() + (nextOpen.getTime() - et.getTime()));
+    const localStr = localOpen.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+    const isToday = localOpen.toDateString() === now.toDateString();
+    const isTomorrow = new Date(now.getTime() + 86_400_000).toDateString() === localOpen.toDateString();
+    const dayLabel = isToday ? "today" : isTomorrow ? "tomorrow" : localOpen.toLocaleDateString([], { weekday: "short" });
+    statusText = `Opens ${dayLabel} at ${localStr}`;
+  }
+
+  return { isOpen, etTime, statusText };
+}
 
 const suggestedForYou = [
   { symbol: "VTI", name: "Vanguard Total Market", reason: "Reduces your single-stock concentration risk" },
@@ -61,11 +119,31 @@ const Invest = () => {
 
   const showSearchResults = searchQuery.trim().length > 0;
 
+  const { isOpen: marketOpen, etTime, statusText: marketStatusText } = useMarketStatus();
+
   return (
     <div className="px-5 pt-14 lg:pt-8">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h1 className="text-2xl font-semibold tracking-tight">Invest</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Browse, analyze, and simulate trades · Live data</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Invest</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Browse, analyze, and simulate trades · Live data</p>
+          </div>
+          <div className="glass-card flex items-center gap-2.5 px-3.5 py-2">
+            {marketOpen ? (
+              <Sun size={16} className="text-amber-500" />
+            ) : (
+              <Moon size={16} className="text-indigo-400" />
+            )}
+            <div className="text-right">
+              <div className="flex items-center gap-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${marketOpen ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"}`} />
+                <span className="text-xs font-medium">{marketOpen ? "Market Open" : "Market Closed"}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{etTime} ET · {marketStatusText}</p>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Search Bar */}
