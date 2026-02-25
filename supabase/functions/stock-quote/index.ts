@@ -5,11 +5,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Map frontend range keys to Yahoo Finance params
+const rangeMap: Record<string, { range: string; interval: string }> = {
+  "1D": { range: "1d", interval: "5m" },
+  "1W": { range: "5d", interval: "15m" },
+  "1M": { range: "1mo", interval: "1d" },
+  "3M": { range: "3mo", interval: "1d" },
+  "6M": { range: "6mo", interval: "1d" },
+  "1Y": { range: "1y", interval: "1d" },
+  "ALL": { range: "max", interval: "1wk" },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { symbol } = await req.json();
+    const body = await req.json();
+    const symbol = body.symbol;
+    const timeRange = body.range || "3M";
+
     if (!symbol) {
       return new Response(JSON.stringify({ error: "Symbol required" }), {
         status: 400,
@@ -17,8 +31,10 @@ serve(async (req) => {
       });
     }
 
+    const params = rangeMap[timeRange] || rangeMap["3M"];
+
     const chartRes = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=3mo&includePrePost=false`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${params.interval}&range=${params.range}&includePrePost=false`,
       { headers: { "User-Agent": "Mozilla/5.0" } }
     );
 
@@ -39,23 +55,35 @@ serve(async (req) => {
     const lows = quote.low || [];
     const volumes = quote.volume || [];
 
-    const chartPoints = timestamps.map((ts: number, i: number) => ({
-      date: new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      price: closes[i] != null ? +closes[i].toFixed(2) : null,
-      open: opens[i] != null ? +opens[i].toFixed(2) : null,
-      high: highs[i] != null ? +highs[i].toFixed(2) : null,
-      low: lows[i] != null ? +lows[i].toFixed(2) : null,
-      close: closes[i] != null ? +closes[i].toFixed(2) : null,
-      volume: volumes[i] != null ? Math.round(volumes[i] / 1_000_000) : 0,
-    })).filter((p: any) => p.price !== null);
+    const isIntraday = params.interval !== "1d" && params.interval !== "1wk" && params.interval !== "1mo";
 
-    // Extract price info from meta + last data points
+    const chartPoints = timestamps.map((ts: number, i: number) => {
+      const d = new Date(ts * 1000);
+      let dateStr: string;
+      if (isIntraday) {
+        dateStr = d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+      } else if (params.interval === "1wk") {
+        dateStr = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+      } else {
+        dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      }
+      return {
+        date: dateStr,
+        timestamp: ts,
+        price: closes[i] != null ? +closes[i].toFixed(2) : null,
+        open: opens[i] != null ? +opens[i].toFixed(2) : null,
+        high: highs[i] != null ? +highs[i].toFixed(2) : null,
+        low: lows[i] != null ? +lows[i].toFixed(2) : null,
+        close: closes[i] != null ? +closes[i].toFixed(2) : null,
+        volume: volumes[i] != null ? volumes[i] : 0,
+      };
+    }).filter((p: any) => p.price !== null);
+
     const lastClose = closes[closes.length - 1] ?? meta.regularMarketPrice ?? 0;
     const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? (closes.length > 1 ? closes[closes.length - 2] : lastClose);
     const change = lastClose - prevClose;
     const changePercent = prevClose ? (change / prevClose) * 100 : 0;
 
-    // Compute stats from chart data
     const validHighs = highs.filter((v: number | null) => v != null);
     const validLows = lows.filter((v: number | null) => v != null);
     const dayHigh = validHighs.length ? validHighs[validHighs.length - 1] : lastClose;
@@ -78,7 +106,7 @@ serve(async (req) => {
       dayHigh: dayHigh != null ? +dayHigh.toFixed(2) : 0,
       dayLow: dayLow != null ? +dayLow.toFixed(2) : 0,
       volume: volumes[volumes.length - 1] ?? 0,
-      marketCap: "N/A",
+      marketCap: meta.marketCap ? formatLargeNumber(meta.marketCap) : "N/A",
       peRatio: "N/A",
       fiftyTwoWeekHigh: +fiftyTwoWeekHigh.toFixed(2),
       fiftyTwoWeekLow: +fiftyTwoWeekLow.toFixed(2),
