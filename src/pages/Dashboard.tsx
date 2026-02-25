@@ -314,9 +314,12 @@ const Dashboard = () => {
             <div className="space-y-2">
               {holdings.map((h) => (
                 <div key={h.symbol} onClick={() => navigate(`/invest/${h.symbol}`)} className="glass-card flex cursor-pointer items-center justify-between p-4 transition-shadow hover:shadow-md">
-                  <div>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${marketOpen ? "bg-gain animate-pulse" : "bg-muted-foreground/30"}`} />
+                    <div>
                     <p className="text-sm font-semibold">{h.symbol}</p>
                     <p className="text-xs text-muted-foreground">{h.name}</p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium">{balanceVisible ? `$${h.value.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
