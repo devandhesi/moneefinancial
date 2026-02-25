@@ -39,7 +39,7 @@ const Settings = () => {
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
-    ClipboardList, CalendarDays, FlaskConical, Shield, Settings: SettingsIcon, Users, Star,
+    ClipboardList, CalendarDays, FlaskConical, Shield, Settings: SettingsIcon, Users, Star, Globe,
   };
 
   const handleConnect = (id: string) => {
