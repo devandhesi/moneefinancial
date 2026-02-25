@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, type LucideIcon } from "lucide-react";
+import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
+import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 
 interface Broker {
   id: string;
@@ -28,8 +30,14 @@ const brokers: Broker[] = [
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
   const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(new Set());
   const [connecting, setConnecting] = useState<string | null>(null);
+
+  const iconMap: Record<string, LucideIcon> = {
+    LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
+    ClipboardList, CalendarDays, FlaskConical, Shield, Settings: SettingsIcon, Users,
+  };
 
   const handleConnect = (id: string) => {
     setConnecting(id);
@@ -78,7 +86,77 @@ const Settings = () => {
         </button>
       </motion.div>
 
-      {/* Broker Connections */}
+      {/* Sidebar Layout */}
+      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <PanelLeft size={16} className="text-muted-foreground" />
+            <h2 className="text-sm font-medium">Sidebar Layout</h2>
+          </div>
+          <button
+            onClick={resetToDefaults}
+            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <RotateCcw size={10} /> Reset
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">Choose which pages appear in the sidebar and reorder them.</p>
+
+        {(["main", "secondary"] as const).map((section) => (
+          <div key={section} className="mb-4">
+            <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {section === "main" ? "Primary" : "Secondary"}
+            </p>
+            <div className="space-y-1.5">
+              {links.filter(l => l.section === section).map((link) => {
+                const Icon = iconMap[link.icon] || SettingsIcon;
+                const isProtected = link.id === "dashboard" || link.id === "settings";
+                return (
+                  <div key={link.id} className="glass-card flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Icon size={16} className={link.visible ? "text-foreground" : "text-muted-foreground/40"} />
+                      <span className={`text-sm font-medium ${link.visible ? "" : "text-muted-foreground/50 line-through"}`}>
+                        {link.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => moveUp(link.id)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Move up"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        onClick={() => moveDown(link.id)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Move down"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                      <button
+                        onClick={() => toggleVisibility(link.id)}
+                        disabled={isProtected}
+                        className={`rounded-lg p-1.5 transition-colors ${
+                          isProtected
+                            ? "text-muted-foreground/30 cursor-not-allowed"
+                            : link.visible
+                            ? "text-foreground hover:bg-secondary"
+                            : "text-muted-foreground/40 hover:bg-secondary hover:text-foreground"
+                        }`}
+                        title={isProtected ? "Always visible" : link.visible ? "Hide" : "Show"}
+                      >
+                        {link.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </motion.div>
+
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <div className="flex items-center gap-2 mb-4">
           <Link2 size={16} className="text-muted-foreground" />
