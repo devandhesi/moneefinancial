@@ -6,8 +6,9 @@ import { useNavigate } from "react-router-dom";
 import PendingTradesWidget from "@/components/widgets/PendingTradesWidget";
 import { searchStocks, getTrendingStocks, type TrendingStock, type StockSearchResult } from "@/lib/market-api";
 import { toast } from "sonner";
+import { useTimezone } from "@/hooks/use-timezone";
 
-function useMarketStatus() {
+function useMarketStatus(userTimezone: string) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -17,21 +18,23 @@ function useMarketStatus() {
   // NYSE hours: Mon-Fri 9:30-16:00 ET
   const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
   const day = et.getDay();
-  const h = et.getHours();
-  const m = et.getMinutes();
-  const mins = h * 60 + m;
+  const mins = et.getHours() * 60 + et.getMinutes();
   const isWeekday = day >= 1 && day <= 5;
-  const isOpen = isWeekday && mins >= 570 && mins < 960; // 9:30=570, 16:00=960
+  const isOpen = isWeekday && mins >= 570 && mins < 960;
 
-  // Format ET time
-  const etTime = now.toLocaleTimeString("en-US", {
-    timeZone: "America/New_York",
+  // Format time in user's chosen timezone
+  const displayTime = now.toLocaleTimeString("en-US", {
+    timeZone: userTimezone,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
 
-  // Compute next open/close in user's local time
+  const tzLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: userTimezone,
+    timeZoneName: "short",
+  }).formatToParts(now).find(p => p.type === "timeZoneName")?.value || "";
+
   let statusText: string;
   if (isOpen) {
     const closeET = new Date(et);
@@ -41,10 +44,8 @@ function useMarketStatus() {
     const diffM = Math.floor((diffMs % 3_600_000) / 60_000);
     statusText = diffH > 0 ? `Closes in ${diffH}h ${diffM}m` : `Closes in ${diffM}m`;
   } else {
-    // Find next weekday 9:30 ET
     const nextOpen = new Date(et);
     if (mins >= 960 || !isWeekday) {
-      // Move to next day(s)
       let daysToAdd = 1;
       const nextDay = (day + 1) % 7;
       if (nextDay === 0) daysToAdd = 2;
@@ -53,16 +54,21 @@ function useMarketStatus() {
       nextOpen.setDate(nextOpen.getDate() + daysToAdd);
     }
     nextOpen.setHours(9, 30, 0, 0);
-    // Convert to local time for display
     const localOpen = new Date(now.getTime() + (nextOpen.getTime() - et.getTime()));
-    const localStr = localOpen.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
-    const isToday = localOpen.toDateString() === now.toDateString();
-    const isTomorrow = new Date(now.getTime() + 86_400_000).toDateString() === localOpen.toDateString();
+    const localStr = localOpen.toLocaleTimeString([], {
+      timeZone: userTimezone,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const userNow = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
+    const isToday = localOpen.toDateString() === userNow.toDateString();
+    const isTomorrow = new Date(userNow.getTime() + 86_400_000).toDateString() === localOpen.toDateString();
     const dayLabel = isToday ? "today" : isTomorrow ? "tomorrow" : localOpen.toLocaleDateString([], { weekday: "short" });
     statusText = `Opens ${dayLabel} at ${localStr}`;
   }
 
-  return { isOpen, etTime, statusText };
+  return { isOpen, displayTime, tzLabel, statusText };
 }
 
 const suggestedForYou = [
@@ -72,6 +78,7 @@ const suggestedForYou = [
 ];
 
 const Invest = () => {
+  const { timezone } = useTimezone();
   const [activeSector, setActiveSector] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<StockSearchResult[]>([]);
@@ -119,7 +126,7 @@ const Invest = () => {
 
   const showSearchResults = searchQuery.trim().length > 0;
 
-  const { isOpen: marketOpen, etTime, statusText: marketStatusText } = useMarketStatus();
+  const { isOpen: marketOpen, displayTime, tzLabel, statusText: marketStatusText } = useMarketStatus(timezone);
 
   return (
     <div className="px-5 pt-14 lg:pt-8">
@@ -140,7 +147,7 @@ const Invest = () => {
                 <span className={`h-1.5 w-1.5 rounded-full ${marketOpen ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"}`} />
                 <span className="text-xs font-medium">{marketOpen ? "Market Open" : "Market Closed"}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">{etTime} ET · {marketStatusText}</p>
+              <p className="text-[10px] text-muted-foreground">{displayTime} {tzLabel} · {marketStatusText}</p>
             </div>
           </div>
         </div>

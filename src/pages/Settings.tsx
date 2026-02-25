@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, type LucideIcon } from "lucide-react";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
+import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
 
 interface Broker {
   id: string;
@@ -31,13 +32,14 @@ const Settings = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
+  const { timezone, setTimezone } = useTimezone();
   const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(new Set());
   const [connecting, setConnecting] = useState<string | null>(null);
   const [brokersOpen, setBrokersOpen] = useState(false);
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
-    ClipboardList, CalendarDays, FlaskConical, Shield, Settings: SettingsIcon, Users,
+    ClipboardList, CalendarDays, FlaskConical, Shield, Settings: SettingsIcon, Users, Star,
   };
 
   const handleConnect = (id: string) => {
@@ -87,7 +89,31 @@ const Settings = () => {
         </button>
       </motion.div>
 
-      {/* Sidebar Layout */}
+      {/* Timezone */}
+      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.085 }}>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Timezone</h2>
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+              <Globe size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Display Timezone</p>
+              <p className="text-[11px] text-muted-foreground">Used for market hours and timestamps</p>
+            </div>
+          </div>
+          <select
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+            className="w-full rounded-xl border border-border/50 bg-secondary px-3 py-2.5 text-sm font-medium outline-none transition-colors focus:border-foreground/20"
+          >
+            {TIMEZONE_OPTIONS.map((tz) => (
+              <option key={tz.value} value={tz.value}>{tz.label}</option>
+            ))}
+          </select>
+        </div>
+      </motion.div>
+
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
