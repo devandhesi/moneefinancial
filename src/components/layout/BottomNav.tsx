@@ -1,54 +1,149 @@
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User } from "lucide-react";
-import { motion } from "framer-motion";
+import { LayoutDashboard, MessageCircle, TrendingUp, BookOpen, MoreHorizontal, Star, Globe, Receipt, ClipboardList, CalendarDays, FlaskConical, Shield, Users, User, Settings, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const tabs = [
+const primaryTabs = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/chat", icon: MessageCircle, label: "Maven" },
   { path: "/invest", icon: TrendingUp, label: "Invest" },
   { path: "/learn", icon: BookOpen, label: "Learn" },
+];
+
+const extraPages = [
+  { path: "/watchlist", icon: Star, label: "Watchlist" },
+  { path: "/markets", icon: Globe, label: "Markets" },
+  { path: "/transactions", icon: Receipt, label: "Transactions" },
+  { path: "/orders", icon: ClipboardList, label: "Orders" },
+  { path: "/calendar", icon: CalendarDays, label: "Calendar" },
+  { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
+  { path: "/risk", icon: Shield, label: "Risk Map" },
+  { path: "/social", icon: Users, label: "Social" },
   { path: "/profile", icon: User, label: "Profile" },
+  { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const BottomNav = () => {
   const location = useLocation();
+  const [showMore, setShowMore] = useState(false);
+
+  const isExtraActive = extraPages.some((p) => location.pathname === p.path);
 
   return (
-    <nav className="glass-nav fixed bottom-0 left-0 right-0 z-50 px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <div className="mx-auto flex max-w-lg items-center justify-around py-2">
-        {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
-          const Icon = tab.icon;
-          return (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              className="relative flex flex-col items-center gap-0.5 px-3 py-1.5"
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute -top-1 h-0.5 w-6 rounded-full bg-foreground"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                />
-              )}
-              <Icon
-                size={20}
-                strokeWidth={isActive ? 2 : 1.5}
-                className={isActive ? "text-foreground" : "text-muted-foreground"}
-              />
-              <span
-                className={`text-[10px] leading-tight ${
-                  isActive ? "font-medium text-foreground" : "text-muted-foreground"
-                }`}
+    <>
+      {/* Backdrop */}
+      <AnimatePresence>
+        {showMore && (
+          <motion.div
+            className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-sm lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowMore(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* More popup */}
+      <AnimatePresence>
+        {showMore && (
+          <motion.div
+            className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-[70] glass-card-strong p-4 lg:hidden"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">More Pages</span>
+              <button onClick={() => setShowMore(false)} className="rounded-lg p-1 hover:bg-secondary">
+                <X size={14} className="text-muted-foreground" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {extraPages.map((page) => {
+                const Icon = page.icon;
+                const isActive = location.pathname === page.path;
+                return (
+                  <NavLink
+                    key={page.path}
+                    to={page.path}
+                    onClick={() => setShowMore(false)}
+                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 transition-colors ${
+                      isActive ? "bg-foreground/10" : "hover:bg-secondary"
+                    }`}
+                  >
+                    <Icon
+                      size={18}
+                      strokeWidth={isActive ? 2 : 1.5}
+                      className={isActive ? "text-foreground" : "text-muted-foreground"}
+                    />
+                    <span className={`text-[10px] leading-tight ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                      {page.label}
+                    </span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom nav bar */}
+      <nav className="glass-nav fixed bottom-0 left-0 right-0 z-50 px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="mx-auto flex max-w-lg items-center justify-around py-2">
+          {primaryTabs.map((tab) => {
+            const isActive = location.pathname === tab.path;
+            const Icon = tab.icon;
+            return (
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                className="relative flex flex-col items-center gap-0.5 px-3 py-1.5"
               >
-                {tab.label}
-              </span>
-            </NavLink>
-          );
-        })}
-      </div>
-    </nav>
+                {isActive && (
+                  <motion.div
+                    layoutId="nav-indicator"
+                    className="absolute -top-1 h-0.5 w-6 rounded-full bg-foreground"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <Icon
+                  size={20}
+                  strokeWidth={isActive ? 2 : 1.5}
+                  className={isActive ? "text-foreground" : "text-muted-foreground"}
+                />
+                <span className={`text-[10px] leading-tight ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                  {tab.label}
+                </span>
+              </NavLink>
+            );
+          })}
+
+          {/* More button */}
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className="relative flex flex-col items-center gap-0.5 px-3 py-1.5"
+          >
+            {(isExtraActive || showMore) && (
+              <motion.div
+                layoutId="nav-indicator-more"
+                className="absolute -top-1 h-0.5 w-6 rounded-full bg-foreground"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
+            <MoreHorizontal
+              size={20}
+              strokeWidth={showMore || isExtraActive ? 2 : 1.5}
+              className={showMore || isExtraActive ? "text-foreground" : "text-muted-foreground"}
+            />
+            <span className={`text-[10px] leading-tight ${showMore || isExtraActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+              More
+            </span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 };
 
