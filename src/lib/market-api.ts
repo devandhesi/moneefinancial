@@ -30,6 +30,7 @@ export interface StockQuote {
 
 export interface ChartPoint {
   date: string;
+  timestamp: number;
   price: number;
   open: number;
   high: number;
@@ -55,9 +56,9 @@ export async function searchStocks(query: string): Promise<StockSearchResult[]> 
   return data?.results || [];
 }
 
-export async function getStockQuote(symbol: string): Promise<StockQuote> {
+export async function getStockQuote(symbol: string, range?: string): Promise<StockQuote> {
   const { data, error } = await supabase.functions.invoke("stock-quote", {
-    body: { symbol },
+    body: { symbol, range: range || "3M" },
   });
   if (error) throw error;
   return data;
