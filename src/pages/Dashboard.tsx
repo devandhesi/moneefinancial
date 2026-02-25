@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Sparkles, ArrowUpRight, ArrowDownRight, Plus, Repeat, FlaskConical, SlidersHorizontal, X, Check } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
@@ -72,6 +73,8 @@ const Dashboard = () => {
   const [activeTimeframe, setActiveTimeframe] = useState("ALL");
   const [showCustomize, setShowCustomize] = useState(false);
   const [visibility, setVisibility] = useState<Record<WidgetKey, boolean>>(loadVisibility);
+
+  const navigate = useNavigate();
 
   const totalValue = 12438.5;
   const totalGain = 2438.5;
@@ -261,7 +264,7 @@ const Dashboard = () => {
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">Holdings</h2>
             <div className="space-y-2">
               {holdings.map((h) => (
-                <div key={h.symbol} className="glass-card flex items-center justify-between p-4">
+                <div key={h.symbol} onClick={() => navigate(`/invest/${h.symbol}`)} className="glass-card flex cursor-pointer items-center justify-between p-4 transition-shadow hover:shadow-md">
                   <div>
                     <p className="text-sm font-semibold">{h.symbol}</p>
                     <p className="text-xs text-muted-foreground">{h.name}</p>
@@ -282,11 +285,11 @@ const Dashboard = () => {
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">Quick Actions</h2>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { icon: Plus, label: "Deposit" },
-                { icon: Repeat, label: "Trade" },
-                { icon: FlaskConical, label: "Simulate" },
-              ].map(({ icon: Icon, label }) => (
-                <button key={label} className="glass-card flex flex-col items-center gap-2 p-4 transition-all hover:shadow-md active:scale-[0.98]">
+                { icon: Plus, label: "Deposit", route: "/transactions" },
+                { icon: Repeat, label: "Trade", route: "/invest" },
+                { icon: FlaskConical, label: "Simulate", route: "/simulation" },
+              ].map(({ icon: Icon, label, route }) => (
+                <button key={label} onClick={() => navigate(route)} className="glass-card flex flex-col items-center gap-2 p-4 transition-all hover:shadow-md active:scale-[0.98]">
                   <Icon size={18} className="text-muted-foreground" />
                   <span className="text-xs font-medium">{label}</span>
                 </button>
