@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { TimezoneProvider } from "@/hooks/use-timezone";
 import { SidebarConfigProvider } from "@/hooks/use-sidebar-config";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -28,6 +29,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
+      <TimezoneProvider>
       <SidebarConfigProvider>
       <TooltipProvider>
         <Toaster />
@@ -56,6 +58,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
       </SidebarConfigProvider>
+      </TimezoneProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
