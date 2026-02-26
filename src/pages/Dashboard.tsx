@@ -117,18 +117,11 @@ const Dashboard = () => {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Good morning</p>
-            <div className="flex items-center gap-2">
-              {/* Market Clock */}
-              <div className="glass-card flex items-center gap-2 px-3 py-1.5">
-                {marketOpen ? <Sun size={13} className="text-gain" /> : <Moon size={13} className="text-muted-foreground" />}
-                <div className="text-right">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`h-1.5 w-1.5 rounded-full ${marketOpen ? "bg-gain animate-pulse" : "bg-muted-foreground/40"}`} />
-                    <span className="text-[11px] font-medium">{displayTime} {tzLabel}</span>
-                  </div>
-                  <p className="text-[9px] text-muted-foreground">{marketOpen ? "Market Open" : "Closed"} · {marketStatusText}</p>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className={`h-1 w-1 rounded-full ${marketOpen ? "bg-gain" : "bg-muted-foreground/30"}`} />
+              <span>{displayTime} {tzLabel}</span>
+              <span className="text-muted-foreground/40">·</span>
+              <span>{marketOpen ? "Open" : "Closed"}</span>
             </div>
           </div>
           <div className="mt-1 flex items-center gap-3">
