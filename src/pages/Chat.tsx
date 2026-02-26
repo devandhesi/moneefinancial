@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, Send, Settings2, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -22,6 +23,7 @@ interface Message {
 }
 
 const ChatPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -36,6 +38,17 @@ const ChatPage = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Handle ?q= query param from "Ask Maven" links
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) {
+      setSearchParams({}, { replace: true });
+      // Small delay to ensure component is mounted
+      setTimeout(() => handleSend(q), 100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSend = async (text?: string) => {
     const input = text || query;

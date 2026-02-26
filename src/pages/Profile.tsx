@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, ToggleLeft, ToggleRight, Settings } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import AchievementsWidget from "@/components/widgets/AchievementsWidget";
 
 const behaviorStats = [
@@ -137,16 +138,34 @@ const Profile = () => {
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
-              <button key={item.label} className="glass-card flex w-full items-center justify-between p-4 text-left transition-shadow hover:shadow-md">
+              <div key={item.label} className="glass-card flex w-full items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <Icon size={16} className="text-muted-foreground" />
                   <span className="text-sm font-medium">{item.label}</span>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <span>{item.detail}</span>
-                  <ChevronRight size={14} />
+                <div className="flex items-center gap-2">
+                  <select
+                    className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium outline-none text-muted-foreground"
+                    defaultValue={item.detail}
+                    onChange={() => toast.success(`${item.label} updated`)}
+                  >
+                    {item.label === "Risk Profile" ? (
+                      <>
+                        <option>Conservative</option>
+                        <option>Moderate Growth</option>
+                        <option>Aggressive</option>
+                      </>
+                    ) : (
+                      <>
+                        <option>Professional</option>
+                        <option>Conversational</option>
+                        <option>Detailed</option>
+                        <option>Brief</option>
+                      </>
+                    )}
+                  </select>
                 </div>
-              </button>
+              </div>
             );
           })}
           <button onClick={() => navigate("/settings")} className="glass-card flex w-full items-center justify-between p-4 text-left transition-shadow hover:shadow-md">
