@@ -1,19 +1,17 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, ExternalLink, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, ExternalLink, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
-import { useTradingMode } from "@/hooks/use-trading-mode";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
   const { timezone, setTimezone } = useTimezone();
-  const { mode, setMode, hasBrokerConnected } = useTradingMode();
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
@@ -28,7 +26,7 @@ const Settings = () => {
         </button>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage your connected accounts</p>
+          <p className="mt-1 text-sm text-muted-foreground">Manage your preferences</p>
         </div>
       </motion.div>
 
@@ -135,62 +133,18 @@ const Settings = () => {
         ))}
       </motion.div>
 
-      {/* Broker Connections */}
-      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Connections</h2>
-        <button
-          onClick={() => navigate("/settings/broker")}
-          className="glass-card flex w-full items-center justify-between p-4 transition-shadow hover:shadow-md"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
-              <Link2 size={18} />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-medium">Broker Connections</p>
-              <p className="text-[11px] text-muted-foreground">
-                Plaid, Alpaca, CSV import · Read-only
-              </p>
-            </div>
-          </div>
-          <ExternalLink size={14} className="text-muted-foreground" />
-        </button>
-
-        {/* Trading Mode Toggle */}
-        <div className="glass-card mt-3 flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${mode === "real" ? "bg-gain/15" : "bg-secondary"}`}>
-              <TrendingUp size={18} className={mode === "real" ? "text-gain" : "text-muted-foreground"} />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-medium">Real Portfolio Mode</p>
-              <p className="text-[11px] text-muted-foreground">
-                {hasBrokerConnected
-                  ? mode === "real" ? "Viewing real broker data" : "Switch to view your real investments"
-                  : "Connect a broker to enable"}
-              </p>
-            </div>
-          </div>
-          <Switch
-            checked={mode === "real"}
-            onCheckedChange={(checked) => setMode(checked ? "real" : "paper")}
-            disabled={!hasBrokerConnected}
-          />
-        </div>
-      </motion.div>
-
       {/* Security Note */}
       <motion.div className="glass-card mt-6 flex items-start gap-3 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
         <Shield size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
         <div>
-          <p className="text-xs font-medium">Bank-Level Security</p>
+          <p className="text-xs font-medium">Security</p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            Broker connections use read-only access with encryption. We never store your login credentials. Data is synced securely via authorized APIs.
+            Your data is encrypted and stored securely. All market data is for educational purposes only.
           </p>
         </div>
       </motion.div>
 
-      {/* Data Sources */}
+      {/* Institutional */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }}>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Institutional</h2>
         <div className="space-y-2">
@@ -212,7 +166,7 @@ const Settings = () => {
 
       <motion.div className="mt-6 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }}>
         <p className="text-[11px] text-muted-foreground">
-          {mode === "real" ? "📊 Real Portfolio Mode · Read-only broker sync" : "📄 Paper Trading Mode · All trades are simulated"}
+          📄 Paper Trading Mode · All trades are simulated
         </p>
       </motion.div>
     </div>

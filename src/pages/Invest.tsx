@@ -371,11 +371,11 @@ const Invest = () => {
               {/* ── STOCKS ─────────────────────────────────────────── */}
               {activeTab === "stocks" && (
                 <motion.div key="stocks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                  {/* Suggested */}
+                  {/* Maven's Picks */}
                   <div>
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Sparkles size={14} className="text-muted-foreground" />
-                      <span>Suggested for you</span>
+                      <span>Maven's Picks for You</span>
                     </div>
                     <div className="mt-2 space-y-2">
                       {suggestedForYou.map((s) => (
