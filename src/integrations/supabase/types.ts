@@ -472,6 +472,39 @@ export type Database = {
         }
         Relationships: []
       }
+      market_news: {
+        Row: {
+          created_at: string
+          headline: string
+          id: string
+          published_at: string | null
+          source: string | null
+          summary: string | null
+          ticker: string | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          headline: string
+          id?: string
+          published_at?: string | null
+          source?: string | null
+          summary?: string | null
+          ticker?: string | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          headline?: string
+          id?: string
+          published_at?: string | null
+          source?: string | null
+          summary?: string | null
+          ticker?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
       message_reactions: {
         Row: {
           created_at: string
