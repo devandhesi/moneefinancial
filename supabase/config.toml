@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.broker]
 verify_jwt = false
+
+[functions.capital-allocation]
+verify_jwt = false
