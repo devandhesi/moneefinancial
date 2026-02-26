@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare, ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -9,14 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
 const suggestions = [
-  "Analyze NVDA for me",
-  "Should I buy AAPL right now?",
-  "How diversified is my portfolio?",
-  "Compare MSFT vs GOOGL",
+  "How do I start budgeting?",
+  "Analyze $NVDA for me",
+  "Should I pay off debt or invest?",
+  "What's a good emergency fund?",
   "Explain dollar-cost averaging",
-  "What's the risk of adding more tech?",
-  "Break down my portfolio health",
-  "What are good defensive stocks?",
+  "How do credit scores work?",
+  "Compare $MSFT vs $GOOGL",
+  "Tips for saving more money",
 ];
 
 interface Message {
@@ -29,6 +29,28 @@ interface Conversation {
   title: string;
   updated_at: string;
 }
+
+// Custom renderer that turns $TICKER into linked text
+const TickerLink = ({ symbol }: { symbol: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={(e) => { e.preventDefault(); navigate(`/invest/${symbol}`); }}
+      className="font-semibold underline underline-offset-2 decoration-primary/40 hover:decoration-primary text-foreground transition-colors cursor-pointer"
+    >
+      ${symbol}
+    </button>
+  );
+};
+
+const renderTextWithTickers = (text: string) => {
+  const parts = text.split(/(\$[A-Z]{1,5}(?:\.[A-Z]{1,3})?)/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
+    if (match) return <TickerLink key={i} symbol={match[1]} />;
+    return <span key={i}>{part}</span>;
+  });
+};
 
 const ChatPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -189,7 +211,7 @@ const ChatPage = () => {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Chat</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Maven · AI-powered portfolio intelligence</p>
+          <p className="mt-1 text-sm text-muted-foreground">Maven · Your money mentor</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={startNewChat} className="glass-card p-2 text-muted-foreground hover:text-foreground transition-colors" title="New chat">
@@ -264,7 +286,7 @@ const ChatPage = () => {
                   <Sparkles size={24} className="text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium">Hey — I'm Maven.</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Ask me about any ticker, your portfolio, or a trade idea. I remember our conversations.</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Ask me anything about money — stocks, budgeting, saving, investing, debt, or just how to be smarter with your cash.</p>
               </div>
             )}
             {messages.map((msg, i) => (
@@ -272,8 +294,19 @@ const ChatPage = () => {
                 <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${msg.role === "user" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>
                   {msg.role === "assistant" && <Sparkles size={12} className="mb-1 text-muted-foreground" />}
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>p+p]:mt-2 [&>ul]:mt-1 [&>ol]:mt-1 [&>h2]:text-[13px] [&>h2]:font-bold [&>h2]:mt-3 [&>h2]:mb-1 [&>h2]:tracking-tight [&>hr]:my-2 [&>hr]:border-border/30">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>p+p]:mt-2.5 [&>ul]:mt-1.5 [&>ol]:mt-1.5 [&>h2]:text-sm [&>h2]:font-semibold [&>h2]:mt-4 [&>h2]:mb-1.5 [&>h2]:tracking-tight [&>hr]:my-3 [&>hr]:border-border/20 [&>blockquote]:border-l-primary/30 [&>blockquote]:text-muted-foreground [&_em]:text-muted-foreground [&_li]:my-0.5">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p>{typeof children === "string" ? renderTextWithTickers(children) : children}</p>,
+                          li: ({ children }) => <li>{typeof children === "string" ? renderTextWithTickers(children) : children}</li>,
+                          strong: ({ children }) => {
+                            const text = String(children);
+                            const tickerMatch = text.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
+                            if (tickerMatch) return <TickerLink symbol={tickerMatch[1]} />;
+                            return <strong>{children}</strong>;
+                          },
+                        }}
+                      >{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
                     msg.content
@@ -299,7 +332,7 @@ const ChatPage = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Ask Maven anything about markets..."
+                placeholder="Ask Maven anything about money..."
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 disabled={isLoading}
               />
