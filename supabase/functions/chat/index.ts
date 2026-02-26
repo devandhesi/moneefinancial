@@ -286,9 +286,7 @@ function fmtLarge(n: number): string {
 async function fetchQuote(symbol: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-        symbol,
-      )}?interval=1d&range=5d&includePrePost=false`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d&includePrePost=false`,
       { headers: { "User-Agent": "Mozilla/5.0" } },
     );
 
@@ -334,6 +332,36 @@ async function fetchQuote(symbol: string): Promise<string | null> {
   }
 }
 
+async function fetchNews(symbol: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(symbol)}&region=US&lang=en-US`,
+      { headers: { "User-Agent": "Mozilla/5.0" } },
+    );
+    if (!res.ok) return null;
+
+    const xml = await res.text();
+    const items = xml.split("<item>").slice(1, 6); // top 5 headlines
+    const headlines: string[] = [];
+
+    for (const item of items) {
+      const titleMatch = item.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
+      const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/s);
+      const title = titleMatch?.[1]?.trim();
+      const pubDate = dateMatch?.[1]?.trim();
+      if (title) {
+        const ago = pubDate ? ` (${new Date(pubDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })})` : "";
+        headlines.push(`  • ${title}${ago}`);
+      }
+    }
+
+    return headlines.length ? `Recent headlines for ${symbol}:\n${headlines.join("\n")}` : null;
+  } catch (e) {
+    console.error(`Failed to fetch news for ${symbol}:`, e);
+    return null;
+  }
+}
+
 // ── system prompt ────────────────────────────────────────
 
 const BASE_SYSTEM_PROMPT = `You are Maven inside Monee, a stocks and investing only assistant.
@@ -348,8 +376,9 @@ TICKER HANDLING
 - If multiple tickers are present and the user did not ask for a comparison, ask which ticker to focus on.
 
 LIVE DATA RULES
-- You may receive a LIVE MARKET DATA block below for detected tickers.
+- You may receive LIVE MARKET DATA and RECENT NEWS blocks below for detected tickers.
 - If live data is provided, you MUST use those exact numbers and you MUST NOT invent prices, percent changes, market cap, or ranges.
+- If recent news headlines are provided, reference them when discussing catalysts, sentiment, or what is moving the stock. Do NOT invent headlines beyond what is provided.
 - If no live data is available for a ticker, say you do not have the live quote and ask for the correct symbol or a screenshot.
 
 NEWS RULE
@@ -405,17 +434,24 @@ serve(async (req) => {
 
     const tickers = extractTickers(recentText);
 
-    // Fetch live quotes in parallel
+    // Fetch live quotes and news in parallel
     let marketDataBlock = "";
     if (tickers.length > 0) {
-      const quotes = await Promise.all(tickers.map(fetchQuote));
+      const [quotes, newsResults] = await Promise.all([
+        Promise.all(tickers.map(fetchQuote)),
+        Promise.all(tickers.map(fetchNews)),
+      ]);
       const validQuotes = quotes.filter(Boolean) as string[];
+      const validNews = newsResults.filter(Boolean) as string[];
 
       if (validQuotes.length > 0) {
-        marketDataBlock =
+        marketDataBlock +=
           `\n\n## LIVE MARKET DATA (as of ${new Date().toLocaleString("en-US", {
             timeZone: "America/New_York",
           })} ET)\n\n` + validQuotes.join("\n\n");
+      }
+      if (validNews.length > 0) {
+        marketDataBlock += `\n\n## RECENT NEWS\n\n` + validNews.join("\n\n");
       }
     }
 
