@@ -121,7 +121,7 @@ async function fetchNews(symbol: string): Promise<string | null> {
 
 // ── Web Search via AI Gateway ────────────────────────────
 
-async function classifyNeedsWebSearch(userMessage: string, apiKey: string): Promise<{ needsSearch: boolean; searchQuery: string }> {
+async function classifyNeedsWebSearch(userMessage: string, tickers: string[], apiKey: string): Promise<{ needsSearch: boolean; searchQueries: string[] }> {
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -131,14 +131,25 @@ async function classifyNeedsWebSearch(userMessage: string, apiKey: string): Prom
         messages: [
           {
             role: "system",
-            content: `You classify whether a user message requires a real-time web search to answer properly. Output ONLY valid JSON.
-If the question is about current events, recent news, politics, legislation, regulatory changes, economic developments, earnings results, IPOs, mergers, geopolitical events, or anything requiring information from the last few days/weeks, output:
-{"needsSearch": true, "searchQuery": "<optimized search query for financial/market impact>"}
+            content: `You decide if a user message needs real-time web search. Output ONLY valid JSON.
 
-If the question is a general knowledge question, stock analysis using existing data, or investing education, output:
-{"needsSearch": false, "searchQuery": ""}
+ALWAYS return needsSearch=true if:
+- The question mentions ANY specific stock ticker, company name, or asks about any company (always search for latest news/earnings)
+- Asks about current events, recent news, politics, legislation, earnings, IPOs, mergers, regulations
+- Asks "what happened", "what's going on", "latest", "today", "this week", "recently"
+- Asks about market sentiment, Fed decisions, economic data releases
+- Could benefit from current information to give a better answer
 
-Always bias toward searching if uncertain. Frame search queries to find financial/market impact.`
+Only return needsSearch=false for:
+- Pure education questions (e.g. "what is a P/E ratio")
+- General strategy questions with no time sensitivity
+
+Output format:
+{"needsSearch": true, "searchQueries": ["query 1", "query 2"]}
+
+Generate 1-3 search queries optimized for finding the most relevant financial news. Include the company/ticker name explicitly. If tickers are mentioned, ALWAYS include a query like "[TICKER] earnings news latest 2026".
+
+Current tickers detected: ${tickers.join(", ") || "none"}`
           },
           { role: "user", content: userMessage }
         ],
@@ -146,73 +157,81 @@ Always bias toward searching if uncertain. Frame search queries to find financia
       }),
     });
 
-    if (!res.ok) return { needsSearch: false, searchQuery: "" };
+    if (!res.ok) return { needsSearch: tickers.length > 0, searchQueries: tickers.map(t => `${t} stock latest news earnings 2026`) };
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || "";
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      return { needsSearch: !!parsed.needsSearch, searchQuery: parsed.searchQuery || userMessage };
+      const queries = parsed.searchQueries || (parsed.searchQuery ? [parsed.searchQuery] : []);
+      return { needsSearch: !!parsed.needsSearch, searchQueries: queries.length ? queries : [userMessage] };
     }
   } catch (e) {
     console.error("classify error:", e);
   }
-  return { needsSearch: false, searchQuery: "" };
+  // Default: if tickers found, always search
+  if (tickers.length > 0) return { needsSearch: true, searchQueries: tickers.map(t => `${t} stock latest news`) };
+  return { needsSearch: false, searchQueries: [] };
 }
 
-async function webSearch(query: string): Promise<string> {
-  const results: string[] = [];
+async function webSearch(queries: string[]): Promise<string> {
+  const allResults: string[] = [];
+  const seenTitles = new Set<string>();
 
-  // 1. Google News RSS
-  try {
-    const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query + " financial market")}&hl=en-US&gl=US&ceid=US:en`;
-    const res = await fetch(googleNewsUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (res.ok) {
-      const xml = await res.text();
-      const items = xml.split("<item>").slice(1, 8);
-      for (const item of items) {
-        const titleMatch = item.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
-        const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/s);
-        const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/s);
-        const descMatch = item.match(/<description[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/description>/s);
-        const title = titleMatch?.[1]?.replace(/<[^>]+>/g, "").trim();
-        const pubDate = dateMatch?.[1]?.trim();
-        const source = sourceMatch?.[1]?.replace(/<[^>]+>/g, "").trim();
-        const desc = descMatch?.[1]?.replace(/<[^>]+>/g, "").trim();
-        if (title) {
-          const dateStr = pubDate ? new Date(pubDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-          results.push(`• ${title}${source ? ` — ${source}` : ""}${dateStr ? ` (${dateStr})` : ""}${desc ? `\n  ${desc.slice(0, 200)}` : ""}`);
+  for (const query of queries.slice(0, 3)) {
+    // Google News RSS
+    try {
+      const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+      const res = await fetch(googleNewsUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (res.ok) {
+        const xml = await res.text();
+        const items = xml.split("<item>").slice(1, 8);
+        for (const item of items) {
+          const titleMatch = item.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
+          const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/s);
+          const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/s);
+          const descMatch = item.match(/<description[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/description>/s);
+          const title = titleMatch?.[1]?.replace(/<[^>]+>/g, "").trim();
+          const pubDate = dateMatch?.[1]?.trim();
+          const source = sourceMatch?.[1]?.replace(/<[^>]+>/g, "").trim();
+          const desc = descMatch?.[1]?.replace(/<[^>]+>/g, "").trim();
+          if (title && !seenTitles.has(title.toLowerCase())) {
+            seenTitles.add(title.toLowerCase());
+            const dateStr = pubDate ? new Date(pubDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+            allResults.push(`• ${title}${source ? ` — ${source}` : ""}${dateStr ? ` (${dateStr})` : ""}${desc ? `\n  ${desc.slice(0, 200)}` : ""}`);
+          }
         }
       }
+    } catch (e) {
+      console.error("Google News RSS error:", e);
     }
-  } catch (e) {
-    console.error("Google News RSS error:", e);
-  }
 
-  // 2. Yahoo Finance general news RSS
-  try {
-    const yahooUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(query)}&region=US&lang=en-US`;
-    const res = await fetch(yahooUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (res.ok) {
-      const xml = await res.text();
-      const items = xml.split("<item>").slice(1, 6);
-      for (const item of items) {
-        const titleMatch = item.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
-        const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/s);
-        const title = titleMatch?.[1]?.trim();
-        const pubDate = dateMatch?.[1]?.trim();
-        if (title && !results.some(r => r.includes(title))) {
-          const dateStr = pubDate ? new Date(pubDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-          results.push(`• ${title}${dateStr ? ` (${dateStr})` : ""}`);
+    // Yahoo Finance RSS
+    try {
+      const yahooUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(query)}&region=US&lang=en-US`;
+      const res = await fetch(yahooUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (res.ok) {
+        const xml = await res.text();
+        const items = xml.split("<item>").slice(1, 6);
+        for (const item of items) {
+          const titleMatch = item.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
+          const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/s);
+          const title = titleMatch?.[1]?.trim();
+          const pubDate = dateMatch?.[1]?.trim();
+          if (title && !seenTitles.has(title.toLowerCase())) {
+            seenTitles.add(title.toLowerCase());
+            const dateStr = pubDate ? new Date(pubDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+            allResults.push(`• ${title}${dateStr ? ` (${dateStr})` : ""}`);
+          }
         }
       }
+    } catch (e) {
+      console.error("Yahoo RSS error:", e);
     }
-  } catch (e) {
-    console.error("Yahoo RSS error:", e);
   }
 
-  if (results.length === 0) return "";
-  return `## WEB SEARCH RESULTS for "${query}"\n\n${results.join("\n\n")}`;
+  if (allResults.length === 0) return "";
+  return `## WEB SEARCH RESULTS for: ${queries.join(", ")}\n\n${allResults.slice(0, 15).join("\n\n")}`;
 }
 
 // ── system prompt ────────────────────────────────────────
@@ -297,7 +316,7 @@ serve(async (req) => {
 
     // Run web search classification AND ticker data fetch in parallel
     const [searchClassification, quotes, newsResults] = await Promise.all([
-      classifyNeedsWebSearch(latestText, LOVABLE_API_KEY),
+      classifyNeedsWebSearch(latestText, tickers, LOVABLE_API_KEY),
       tickers.length > 0 ? Promise.all(tickers.map(fetchQuote)) : Promise.resolve([]),
       tickers.length > 0 ? Promise.all(tickers.map(fetchNews)) : Promise.resolve([]),
     ]);
@@ -316,9 +335,9 @@ serve(async (req) => {
     }
 
     // Web search if needed
-    if (searchClassification.needsSearch && searchClassification.searchQuery) {
-      console.log("Web search triggered for:", searchClassification.searchQuery);
-      const searchResults = await webSearch(searchClassification.searchQuery);
+    if (searchClassification.needsSearch && searchClassification.searchQueries.length > 0) {
+      console.log("Web search triggered for:", searchClassification.searchQueries);
+      const searchResults = await webSearch(searchClassification.searchQueries);
       if (searchResults) {
         contextBlock += `\n\n${searchResults}`;
       }
