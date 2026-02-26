@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Hash, TrendingUp, MessageCircle, Users, Search, Plus, Flame, ArrowRight } from "lucide-react";
+import { Hash, TrendingUp, MessageCircle, Users, Search, Plus, Flame, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -13,6 +13,12 @@ interface Room {
   description: string | null;
   symbol: string | null;
   member_count: number;
+}
+
+interface StockResult {
+  symbol: string;
+  name: string;
+  exchange: string;
 }
 
 const TRENDING_TICKERS = [
@@ -38,6 +44,8 @@ const CommunityFeed = () => {
   const { profile } = useAuth();
   const [search, setSearch] = useState("");
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [stockResults, setStockResults] = useState<StockResult[]>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -52,9 +60,36 @@ const CommunityFeed = () => {
     fetchRooms();
   }, []);
 
+  // Debounced stock search
+  useEffect(() => {
+    if (!search.trim() || search.length < 1) {
+      setStockResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("stock-search", {
+          body: { query: search },
+        });
+        if (data?.results) {
+          setStockResults(data.results.slice(0, 8));
+        }
+      } catch (e) {
+        console.error("Stock search failed:", e);
+      }
+      setSearching(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const filteredSuggested = search
     ? SUGGESTED_ROOMS.filter(r => r.name.toLowerCase().includes(search.toLowerCase()))
     : SUGGESTED_ROOMS;
+
+  const hasSearchResults = search.trim().length > 0 && (stockResults.length > 0 || filteredSuggested.length > 0);
 
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8">
@@ -77,17 +112,99 @@ const CommunityFeed = () => {
       </motion.div>
 
       {/* Search */}
-      <motion.div className="mt-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
+      <motion.div className="mt-4 relative" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
         <div className="glass-card flex items-center gap-2 px-4 py-2.5">
           <Search size={16} className="text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search rooms, tickers, hashtags..."
+            placeholder="Search any ticker to open its room..."
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
+          {searching && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
         </div>
+
+        {/* Live stock search results */}
+        {search.trim().length > 0 && stockResults.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute left-0 right-0 top-full z-20 mt-1 glass-card-strong overflow-hidden"
+          >
+            <p className="px-3 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Stocks — tap to enter room
+            </p>
+            {stockResults.map((s) => (
+              <button
+                key={s.symbol}
+                onClick={() => {
+                  setSearch("");
+                  setStockResults([]);
+                  navigate(`/community/room/${s.symbol}`);
+                }}
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-secondary/50"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary">
+                  <TrendingUp size={14} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">${s.symbol}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{s.name} · {s.exchange}</p>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground" />
+              </button>
+            ))}
+
+            {/* Direct ticker entry */}
+            {search.match(/^[A-Za-z]{1,5}$/) && (
+              <button
+                onClick={() => {
+                  const ticker = search.toUpperCase();
+                  setSearch("");
+                  setStockResults([]);
+                  navigate(`/community/room/${ticker}`);
+                }}
+                className="flex w-full items-center gap-3 border-t border-border/30 px-3 py-2.5 text-left transition-colors hover:bg-secondary/50"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/10">
+                  <ArrowRight size={14} />
+                </div>
+                <p className="text-sm">
+                  Go to <span className="font-semibold">${search.toUpperCase()}</span> room
+                </p>
+              </button>
+            )}
+          </motion.div>
+        )}
+
+        {/* Direct entry when no results but valid ticker format */}
+        {search.trim().length > 0 && stockResults.length === 0 && !searching && search.match(/^[A-Za-z]{1,5}$/) && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute left-0 right-0 top-full z-20 mt-1 glass-card-strong overflow-hidden"
+          >
+            <button
+              onClick={() => {
+                const ticker = search.toUpperCase();
+                setSearch("");
+                navigate(`/community/room/${ticker}`);
+              }}
+              className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-secondary/50"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/10">
+                <TrendingUp size={14} />
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  Open <span className="font-semibold">${search.toUpperCase()}</span> room
+                </p>
+                <p className="text-[11px] text-muted-foreground">Every stock has a room — be the first to chat</p>
+              </div>
+            </button>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Trending Tickers Strip */}
@@ -109,6 +226,17 @@ const CommunityFeed = () => {
               </span>
             </button>
           ))}
+        </div>
+      </motion.div>
+
+      {/* Info banner */}
+      <motion.div className="mt-4 glass-card p-3 flex items-start gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.09 }}>
+        <TrendingUp size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+        <div>
+          <p className="text-xs font-medium">Every stock has a room</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Search any ticker above to enter its discussion room — even if no one's there yet. Rooms are created automatically.
+          </p>
         </div>
       </motion.div>
 
@@ -140,7 +268,7 @@ const CommunityFeed = () => {
         </button>
       </motion.div>
 
-      {/* Suggested Rooms */}
+      {/* Suggested / Popular Rooms */}
       <motion.div className="mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Popular Rooms</h2>
         <div className="space-y-1.5">
