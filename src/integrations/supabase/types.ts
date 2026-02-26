@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      behavioral_metrics: {
+        Row: {
+          avg_holding_duration: number
+          avg_position_size: number
+          avg_trade_frequency: number
+          created_at: string
+          discipline_score: number
+          drawdown_flag: boolean
+          flags_detail: Json | null
+          guidance: Json | null
+          id: string
+          last_updated: string
+          momentum_chasing_flag: boolean
+          overtrading_flag: boolean
+          revenge_flag: boolean
+          size_escalation_flag: boolean
+          trend_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          avg_holding_duration?: number
+          avg_position_size?: number
+          avg_trade_frequency?: number
+          created_at?: string
+          discipline_score?: number
+          drawdown_flag?: boolean
+          flags_detail?: Json | null
+          guidance?: Json | null
+          id?: string
+          last_updated?: string
+          momentum_chasing_flag?: boolean
+          overtrading_flag?: boolean
+          revenge_flag?: boolean
+          size_escalation_flag?: boolean
+          trend_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          avg_holding_duration?: number
+          avg_position_size?: number
+          avg_trade_frequency?: number
+          created_at?: string
+          discipline_score?: number
+          drawdown_flag?: boolean
+          flags_detail?: Json | null
+          guidance?: Json | null
+          id?: string
+          last_updated?: string
+          momentum_chasing_flag?: boolean
+          overtrading_flag?: boolean
+          revenge_flag?: boolean
+          size_escalation_flag?: boolean
+          trend_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       broker_accounts: {
         Row: {
           account_id: string
