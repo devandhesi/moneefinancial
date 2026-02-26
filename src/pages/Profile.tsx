@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, ToggleLeft, ToggleRight, Settings } from "lucide-react";
+import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import AchievementsWidget from "@/components/widgets/AchievementsWidget";
+import { useAuth } from "@/hooks/use-auth";
 
 const behaviorStats = [
   { icon: Clock, label: "Avg Hold Time", value: "3.2 weeks" },
@@ -34,7 +34,6 @@ const snapshots = [
   { label: "1 Year Ago", tech: 45, consumer: 22, finance: 18, health: 10, other: 5, value: "$8,200" },
 ];
 
-// Risk Exposure data (merged from Risk Map)
 const sectorData = [
   { label: "Technology", pct: 68, color: "hsl(215, 60%, 55%)" },
   { label: "Consumer", pct: 12, color: "hsl(30, 70%, 50%)" },
@@ -87,10 +86,12 @@ const RiskBar = ({ title, items }: { title: string; items: { label: string; pct:
 );
 
 const Profile = () => {
-  const [isLive, setIsLive] = useState(false);
   const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [riskExpanded, setRiskExpanded] = useState(false);
   const navigate = useNavigate();
+  const { profile } = useAuth();
+
+  const displayName = profile?.display_name || profile?.username || "User";
 
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8">
@@ -105,13 +106,9 @@ const Profile = () => {
           <User size={24} className="text-muted-foreground" />
         </div>
         <div className="flex-1">
-          <p className="text-lg font-semibold">Alex Chen</p>
+          <p className="text-lg font-semibold">{displayName}</p>
           <p className="text-xs text-muted-foreground">Paper Trading · Since Jan 2025</p>
         </div>
-        <button onClick={() => setIsLive(!isLive)} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {isLive ? <ToggleRight size={20} className="text-gain" /> : <ToggleLeft size={20} />}
-          {isLive ? "Live" : "Demo"}
-        </button>
       </motion.div>
 
       {/* Pattern Summary */}
@@ -181,14 +178,13 @@ const Profile = () => {
         </div>
       </motion.div>
 
-      {/* Risk Exposure (merged from Risk Map) */}
+      {/* Risk Exposure */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
         <button onClick={() => setRiskExpanded(!riskExpanded)} className="flex w-full items-center justify-between mb-3">
           <h2 className="text-sm font-medium text-muted-foreground">Risk Exposure</h2>
           <span className="text-[10px] text-muted-foreground">{riskExpanded ? "Collapse" : "Expand"}</span>
         </button>
 
-        {/* Sector heatmap - always visible */}
         <div className="glass-card p-4">
           <h3 className="mb-3 text-xs font-medium text-muted-foreground">Sector Breakdown</h3>
           <div className="flex h-7 overflow-hidden rounded-lg">
@@ -218,7 +214,6 @@ const Profile = () => {
 
         {riskExpanded && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-3 space-y-3">
-            {/* Capital Flow */}
             <div className="glass-card p-4">
               <h3 className="mb-3 text-xs font-medium text-muted-foreground">Capital Flow</h3>
               <div className="space-y-2">
@@ -241,7 +236,6 @@ const Profile = () => {
               <p className="mt-3 text-[10px] text-muted-foreground">Capital movement between sectors over the last 30 days.</p>
             </div>
 
-            {/* Breakdown bars */}
             <div className="grid gap-3 md:grid-cols-3">
               <div className="glass-card p-4"><RiskBar title="Asset Type" items={assetTypes} /></div>
               <div className="glass-card p-4"><RiskBar title="Market Cap" items={marketCap} /></div>
@@ -288,16 +282,6 @@ const Profile = () => {
               </div>
             );
           })}
-          <button onClick={() => navigate("/settings")} className="glass-card flex w-full items-center justify-between p-4 text-left transition-shadow hover:shadow-md">
-            <div className="flex items-center gap-3">
-              <Settings size={16} className="text-muted-foreground" />
-              <span className="text-sm font-medium">Broker & Account</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span>Connect</span>
-              <ChevronRight size={14} />
-            </div>
-          </button>
         </div>
       </motion.div>
 
@@ -316,11 +300,6 @@ const Profile = () => {
             );
           })}
         </div>
-      </motion.div>
-
-      {/* Achievements */}
-      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <AchievementsWidget />
       </motion.div>
 
       {/* Disclaimer */}

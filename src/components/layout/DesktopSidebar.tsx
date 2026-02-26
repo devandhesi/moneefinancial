@@ -19,6 +19,7 @@ import {
   Newspaper,
   Wrench,
   type LucideIcon,
+  Users,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,7 +27,7 @@ import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
-  FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench, FileBarChart,
+  FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench, FileBarChart, Users,
 };
 
 interface NavGroup {
@@ -54,21 +55,22 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Learning",
+    label: "Social",
+    defaultOpen: true,
     items: [
-      { path: "/learn", icon: "BookOpen", label: "Learn" },
-      { path: "/simulation", icon: "FlaskConical", label: "Sim Lab" },
-      { path: "/tools", icon: "Wrench", label: "Tools" },
+      { path: "/social", icon: "Newspaper", label: "Finance For You" },
+      { path: "/community", icon: "Hash", label: "Rooms" },
+      { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
+      { path: "/notifications", icon: "Bell", label: "Notifications" },
     ],
   },
   {
-    label: "Community",
-    defaultOpen: true,
+    label: "Learning",
     items: [
-      { path: "/community", icon: "Hash", label: "Rooms" },
-      { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
-      { path: "/social", icon: "Newspaper", label: "Finance For You" },
-      { path: "/notifications", icon: "Bell", label: "Notifications" },
+      { path: "/learn", icon: "BookOpen", label: "Learn" },
+      { path: "/learn/charts", icon: "TrendingUp", label: "Learn Charts" },
+      { path: "/simulation", icon: "FlaskConical", label: "Sim Lab" },
+      { path: "/tools", icon: "Wrench", label: "Tools" },
     ],
   },
 ];
