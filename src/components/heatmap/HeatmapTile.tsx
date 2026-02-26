@@ -21,14 +21,12 @@ function getHeatColor(change: number): string {
   const intensity = abs / 8;
 
   if (change > 0.15) {
-    // Green range using gain token hues
-    const l = 38 - intensity * 12;
-    const s = 28 + intensity * 15;
+    const l = 42 - intensity * 14;
+    const s = 45 + intensity * 30;
     return `hsl(152, ${s}%, ${l}%)`;
   } else if (change < -0.15) {
-    // Red range using loss token hues
-    const l = 42 - intensity * 10;
-    const s = 32 + intensity * 15;
+    const l = 46 - intensity * 14;
+    const s = 50 + intensity * 30;
     return `hsl(0, ${s}%, ${l}%)`;
   }
   return `hsl(var(--muted))`;
