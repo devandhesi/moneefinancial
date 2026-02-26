@@ -850,6 +850,7 @@ export type Database = {
           rules: string | null
           slug: string
           symbol: string | null
+          ticker: string | null
           type: Database["public"]["Enums"]["room_type"]
           updated_at: string
         }
@@ -864,6 +865,7 @@ export type Database = {
           rules?: string | null
           slug: string
           symbol?: string | null
+          ticker?: string | null
           type: Database["public"]["Enums"]["room_type"]
           updated_at?: string
         }
@@ -878,6 +880,7 @@ export type Database = {
           rules?: string | null
           slug?: string
           symbol?: string | null
+          ticker?: string | null
           type?: Database["public"]["Enums"]["room_type"]
           updated_at?: string
         }

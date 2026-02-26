@@ -5,10 +5,10 @@ import {
   Sun, Moon, Bitcoin, Flame, MessageCircle, Receipt, ClipboardList,
   Gauge, Activity, Percent, DollarSign, Shield, Zap, PieChart,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { searchStocks, getTrendingStocks, type TrendingStock, type StockSearchResult } from "@/lib/market-api";
+import { useBatchQuotes, type BatchQuote } from "@/hooks/use-batch-quotes";
 import AskMavenButton from "@/components/AskMavenButton";
 import StockAlertButton from "@/components/StockAlertButton";
 import { toast } from "sonner";
@@ -67,8 +67,27 @@ function useMarketStatus(userTimezone: string) {
 
 /* ── Static data ───────────────────────────────────────────────── */
 
-const mkSparkline = (base: number, vol: number) =>
-  Array.from({ length: 16 }, (_, i) => ({ i, v: base + Math.sin(i * 0.6) * vol + (Math.random() - 0.4) * vol * 0.7 }));
+const CRYPTO_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "DOT", "LINK"];
+const COMMODITY_SYMBOLS = ["GC", "SI", "CL", "NG", "HG", "PL", "ZW", "ZC"];
+
+const COMMODITY_NAMES: Record<string, { name: string; extra: string }> = {
+  GC: { name: "Gold", extra: "Precious Metal" },
+  SI: { name: "Silver", extra: "Precious Metal" },
+  CL: { name: "Crude Oil WTI", extra: "Energy" },
+  NG: { name: "Natural Gas", extra: "Energy" },
+  HG: { name: "Copper", extra: "Industrial Metal" },
+  PL: { name: "Platinum", extra: "Precious Metal" },
+  ZW: { name: "Wheat", extra: "Agriculture" },
+  ZC: { name: "Corn", extra: "Agriculture" },
+};
+
+const INDICATOR_SYMBOLS = ["^TNX", "DX-Y.NYB", "GC", "BTC"];
+
+const suggestedForYou = [
+  { symbol: "VTI", name: "Vanguard Total Market", reason: "Reduces your single-stock concentration risk" },
+  { symbol: "XLV", name: "Health Care Select", reason: "Zero healthcare exposure detected" },
+  { symbol: "BND", name: "Vanguard Total Bond", reason: "Adds stability given your high-volatility tilt" },
+];
 
 interface AssetItem {
   symbol: string;
@@ -79,67 +98,16 @@ interface AssetItem {
   sparkline: { i: number; v: number }[];
 }
 
-const CRYPTO: AssetItem[] = [
-  { symbol: "BTC", name: "Bitcoin", price: 67845.00, change: 1.20, extra: "24h vol $42B", sparkline: mkSparkline(67500, 400) },
-  { symbol: "ETH", name: "Ethereum", price: 3456.78, change: 2.15, extra: "24h vol $18B", sparkline: mkSparkline(3420, 40) },
-  { symbol: "SOL", name: "Solana", price: 142.56, change: 3.45, extra: "24h vol $3.2B", sparkline: mkSparkline(140, 5) },
-  { symbol: "BNB", name: "BNB", price: 612.30, change: 0.78, extra: "24h vol $1.8B", sparkline: mkSparkline(610, 8) },
-  { symbol: "XRP", name: "Ripple", price: 0.6234, change: -0.56, extra: "24h vol $1.4B", sparkline: mkSparkline(0.62, 0.01) },
-  { symbol: "ADA", name: "Cardano", price: 0.4567, change: 1.89, extra: "24h vol $520M", sparkline: mkSparkline(0.45, 0.01) },
-  { symbol: "AVAX", name: "Avalanche", price: 38.92, change: 4.12, extra: "24h vol $680M", sparkline: mkSparkline(38, 2) },
-  { symbol: "DOGE", name: "Dogecoin", price: 0.0834, change: -1.23, extra: "24h vol $890M", sparkline: mkSparkline(0.083, 0.003) },
-  { symbol: "DOT", name: "Polkadot", price: 7.45, change: 0.34, extra: "24h vol $310M", sparkline: mkSparkline(7.4, 0.2) },
-  { symbol: "LINK", name: "Chainlink", price: 18.67, change: 2.56, extra: "24h vol $750M", sparkline: mkSparkline(18.5, 0.5) },
-];
-
-const COMMODITIES: AssetItem[] = [
-  { symbol: "GC", name: "Gold", price: 2342.80, change: 0.45, extra: "Precious Metal", sparkline: mkSparkline(2340, 15) },
-  { symbol: "SI", name: "Silver", price: 27.45, change: 0.92, extra: "Precious Metal", sparkline: mkSparkline(27, 1) },
-  { symbol: "CL", name: "Crude Oil WTI", price: 78.34, change: -1.12, extra: "Energy", sparkline: mkSparkline(78, 2) },
-  { symbol: "NG", name: "Natural Gas", price: 1.78, change: -2.34, extra: "Energy", sparkline: mkSparkline(1.8, 0.1) },
-  { symbol: "HG", name: "Copper", price: 3.92, change: 0.68, extra: "Industrial Metal", sparkline: mkSparkline(3.9, 0.1) },
-  { symbol: "PL", name: "Platinum", price: 912.50, change: -0.34, extra: "Precious Metal", sparkline: mkSparkline(910, 10) },
-  { symbol: "ZW", name: "Wheat", price: 5.82, change: 1.24, extra: "Agriculture", sparkline: mkSparkline(5.8, 0.2) },
-  { symbol: "ZC", name: "Corn", price: 4.56, change: -0.45, extra: "Agriculture", sparkline: mkSparkline(4.55, 0.1) },
-];
-
-const suggestedForYou = [
-  { symbol: "VTI", name: "Vanguard Total Market", reason: "Reduces your single-stock concentration risk" },
-  { symbol: "XLV", name: "Health Care Select", reason: "Zero healthcare exposure detected" },
-  { symbol: "BND", name: "Vanguard Total Bond", reason: "Adds stability given your high-volatility tilt" },
-];
-
-const hotSectors = [
-  { name: "AI & Semiconductors", change: 8.4, tickers: ["NVDA", "AMD", "AVGO"] },
-  { name: "Cybersecurity", change: 5.2, tickers: ["CRWD", "PANW", "ZS"] },
-  { name: "Clean Energy", change: 3.9, tickers: ["ENPH", "FSLR", "NEE"] },
-  { name: "Biotech", change: 2.8, tickers: ["MRNA", "REGN", "VRTX"] },
-  { name: "Consumer Discretionary", change: -1.3, tickers: ["AMZN", "TSLA", "NKE"] },
-  { name: "Real Estate", change: -2.1, tickers: ["O", "AMT", "PLD"] },
-];
-
-const MARKET_INDICATORS = [
-  { label: "Fear & Greed", value: "52", unit: "/ 100", icon: Gauge, desc: "Neutral" },
-  { label: "Put/Call Ratio", value: "0.87", unit: "", icon: Activity, desc: "Slightly bearish" },
-  { label: "10Y Treasury", value: "4.32", unit: "%", icon: Percent, desc: "+2bp today" },
-  { label: "USD Index (DXY)", value: "104.56", unit: "", icon: DollarSign, desc: "-0.12%" },
-  { label: "Gold (XAU)", value: "2,342.80", unit: "", icon: Shield, desc: "+0.45%" },
-  { label: "Bitcoin", value: "67,845", unit: "", icon: Zap, desc: "+1.2%" },
-];
-
-const SECTOR_PERFORMANCE = [
-  { name: "Technology", change: 1.24 },
-  { name: "Healthcare", change: 0.56 },
-  { name: "Financials", change: -0.34 },
-  { name: "Energy", change: -0.89 },
-  { name: "Consumer Disc.", change: 0.78 },
-  { name: "Industrials", change: 0.12 },
-  { name: "Materials", change: -0.45 },
-  { name: "Real Estate", change: -1.12 },
-  { name: "Utilities", change: 0.23 },
-  { name: "Comm. Services", change: 0.91 },
-  { name: "Consumer Staples", change: 0.05 },
-];
+function quoteToAsset(q: BatchQuote, extra?: string): AssetItem {
+  return {
+    symbol: q.symbol,
+    name: q.name,
+    price: q.price,
+    change: q.changePercent,
+    extra,
+    sparkline: q.sparkline.map((v, i) => ({ i, v })),
+  };
+}
 
 type AssetTab = "stocks" | "crypto" | "commodities";
 
@@ -155,6 +123,13 @@ function formatPrice(p: number): string {
   if (p >= 10000) return p.toLocaleString("en-US", { maximumFractionDigits: 0 });
   if (p >= 1) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return p.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+
+function formatVolume(v: number): string {
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
+  return v.toString();
 }
 
 /* ── Reusable row component ───────────────────────────────────── */
@@ -222,6 +197,33 @@ const Invest = () => {
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
   const navigate = useNavigate();
 
+  // Live crypto & commodity data
+  const { data: cryptoQuotes, isLoading: cryptoLoading } = useBatchQuotes(CRYPTO_SYMBOLS, { enabled: activeTab === "crypto" });
+  const { data: commodityQuotes, isLoading: commodityLoading } = useBatchQuotes(COMMODITY_SYMBOLS, { enabled: activeTab === "commodities" });
+  const { data: indicatorQuotes } = useBatchQuotes(INDICATOR_SYMBOLS);
+
+  const cryptoAssets: AssetItem[] = (cryptoQuotes || []).map(q => quoteToAsset(q, `24h vol ${formatVolume(q.volume)}`));
+  const commodityAssets: AssetItem[] = (commodityQuotes || []).map(q => quoteToAsset(q, COMMODITY_NAMES[q.symbol]?.extra || ""));
+
+  // Build market indicators from real data
+  const indicatorMap = new Map((indicatorQuotes || []).map(q => [q.symbol, q]));
+  const tnx = indicatorMap.get("^TNX");
+  const dxy = indicatorMap.get("DX-Y.NYB");
+  const gold = indicatorMap.get("GC");
+  const btc = indicatorMap.get("BTC");
+
+  const MARKET_INDICATORS = [
+    { label: "10Y Treasury", value: tnx ? `${tnx.price.toFixed(2)}` : "—", unit: "%", icon: Percent, desc: tnx ? `${tnx.changePercent >= 0 ? "+" : ""}${tnx.changePercent.toFixed(2)}%` : "" },
+    { label: "USD Index (DXY)", value: dxy ? dxy.price.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—", unit: "", icon: DollarSign, desc: dxy ? `${dxy.changePercent >= 0 ? "+" : ""}${dxy.changePercent.toFixed(2)}%` : "" },
+    { label: "Gold (XAU)", value: gold ? `$${gold.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—", unit: "", icon: Shield, desc: gold ? `${gold.changePercent >= 0 ? "+" : ""}${gold.changePercent.toFixed(2)}%` : "" },
+    { label: "Bitcoin", value: btc ? `$${btc.price.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—", unit: "", icon: Zap, desc: btc ? `${btc.changePercent >= 0 ? "+" : ""}${btc.changePercent.toFixed(2)}%` : "" },
+  ];
+
+  // Crypto summary from real data
+  const totalCryptoMarketCap = (cryptoQuotes || []).reduce((s, q) => s + q.marketCap, 0);
+  const totalCryptoVolume = (cryptoQuotes || []).reduce((s, q) => s + q.volume, 0);
+  const btcDominance = btc && totalCryptoMarketCap > 0 ? ((btc.marketCap / totalCryptoMarketCap) * 100).toFixed(1) : "—";
+
   useEffect(() => {
     getTrendingStocks()
       .then(setTrendingStocks)
@@ -245,6 +247,9 @@ const Invest = () => {
   const showSearchResults = searchQuery.trim().length > 0;
   const { isOpen: marketOpen, displayTime, tzLabel, statusText: marketStatusText } = useMarketStatus(timezone);
 
+  const mkSparkline = (base: number, vol: number) =>
+    Array.from({ length: 16 }, (_, i) => ({ i, v: base + Math.sin(i * 0.6) * vol + (Math.random() - 0.4) * vol * 0.7 }));
+
   return (
     <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8">
       {/* Header */}
@@ -267,53 +272,25 @@ const Invest = () => {
         </div>
       </motion.div>
 
-      {/* Sub-navigation: Transactions & Orders */}
+      {/* Sub-navigation */}
       <motion.div className="mt-3 flex gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.02 }}>
-        <button
-          onClick={() => navigate("/transactions")}
-          className="glass-card flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:text-foreground hover:shadow-md"
-        >
-          <Receipt size={13} />
-          Transactions
+        <button onClick={() => navigate("/transactions")} className="glass-card flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:text-foreground hover:shadow-md">
+          <Receipt size={13} /> Transactions
         </button>
-        <button
-          onClick={() => navigate("/orders")}
-          className="glass-card flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:text-foreground hover:shadow-md"
-        >
-          <ClipboardList size={13} />
-          Orders
+        <button onClick={() => navigate("/orders")} className="glass-card flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:text-foreground hover:shadow-md">
+          <ClipboardList size={13} /> Orders
         </button>
       </motion.div>
 
       {/* Asset Class Tabs */}
-      <motion.div
-        className="mt-4 flex gap-1 rounded-2xl bg-secondary p-1"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.03 }}
-      >
+      <motion.div className="mt-4 flex gap-1 rounded-2xl bg-secondary p-1" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}>
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-all ${
-                isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="invest-tab"
-                  className="absolute inset-0 rounded-xl bg-background shadow-sm"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-1.5">
-                <Icon size={13} />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </span>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-all ${isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              {isActive && <motion.div layoutId="invest-tab" className="absolute inset-0 rounded-xl bg-background shadow-sm" transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
+              <span className="relative z-10 flex items-center gap-1.5"><Icon size={13} /><span className="hidden sm:inline">{tab.label}</span></span>
             </button>
           );
         })}
@@ -322,38 +299,20 @@ const Invest = () => {
       {/* Search Bar */}
       <motion.div className="glass-card mt-3 flex items-center gap-2 px-4 py-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
         <Search size={16} className="text-muted-foreground" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={`Search ${activeTab}...`}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
+        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={`Search ${activeTab}...`} className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
         {isSearching && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
-        {searchQuery && (
-          <button onClick={() => setSearchQuery("")} className="text-muted-foreground hover:text-foreground">
-            <X size={14} />
-          </button>
-        )}
+        {searchQuery && <button onClick={() => setSearchQuery("")} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>}
       </motion.div>
 
       {/* Search Results */}
       <AnimatePresence>
         {showSearchResults && (
           <motion.div className="mt-2 space-y-1" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
-            {searchResults.length === 0 && !isSearching && (
-              <div className="py-4 text-center text-sm text-muted-foreground">No results found</div>
-            )}
+            {searchResults.length === 0 && !isSearching && <div className="py-4 text-center text-sm text-muted-foreground">No results found</div>}
             {searchResults.map((result) => (
-              <button
-                key={result.symbol}
-                onClick={() => { setSearchQuery(""); navigate(`/invest/${result.symbol}`); }}
-                className="glass-card flex w-full items-center justify-between p-3 text-left transition-shadow hover:shadow-md"
-              >
+              <button key={result.symbol} onClick={() => { setSearchQuery(""); navigate(`/invest/${result.symbol}`); }} className="glass-card flex w-full items-center justify-between p-3 text-left transition-shadow hover:shadow-md">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-xs font-bold">
-                    {result.symbol.slice(0, 2)}
-                  </div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-xs font-bold">{result.symbol.slice(0, 2)}</div>
                   <div>
                     <p className="text-sm font-semibold">{result.symbol}</p>
                     <p className="text-xs text-muted-foreground">{result.name}</p>
@@ -372,13 +331,11 @@ const Invest = () => {
       {/* Tab Content */}
       {!showSearchResults && (
         <div className="mt-4 flex gap-6">
-          {/* Left: main content */}
           <div className="min-w-0 flex-1">
             <AnimatePresence mode="wait">
               {/* ── STOCKS ─────────────────────────────────────────── */}
               {activeTab === "stocks" && (
                 <motion.div key="stocks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                  {/* Maven's Picks */}
                   <div>
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Sparkles size={14} className="text-muted-foreground" />
@@ -392,79 +349,44 @@ const Invest = () => {
                             <p className="mt-0.5 text-[11px] text-muted-foreground">{s.reason}</p>
                           </button>
                           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); navigate("/chat", { state: { prefill: `Teach me about ${s.symbol} (${s.name}). Why is it relevant for my portfolio? ${s.reason}. Explain it like I'm a beginner investor.` } }); }}
-                              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                            >
-                              <Sparkles size={11} />
-                              Learn more from Maven
+                            <button onClick={(e) => { e.stopPropagation(); navigate("/chat", { state: { prefill: `Teach me about ${s.symbol} (${s.name}). Why is it relevant for my portfolio? ${s.reason}. Explain it like I'm a beginner investor.` } }); }} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                              <Sparkles size={11} /> Learn more from Maven
                             </button>
-                            <button onClick={() => navigate(`/invest/${s.symbol}`)} className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
-                              <ArrowUpRight size={14} />
-                            </button>
+                            <button onClick={() => navigate(`/invest/${s.symbol}`)} className="ml-auto text-muted-foreground hover:text-foreground transition-colors"><ArrowUpRight size={14} /></button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Sector filter */}
                   <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
                     {sectors.map((s) => (
-                      <button key={s} onClick={() => setActiveSector(s)} className={`whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${activeSector === s ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"}`}>
-                        {s}
-                      </button>
+                      <button key={s} onClick={() => setActiveSector(s)} className={`whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${activeSector === s ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"}`}>{s}</button>
                     ))}
                   </div>
 
-                  {/* Trending */}
                   <div className="mt-5 flex items-center justify-between text-sm font-medium">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp size={14} />
-                      <span>{activeSector === "All" ? "Trending" : activeSector}</span>
-                      <span className="text-[10px] font-normal text-muted-foreground">· Live</span>
-                    </div>
+                    <div className="flex items-center gap-2"><TrendingUp size={14} /><span>{activeSector === "All" ? "Trending" : activeSector}</span><span className="text-[10px] font-normal text-muted-foreground">· Live</span></div>
                     <span className="text-xs text-muted-foreground">{filteredStocks.length} stocks</span>
                   </div>
 
                   <div className="mt-3 space-y-2 pb-6">
-                    {isLoadingTrending && (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 size={20} className="animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                    {!isLoadingTrending && filteredStocks.length === 0 && (
-                      <div className="py-8 text-center text-sm text-muted-foreground">No stocks match your filter</div>
-                    )}
+                    {isLoadingTrending && <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>}
+                    {!isLoadingTrending && filteredStocks.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No stocks match your filter</div>}
                     {filteredStocks.map((stock, i) => {
                       const isPositive = stock.change >= 0;
                       const sparkline = mkSparkline(stock.price, stock.price * 0.02);
                       return (
-                        <motion.div
-                          key={stock.symbol}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4, delay: 0.03 * i }}
-                          className="glass-card flex w-full cursor-pointer items-center justify-between p-4 text-left transition-shadow hover:shadow-md"
-                          onClick={() => navigate(`/invest/${stock.symbol}`)}
-                        >
+                        <motion.div key={stock.symbol} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.03 * i }} className="glass-card flex w-full cursor-pointer items-center justify-between p-4 text-left transition-shadow hover:shadow-md" onClick={() => navigate(`/invest/${stock.symbol}`)}>
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-xs font-bold">{stock.symbol.slice(0, 2)}</div>
-                            <div>
-                              <p className="text-sm font-semibold">{stock.symbol}</p>
-                              <p className="text-xs text-muted-foreground">{stock.name}</p>
-                            </div>
+                            <div><p className="text-sm font-semibold">{stock.symbol}</p><p className="text-xs text-muted-foreground">{stock.name}</p></div>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="hidden h-8 w-16 sm:block">
                               <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={sparkline}>
-                                  <defs>
-                                    <linearGradient id={`sg-stock-${stock.symbol}`} x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="0%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0.3} />
-                                      <stop offset="100%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0} />
-                                    </linearGradient>
-                                  </defs>
+                                  <defs><linearGradient id={`sg-stock-${stock.symbol}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0.3} /><stop offset="100%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0} /></linearGradient></defs>
                                   <Area type="monotone" dataKey="v" stroke={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} strokeWidth={1.5} fill={`url(#sg-stock-${stock.symbol})`} />
                                 </AreaChart>
                               </ResponsiveContainer>
@@ -488,35 +410,32 @@ const Invest = () => {
               {activeTab === "crypto" && (
                 <motion.div key="crypto" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
                   <div className="glass-card p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Bitcoin size={14} className="text-muted-foreground" />
-                      <span>Crypto markets are open 24/7</span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Prices update continuously. All volumes shown are rolling 24-hour.
-                    </p>
+                    <div className="flex items-center gap-2 text-sm font-medium"><Bitcoin size={14} className="text-muted-foreground" /><span>Crypto markets are open 24/7</span></div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Live prices from Yahoo Finance. All volumes shown are rolling 24-hour.</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <div className="glass-card px-3 py-2.5 text-center">
-                      <p className="text-[10px] text-muted-foreground">Total Market Cap</p>
-                      <p className="text-sm font-semibold">$2.54T</p>
+                      <p className="text-[10px] text-muted-foreground">BTC Price</p>
+                      <p className="text-sm font-semibold">{btc ? `$${btc.price.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}</p>
                     </div>
                     <div className="glass-card px-3 py-2.5 text-center">
                       <p className="text-[10px] text-muted-foreground">24h Volume</p>
-                      <p className="text-sm font-semibold">$89.2B</p>
+                      <p className="text-sm font-semibold">{formatVolume(totalCryptoVolume)}</p>
                     </div>
                     <div className="glass-card px-3 py-2.5 text-center">
                       <p className="text-[10px] text-muted-foreground">BTC Dominance</p>
-                      <p className="text-sm font-semibold">52.4%</p>
+                      <p className="text-sm font-semibold">{btcDominance}%</p>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    {CRYPTO.map((item, i) => (
-                      <AssetRow key={item.symbol} item={item} index={i} onClick={() => navigate(`/invest/${item.symbol}`)} />
-                    ))}
-                  </div>
+                  {cryptoLoading ? (
+                    <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {cryptoAssets.map((item, i) => <AssetRow key={item.symbol} item={item} index={i} onClick={() => navigate(`/invest/${item.symbol}`)} />)}
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -524,28 +443,24 @@ const Invest = () => {
               {activeTab === "commodities" && (
                 <motion.div key="commodities" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
                   <div className="glass-card p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Flame size={14} className="text-muted-foreground" />
-                      <span>Commodities</span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Precious metals, energy, and agriculture futures contracts.
-                    </p>
+                    <div className="flex items-center gap-2 text-sm font-medium"><Flame size={14} className="text-muted-foreground" /><span>Commodities</span></div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Live futures prices from Yahoo Finance.</p>
                   </div>
 
-                  <div className="space-y-2">
-                    {COMMODITIES.map((item, i) => (
-                      <AssetRow key={item.symbol} item={item} index={i} onClick={() => navigate(`/invest/${item.symbol}`)} />
-                    ))}
-                  </div>
+                  {commodityLoading ? (
+                    <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {commodityAssets.map((item, i) => <AssetRow key={item.symbol} item={item} index={i} onClick={() => navigate(`/invest/${item.symbol}`)} />)}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Right sidebar: Market Indicators & Sectors */}
+          {/* Right sidebar: Market Indicators */}
           <div className="hidden xl:block xl:w-72 xl:shrink-0 space-y-4">
-            {/* Market Indicators */}
             <div className="glass-card p-4">
               <h3 className="text-xs font-medium text-muted-foreground mb-3">Market Indicators</h3>
               <div className="space-y-3">
@@ -553,56 +468,12 @@ const Invest = () => {
                   const Icon = ind.icon;
                   return (
                     <div key={ind.label} className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary">
-                        <Icon size={14} className="text-muted-foreground" />
-                      </div>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary"><Icon size={14} className="text-muted-foreground" /></div>
                       <div className="flex-1">
                         <p className="text-[11px] text-muted-foreground">{ind.label}</p>
                         <p className="text-xs font-semibold">{ind.value}{ind.unit && <span className="text-muted-foreground font-normal"> {ind.unit}</span>}</p>
                       </div>
                       <span className="text-[10px] text-muted-foreground">{ind.desc}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Hot Sectors */}
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <PieChart size={14} className="text-muted-foreground" />
-                <h3 className="text-xs font-medium text-muted-foreground">Hot Sectors</h3>
-              </div>
-              <div className="space-y-2">
-                {hotSectors.map((sector) => {
-                  const isPositive = sector.change >= 0;
-                  return (
-                    <div key={sector.name} className="flex items-center justify-between py-1">
-                      <div>
-                        <p className="text-xs font-medium">{sector.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{sector.tickers.join(" · ")}</p>
-                      </div>
-                      <span className={`text-xs font-semibold tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
-                        {isPositive ? "+" : ""}{sector.change}%
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Sector Performance */}
-            <div className="glass-card p-4">
-              <h3 className="text-xs font-medium text-muted-foreground mb-3">Sector Performance</h3>
-              <div className="space-y-1.5">
-                {SECTOR_PERFORMANCE.map((s) => {
-                  const isPositive = s.change >= 0;
-                  return (
-                    <div key={s.name} className="flex items-center justify-between py-0.5">
-                      <span className="text-[11px]">{s.name}</span>
-                      <span className={`text-[11px] font-medium tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
-                        {isPositive ? "+" : ""}{s.change.toFixed(2)}%
-                      </span>
                     </div>
                   );
                 })}

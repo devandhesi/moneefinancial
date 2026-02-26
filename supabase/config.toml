@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.heat-engine]
 verify_jwt = false
+
+[functions.batch-quotes]
+verify_jwt = false
