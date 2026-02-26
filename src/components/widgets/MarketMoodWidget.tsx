@@ -49,21 +49,28 @@ const MarketMoodWidget = ({ data, isLoading }: Props) => {
       </div>
 
       <div className="relative mt-4 mb-1">
-        <div className="h-1 w-full rounded-full bg-secondary" />
+        {/* Invisible track */}
+        <div className="h-0.5 w-full rounded-full bg-border/20" />
+        {/* Fill */}
         <motion.div
-          className="absolute top-0 left-0 h-1 rounded-full"
+          className="absolute top-0 left-0 h-0.5 rounded-full"
           style={{ backgroundColor: moodColor(moodIdx) }}
           initial={{ width: 0 }}
           animate={{ width: `${score}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
         />
+        {/* Circular clear node */}
         <motion.div
-          className="absolute -top-1 h-3 w-3 rounded-full border-2 border-background shadow-sm"
-          style={{ backgroundColor: moodColor(moodIdx) }}
+          className="absolute -top-[7px] h-4 w-4 rounded-full border border-border/40 bg-background shadow-sm backdrop-blur-sm"
           initial={{ left: 0 }}
-          animate={{ left: `${score}%` }}
+          animate={{ left: `calc(${score}% - 8px)` }}
           transition={{ duration: 1, ease: "easeOut" }}
-        />
+        >
+          <div
+            className="absolute inset-[3px] rounded-full"
+            style={{ backgroundColor: moodColor(moodIdx), opacity: 0.5 }}
+          />
+        </motion.div>
       </div>
 
       <div className="mt-2 flex justify-between text-[9px] text-muted-foreground/60">
