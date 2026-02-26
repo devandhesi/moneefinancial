@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Share2, TrendingUp, ArrowUpRight, ArrowDownRight, Send, MoreHorizontal, Users } from "lucide-react";
+import { toast } from "sonner";
 
 interface Comment {
   user: string;
@@ -189,9 +190,35 @@ const Social = () => {
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
             AC
           </div>
-          <button className="flex-1 rounded-xl bg-secondary/50 px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary">
-            Share a trade or insight...
-          </button>
+          <input
+            type="text"
+            placeholder="Share a trade or insight..."
+            className="flex-1 rounded-xl bg-secondary/50 px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground transition-colors focus:bg-secondary"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                const text = (e.target as HTMLInputElement).value.trim();
+                const newTrade: Trade = {
+                  id: Date.now().toString(),
+                  user: "You",
+                  avatar: "AC",
+                  time: "Just now",
+                  symbol: "—",
+                  action: "Buy",
+                  shares: 0,
+                  price: 0,
+                  change: 0,
+                  grade: "—",
+                  note: text,
+                  likes: 0,
+                  liked: false,
+                  comments: [],
+                };
+                setTrades((prev) => [newTrade, ...prev]);
+                (e.target as HTMLInputElement).value = "";
+                toast("Post shared!");
+              }
+            }}
+          />
         </div>
       </motion.div>
 

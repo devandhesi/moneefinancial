@@ -34,7 +34,7 @@ const Watchlist = () => {
   );
 
   return (
-    <div className="space-y-6 pb-24 lg:pb-8">
+    <div className="px-5 pt-14 pb-6 lg:pt-8 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
