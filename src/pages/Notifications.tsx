@@ -1,35 +1,83 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Bell, Check, MessageCircle, AtSign, TrendingUp, UserPlus, AlertTriangle } from "lucide-react";
+import { Bell, Check, MessageCircle, AtSign, TrendingUp, UserPlus, AlertTriangle, Loader2, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
+import type { Tables } from "@/integrations/supabase/types";
 
-const MOCK_NOTIFICATIONS = [
-  { id: "1", type: "mention", title: "@jordan_k mentioned you", body: "in $NVDA room: \"@you what's your PT?\"", time: "2m ago", read: false, link: "/community/room/NVDA" },
-  { id: "2", type: "reply", title: "Sarah M. replied to you", body: "\"Great analysis, I agree with the support level\"", time: "15m ago", read: false, link: "/community/room/gold" },
-  { id: "3", type: "price_alert", title: "$TSLA hit $280", body: "Your price alert for Tesla triggered", time: "1h ago", read: false, link: "/community/room/TSLA" },
-  { id: "4", type: "follow", title: "Marcus T. followed you", body: "You have a new follower", time: "3h ago", read: true, link: "/profile" },
-  { id: "5", type: "system", title: "Welcome to monee Community!", body: "Start by joining rooms and following traders", time: "1d ago", read: true, link: "/community" },
-];
+type Notification = Tables<"notifications">;
 
 const iconMap: Record<string, typeof Bell> = {
   mention: AtSign,
   reply: MessageCircle,
   price_alert: TrendingUp,
   follow: UserPlus,
+  room_invite: Mail,
   system: Bell,
+};
+
+const timeAgo = (date: string) => {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 };
 
 const Notifications = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setNotifications(data || []);
+    setLoading(false);
+  }, [user]);
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("user-notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications((prev) => [payload.new as Notification, ...prev]);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", user.id).eq("is_read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  };
+
+  const markOneRead = async (id: string) => {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   };
 
   if (!user) {
@@ -60,39 +108,50 @@ const Notifications = () => {
         )}
       </motion.div>
 
-      <div className="mt-4 space-y-1">
-        {notifications.map((notif, i) => {
-          const Icon = iconMap[notif.type] || Bell;
-          return (
-            <motion.button
-              key={notif.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.03 * i }}
-              onClick={() => {
-                setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-                if (notif.link) navigate(notif.link);
-              }}
-              className={`glass-card flex w-full items-start gap-3 p-3 text-left transition-colors hover:bg-secondary/50 ${
-                !notif.read ? "border-l-2 border-l-foreground" : ""
-              }`}
-            >
-              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                !notif.read ? "bg-foreground/10" : "bg-secondary"
-              }`}>
-                <Icon size={14} className={!notif.read ? "text-foreground" : "text-muted-foreground"} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm ${!notif.read ? "font-semibold" : "font-medium text-muted-foreground"}`}>
-                  {notif.title}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground truncate">{notif.body}</p>
-              </div>
-              <span className="shrink-0 text-[10px] text-muted-foreground">{notif.time}</span>
-            </motion.button>
-          );
-        })}
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 size={20} className="animate-spin text-muted-foreground" />
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <Bell size={28} className="mb-3 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No notifications yet</p>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-1">
+          {notifications.map((notif, i) => {
+            const Icon = iconMap[notif.type] || Bell;
+            return (
+              <motion.button
+                key={notif.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.03 * i }}
+                onClick={() => {
+                  if (!notif.is_read) markOneRead(notif.id);
+                  if (notif.link) navigate(notif.link);
+                }}
+                className={`glass-card flex w-full items-start gap-3 p-3 text-left transition-colors hover:bg-secondary/50 ${
+                  !notif.is_read ? "border-l-2 border-l-foreground" : ""
+                }`}
+              >
+                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                  !notif.is_read ? "bg-foreground/10" : "bg-secondary"
+                }`}>
+                  <Icon size={14} className={!notif.is_read ? "text-foreground" : "text-muted-foreground"} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm ${!notif.is_read ? "font-semibold" : "font-medium text-muted-foreground"}`}>
+                    {notif.title}
+                  </p>
+                  {notif.body && <p className="mt-0.5 text-xs text-muted-foreground truncate">{notif.body}</p>}
+                </div>
+                <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo(notif.created_at)}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
