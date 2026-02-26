@@ -9,7 +9,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       <DesktopSidebar />
 
       {/* Main content area */}
-      <main className="mx-auto max-w-[1440px] pb-24 lg:pb-8 lg:pl-64">
+      <main className="mx-auto max-w-[1440px] pb-24 lg:pb-8 lg:pl-56">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
 
