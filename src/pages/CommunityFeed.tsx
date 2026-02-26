@@ -11,7 +11,7 @@ interface Room {
   name: string;
   slug: string;
   description: string | null;
-  symbol: string | null;
+  ticker: string | null;
   member_count: number;
 }
 
