@@ -36,6 +36,9 @@ import BehavioralRisk from "./pages/BehavioralRisk";
 import HeatEngine from "./pages/HeatEngine";
 import Heatmap from "./pages/Heatmap";
 import News from "./pages/News";
+import Markets from "./pages/Markets";
+import Calendar from "./pages/Calendar";
+import InsiderTracking from "./pages/InsiderTracking";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,6 +83,9 @@ const App = () => (
               <Route path="/heat-engine" element={<HeatEngine />} />
               <Route path="/heatmap" element={<Heatmap />} />
               <Route path="/news" element={<News />} />
+              <Route path="/markets" element={<Markets />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/insider-tracking" element={<InsiderTracking />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
