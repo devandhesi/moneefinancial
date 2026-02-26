@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.capital-allocation]
 verify_jwt = false
+
+[functions.behavioral-risk]
+verify_jwt = false

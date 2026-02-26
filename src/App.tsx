@@ -31,6 +31,7 @@ import DirectMessages from "./pages/DirectMessages";
 import Notifications from "./pages/Notifications";
 import BrokerConnections from "./pages/BrokerConnections";
 import CapitalAllocation from "./pages/CapitalAllocation";
+import BehavioralRisk from "./pages/BehavioralRisk";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings/broker" element={<BrokerConnections />} />
               <Route path="/allocation" element={<CapitalAllocation />} />
+              <Route path="/behavioral-risk" element={<BehavioralRisk />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
