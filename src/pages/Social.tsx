@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Share2, TrendingUp, ArrowUpRight, ArrowDownRight, Send, MoreHorizontal, Users } from "lucide-react";
+import { Heart, MessageCircle, Share2, TrendingUp, ArrowUpRight, ArrowDownRight, Send, MoreHorizontal, Users, BarChart3, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Comment {
@@ -24,6 +24,16 @@ interface Trade {
   likes: number;
   liked: boolean;
   comments: Comment[];
+}
+
+interface Poll {
+  id: string;
+  question: string;
+  options: { label: string; votes: number }[];
+  totalVotes: number;
+  voted: string | null;
+  expiresIn: string;
+  author: string;
 }
 
 const initialTrades: Trade[] = [
@@ -120,11 +130,57 @@ const initialTrades: Trade[] = [
   },
 ];
 
+const initialPolls: Poll[] = [
+  {
+    id: "p1",
+    question: "What's your biggest investment theme for Q2?",
+    options: [
+      { label: "AI & Semiconductors", votes: 142 },
+      { label: "Healthcare / Biotech", votes: 67 },
+      { label: "Clean Energy", votes: 53 },
+      { label: "Broad Market ETFs", votes: 89 },
+    ],
+    totalVotes: 351,
+    voted: null,
+    expiresIn: "2d left",
+    author: "Marcus T.",
+  },
+  {
+    id: "p2",
+    question: "Best strategy in a sideways market?",
+    options: [
+      { label: "DCA and hold", votes: 198 },
+      { label: "Swing trade ranges", votes: 76 },
+      { label: "Move to cash", votes: 44 },
+    ],
+    totalVotes: 318,
+    voted: null,
+    expiresIn: "5h left",
+    author: "Sarah M.",
+  },
+  {
+    id: "p3",
+    question: "How much of your portfolio is in a single stock?",
+    options: [
+      { label: "< 10%", votes: 112 },
+      { label: "10–25%", votes: 89 },
+      { label: "25–50%", votes: 45 },
+      { label: "> 50%", votes: 23 },
+    ],
+    totalVotes: 269,
+    voted: null,
+    expiresIn: "1d left",
+    author: "Priya S.",
+  },
+];
+
 const Social = () => {
   const [trades, setTrades] = useState<Trade[]>(initialTrades);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"all" | "friends" | "trending">("all");
+  const [polls, setPolls] = useState<Poll[]>(initialPolls);
+  const [activeTab, setActiveTab] = useState<"feed" | "polls">("feed");
 
   const toggleLike = (id: string) => {
     setTrades((prev) =>
@@ -155,6 +211,24 @@ const Social = () => {
     setCommentInputs((prev) => ({ ...prev, [id]: "" }));
   };
 
+  const votePoll = (pollId: string, optionLabel: string) => {
+    setPolls((prev) =>
+      prev.map((p) =>
+        p.id === pollId && !p.voted
+          ? {
+              ...p,
+              voted: optionLabel,
+              totalVotes: p.totalVotes + 1,
+              options: p.options.map((o) =>
+                o.label === optionLabel ? { ...o, votes: o.votes + 1 } : o
+              ),
+            }
+          : p
+      )
+    );
+    toast.success("Vote recorded!");
+  };
+
   const gradeColor = (grade: string) => {
     if (grade.startsWith("A")) return "text-gain";
     if (grade.startsWith("B")) return "text-foreground";
@@ -169,184 +243,277 @@ const Social = () => {
         <p className="mt-1 text-sm text-muted-foreground">See what your friends are trading</p>
       </motion.div>
 
-      {/* Filters */}
+      {/* Tab toggle: Feed / Polls */}
       <motion.div className="mt-4 flex gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
-        {(["all", "friends", "trending"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-xl px-4 py-1.5 text-xs font-medium capitalize transition-all ${
-              filter === f ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+        <button
+          onClick={() => setActiveTab("feed")}
+          className={`rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${
+            activeTab === "feed" ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Feed
+        </button>
+        <button
+          onClick={() => setActiveTab("polls")}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${
+            activeTab === "polls" ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <BarChart3 size={12} />
+          Polls
+        </button>
       </motion.div>
 
-      {/* Share Prompt */}
-      <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
-            AC
-          </div>
-          <input
-            type="text"
-            placeholder="Share a trade or insight..."
-            className="flex-1 rounded-xl bg-secondary/50 px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground transition-colors focus:bg-secondary"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
-                const text = (e.target as HTMLInputElement).value.trim();
-                const newTrade: Trade = {
-                  id: Date.now().toString(),
-                  user: "You",
-                  avatar: "AC",
-                  time: "Just now",
-                  symbol: "—",
-                  action: "Buy",
-                  shares: 0,
-                  price: 0,
-                  change: 0,
-                  grade: "—",
-                  note: text,
-                  likes: 0,
-                  liked: false,
-                  comments: [],
-                };
-                setTrades((prev) => [newTrade, ...prev]);
-                (e.target as HTMLInputElement).value = "";
-                toast("Post shared!");
-              }
-            }}
-          />
-        </div>
-      </motion.div>
-
-      {/* Feed */}
-      <div className="mt-5 space-y-4">
-        {trades.map((trade, i) => (
-          <motion.div
-            key={trade.id}
-            className="glass-card overflow-hidden"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 * i + 0.15 }}
-          >
-            {/* Header */}
-            <div className="flex items-center gap-3 p-4 pb-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
-                {trade.avatar}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{trade.user}</p>
-                <p className="text-[11px] text-muted-foreground">{trade.time}</p>
-              </div>
-              <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary">
-                <MoreHorizontal size={16} />
-              </button>
-            </div>
-
-            {/* Trade Card */}
-            <div className="mx-4 mt-3 rounded-xl bg-secondary/40 p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${
-                    trade.action === "Buy" ? "bg-gain/10 text-gain" : "bg-loss/10 text-loss"
-                  }`}>
-                    {trade.action}
-                  </span>
-                  <span className="text-sm font-semibold">{trade.symbol}</span>
-                  <span className="text-xs text-muted-foreground">× {trade.shares}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${gradeColor(trade.grade)}`}>{trade.grade}</span>
-                  <div className="text-right">
-                    <p className="text-xs font-medium">${trade.price.toFixed(2)}</p>
-                    <p className={`flex items-center gap-0.5 text-[10px] ${trade.change >= 0 ? "text-gain" : "text-loss"}`}>
-                      {trade.change >= 0 ? <ArrowUpRight size={8} /> : <ArrowDownRight size={8} />}
-                      {Math.abs(trade.change)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Note */}
-            <p className="px-4 pt-3 text-[13px] leading-relaxed text-muted-foreground">{trade.note}</p>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1 px-4 py-3">
+      {activeTab === "feed" && (
+        <>
+          {/* Feed Filters */}
+          <motion.div className="mt-3 flex gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.08 }}>
+            {(["all", "friends", "trending"] as const).map((f) => (
               <button
-                onClick={() => toggleLike(trade.id)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-all ${
-                  trade.liked ? "text-loss" : "text-muted-foreground hover:text-foreground"
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`rounded-xl px-3 py-1 text-[11px] font-medium capitalize transition-all ${
+                  filter === f ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Heart size={14} fill={trade.liked ? "currentColor" : "none"} />
-                {trade.likes}
+                {f}
               </button>
-              <button
-                onClick={() => toggleComments(trade.id)}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <MessageCircle size={14} />
-                {trade.comments.length}
-              </button>
-              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
-                <Share2 size={14} />
-              </button>
-            </div>
-
-            {/* Comments */}
-            <AnimatePresence>
-              {expandedComments.has(trade.id) && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden border-t border-border/30"
-                >
-                  <div className="space-y-2.5 px-4 py-3">
-                    {trade.comments.map((c, ci) => (
-                      <div key={ci} className="flex gap-2.5">
-                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-secondary text-[9px] font-bold text-muted-foreground">
-                          {c.user.split(" ").map((w) => w[0]).join("")}
-                        </div>
-                        <div>
-                          <p className="text-[12px]">
-                            <span className="font-semibold">{c.user}</span>{" "}
-                            <span className="text-muted-foreground">{c.text}</span>
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">{c.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Comment Input */}
-                  <div className="flex items-center gap-2 border-t border-border/30 px-4 py-2.5">
-                    <input
-                      type="text"
-                      value={commentInputs[trade.id] || ""}
-                      onChange={(e) => setCommentInputs((prev) => ({ ...prev, [trade.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === "Enter" && addComment(trade.id)}
-                      placeholder="Add a comment..."
-                      className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                    />
-                    <button
-                      onClick={() => addComment(trade.id)}
-                      className="rounded-lg bg-foreground p-1.5 text-primary-foreground transition-transform active:scale-95"
-                    >
-                      <Send size={12} />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            ))}
           </motion.div>
-        ))}
-      </div>
+
+          {/* Share Prompt */}
+          <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
+                AC
+              </div>
+              <input
+                type="text"
+                placeholder="Share a trade or insight..."
+                className="flex-1 rounded-xl bg-secondary/50 px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground transition-colors focus:bg-secondary"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                    const text = (e.target as HTMLInputElement).value.trim();
+                    const newTrade: Trade = {
+                      id: Date.now().toString(),
+                      user: "You",
+                      avatar: "AC",
+                      time: "Just now",
+                      symbol: "—",
+                      action: "Buy",
+                      shares: 0,
+                      price: 0,
+                      change: 0,
+                      grade: "—",
+                      note: text,
+                      likes: 0,
+                      liked: false,
+                      comments: [],
+                    };
+                    setTrades((prev) => [newTrade, ...prev]);
+                    (e.target as HTMLInputElement).value = "";
+                    toast("Post shared!");
+                  }
+                }}
+              />
+            </div>
+          </motion.div>
+
+          {/* Feed */}
+          <div className="mt-5 space-y-4">
+            {trades.map((trade, i) => (
+              <motion.div
+                key={trade.id}
+                className="glass-card overflow-hidden"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.05 * i + 0.15 }}
+              >
+                {/* Header */}
+                <div className="flex items-center gap-3 p-4 pb-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
+                    {trade.avatar}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{trade.user}</p>
+                    <p className="text-[11px] text-muted-foreground">{trade.time}</p>
+                  </div>
+                  <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary">
+                    <MoreHorizontal size={16} />
+                  </button>
+                </div>
+
+                {/* Trade Card */}
+                <div className="mx-4 mt-3 rounded-xl bg-secondary/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${
+                        trade.action === "Buy" ? "bg-gain/10 text-gain" : "bg-loss/10 text-loss"
+                      }`}>
+                        {trade.action}
+                      </span>
+                      <span className="text-sm font-semibold">{trade.symbol}</span>
+                      <span className="text-xs text-muted-foreground">× {trade.shares}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-medium ${gradeColor(trade.grade)}`}>{trade.grade}</span>
+                      <div className="text-right">
+                        <p className="text-xs font-medium">${trade.price.toFixed(2)}</p>
+                        <p className={`flex items-center gap-0.5 text-[10px] ${trade.change >= 0 ? "text-gain" : "text-loss"}`}>
+                          {trade.change >= 0 ? <ArrowUpRight size={8} /> : <ArrowDownRight size={8} />}
+                          {Math.abs(trade.change)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Note */}
+                <p className="px-4 pt-3 text-[13px] leading-relaxed text-muted-foreground">{trade.note}</p>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 px-4 py-3">
+                  <button
+                    onClick={() => toggleLike(trade.id)}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-all ${
+                      trade.liked ? "text-loss" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Heart size={14} fill={trade.liked ? "currentColor" : "none"} />
+                    {trade.likes}
+                  </button>
+                  <button
+                    onClick={() => toggleComments(trade.id)}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <MessageCircle size={14} />
+                    {trade.comments.length}
+                  </button>
+                  <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                    <Share2 size={14} />
+                  </button>
+                </div>
+
+                {/* Comments */}
+                <AnimatePresence>
+                  {expandedComments.has(trade.id) && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden border-t border-border/30"
+                    >
+                      <div className="space-y-2.5 px-4 py-3">
+                        {trade.comments.map((c, ci) => (
+                          <div key={ci} className="flex gap-2.5">
+                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-secondary text-[9px] font-bold text-muted-foreground">
+                              {c.user.split(" ").map((w) => w[0]).join("")}
+                            </div>
+                            <div>
+                              <p className="text-[12px]">
+                                <span className="font-semibold">{c.user}</span>{" "}
+                                <span className="text-muted-foreground">{c.text}</span>
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">{c.time}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Comment Input */}
+                      <div className="flex items-center gap-2 border-t border-border/30 px-4 py-2.5">
+                        <input
+                          type="text"
+                          value={commentInputs[trade.id] || ""}
+                          onChange={(e) => setCommentInputs((prev) => ({ ...prev, [trade.id]: e.target.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && addComment(trade.id)}
+                          placeholder="Add a comment..."
+                          className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                        />
+                        <button
+                          onClick={() => addComment(trade.id)}
+                          className="rounded-lg bg-foreground p-1.5 text-primary-foreground transition-transform active:scale-95"
+                        >
+                          <Send size={12} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Polls Tab */}
+      {activeTab === "polls" && (
+        <div className="mt-5 space-y-4">
+          {polls.map((poll, i) => (
+            <motion.div
+              key={poll.id}
+              className="glass-card p-4"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 * i + 0.1 }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary text-[9px] font-bold text-muted-foreground">
+                    {poll.author.split(" ").map((w) => w[0]).join("")}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold">{poll.author}</p>
+                    <p className="text-[10px] text-muted-foreground">{poll.expiresIn}</p>
+                  </div>
+                </div>
+                <BarChart3 size={14} className="text-muted-foreground" />
+              </div>
+
+              <p className="text-sm font-semibold mb-3">{poll.question}</p>
+
+              <div className="space-y-2">
+                {poll.options.map((opt) => {
+                  const pct = poll.totalVotes > 0 ? Math.round((opt.votes / poll.totalVotes) * 100) : 0;
+                  const isSelected = poll.voted === opt.label;
+                  return (
+                    <button
+                      key={opt.label}
+                      onClick={() => votePoll(poll.id, opt.label)}
+                      disabled={!!poll.voted}
+                      className={`relative w-full overflow-hidden rounded-xl text-left transition-all ${
+                        poll.voted ? "cursor-default" : "hover:ring-1 hover:ring-border"
+                      } ${isSelected ? "ring-1 ring-foreground/20" : ""}`}
+                    >
+                      {/* Progress fill */}
+                      {poll.voted && (
+                        <motion.div
+                          className="absolute inset-y-0 left-0 bg-foreground/5 rounded-xl"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.6 }}
+                        />
+                      )}
+                      <div className="relative flex items-center justify-between px-3.5 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {isSelected && <CheckCircle2 size={12} className="text-gain" />}
+                          <span className="text-xs font-medium">{opt.label}</span>
+                        </div>
+                        {poll.voted && (
+                          <span className="text-[11px] font-semibold text-muted-foreground">{pct}%</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="mt-2 text-[10px] text-muted-foreground">{poll.totalVotes} votes</p>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Disclaimer */}
       <motion.div className="mt-6 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>

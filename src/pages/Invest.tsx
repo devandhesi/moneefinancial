@@ -146,6 +146,15 @@ const suggestedForYou = [
   { symbol: "BND", name: "Vanguard Total Bond", reason: "Adds stability given your high-volatility tilt" },
 ];
 
+const hotSectors = [
+  { name: "AI & Semiconductors", change: 8.4, momentum: "🔥", tickers: ["NVDA", "AMD", "AVGO"] },
+  { name: "Cybersecurity", change: 5.2, momentum: "🔥", tickers: ["CRWD", "PANW", "ZS"] },
+  { name: "Clean Energy", change: 3.9, momentum: "📈", tickers: ["ENPH", "FSLR", "NEE"] },
+  { name: "Biotech", change: 2.8, momentum: "📈", tickers: ["MRNA", "REGN", "VRTX"] },
+  { name: "Consumer Discretionary", change: -1.3, momentum: "📉", tickers: ["AMZN", "TSLA", "NKE"] },
+  { name: "Real Estate", change: -2.1, momentum: "📉", tickers: ["O", "AMT", "PLD"] },
+];
+
 type AssetTab = "stocks" | "futures" | "crypto" | "options" | "indices";
 
 const TABS: { id: AssetTab; label: string; icon: typeof TrendingUp }[] = [
@@ -391,6 +400,39 @@ const Invest = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Hot Sectors */}
+              <div className="mt-5">
+                <div className="flex items-center gap-2 text-sm font-medium mb-3">
+                  <Flame size={14} className="text-loss" />
+                  <span>Hot Sectors</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">· This week</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {hotSectors.map((sector, i) => {
+                    const isPositive = sector.change >= 0;
+                    return (
+                      <motion.div
+                        key={sector.name}
+                        className="glass-card p-3 cursor-pointer transition-shadow hover:shadow-md"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.03 * i }}
+                        onClick={() => setActiveSector(sector.name.split(" ")[0])}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">{sector.momentum}</span>
+                          <span className={`text-xs font-semibold tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
+                            {isPositive ? "+" : ""}{sector.change}%
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-semibold leading-tight">{sector.name}</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">{sector.tickers.join(" · ")}</p>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
 

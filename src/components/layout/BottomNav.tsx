@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageCircle, TrendingUp, BookOpen, MoreHorizontal, Star, Globe, Receipt, ClipboardList, CalendarDays, FlaskConical, Shield, Users, User, Settings, Newspaper, X } from "lucide-react";
+import { LayoutDashboard, MessageCircle, TrendingUp, BookOpen, MoreHorizontal, Star, Globe, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, User, Settings, Newspaper, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const primaryTabs = [
@@ -19,10 +19,9 @@ const extraGroups = [
     ],
   },
   {
-    label: "Portfolio & Risk",
+    label: "Portfolio",
     pages: [
       { path: "/invest", icon: TrendingUp, label: "Invest" },
-      { path: "/risk", icon: Shield, label: "Risk Map" },
     ],
   },
   {

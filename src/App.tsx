@@ -20,7 +20,7 @@ import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
 import Calendar from "./pages/Calendar";
 import SimulationLab from "./pages/SimulationLab";
-import RiskMap from "./pages/RiskMap";
+
 import Watchlist from "./pages/Watchlist";
 import Markets from "./pages/Markets";
 import News from "./pages/News";
@@ -52,7 +52,7 @@ const App = () => (
               <Route path="/orders" element={<Orders />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/simulation" element={<SimulationLab />} />
-              <Route path="/risk" element={<RiskMap />} />
+              
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/markets" element={<Markets />} />
               <Route path="/news" element={<News />} />
