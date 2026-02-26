@@ -10,6 +10,7 @@ import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { searchStocks, getTrendingStocks, type TrendingStock, type StockSearchResult } from "@/lib/market-api";
 import AskMavenButton from "@/components/AskMavenButton";
+import StockAlertButton from "@/components/StockAlertButton";
 import { toast } from "sonner";
 import { useTimezone } from "@/hooks/use-timezone";
 
@@ -202,6 +203,7 @@ function AssetRow({ item, index, onClick }: { item: AssetItem; index: number; on
           </div>
         </div>
         <AskMavenButton symbol={item.symbol} compact />
+        <StockAlertButton symbol={item.symbol} currentPrice={item.price} compact />
       </div>
     </motion.div>
   );
