@@ -51,7 +51,7 @@ const navGroups: NavGroup[] = [
       { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
       { path: "/markets", icon: "Globe", label: "Markets" },
-      { path: "/news", icon: "Newspaper", label: "News" },
+      
       
     ],
   },
@@ -60,7 +60,7 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/transactions", icon: "Receipt", label: "Transactions" },
       { path: "/orders", icon: "ClipboardList", label: "Orders" },
-      { path: "/calendar", icon: "CalendarDays", label: "Calendar" },
+      
     ],
   },
   {

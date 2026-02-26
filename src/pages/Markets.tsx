@@ -4,7 +4,7 @@ import {
   Globe, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Activity, BarChart3, Clock, Flame, DollarSign, Percent,
   ChevronDown, ChevronUp, Search, Sun, Moon, Zap, Shield,
-  Gauge, PieChart, ArrowRight,
+  Gauge, PieChart, ArrowRight, CalendarDays,
 } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
@@ -146,6 +146,15 @@ const ECONOMIC_CALENDAR = [
   { date: "Mar 3", event: "ISM Manufacturing", impact: "medium", actual: null, forecast: "49.5", previous: "49.1" },
   { date: "Mar 5", event: "ADP Employment", impact: "medium", actual: null, forecast: "150K", previous: "164K" },
   { date: "Mar 7", event: "Nonfarm Payrolls", impact: "high", actual: null, forecast: "198K", previous: "216K" },
+];
+
+const EARNINGS_EVENTS = [
+  { date: "2026-02-27", label: "AAPL Q1 Earnings", type: "earnings" as const },
+  { date: "2026-03-03", label: "NVDA Q4 Earnings", type: "earnings" as const },
+  { date: "2026-03-05", label: "MSFT Limit Buy triggers", type: "order" as const },
+  { date: "2026-03-10", label: "GOOGL Q1 Earnings", type: "earnings" as const },
+  { date: "2026-03-12", label: "VTI Scheduled Buy", type: "order" as const },
+  { date: "2026-03-18", label: "TSLA Earnings", type: "earnings" as const },
 ];
 
 /* ── Helpers ──────────────────────────────────────────────────── */
@@ -598,42 +607,77 @@ const Markets = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="space-y-3"
+            className="space-y-4"
           >
-            <p className="text-xs text-muted-foreground">Upcoming economic events that may move markets</p>
-            {ECONOMIC_CALENDAR.map((event, i) => (
-              <motion.div
-                key={event.event}
-                className="glass-card flex items-center justify-between px-4 py-3.5"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground">{event.date.split(" ")[0]}</p>
-                    <p className="text-sm font-semibold">{event.date.split(" ")[1]}</p>
-                  </div>
-                  <div className="h-8 w-px bg-border/50" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{event.event}</p>
-                      <span className={`h-1.5 w-1.5 rounded-full ${
-                        event.impact === "high" ? "bg-loss" : "bg-muted-foreground/40"
-                      }`} />
+            {/* Earnings & Scheduled Events */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Earnings & Scheduled Events</p>
+              <div className="space-y-2">
+                {EARNINGS_EVENTS.map((e, i) => (
+                  <motion.div
+                    key={i}
+                    className="glass-card flex items-center justify-between p-4"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.04 * i }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+                        <CalendarDays size={16} className="text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{e.label}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Forecast: {event.forecast} · Previous: {event.previous}
-                    </p>
+                    <span className={`rounded-lg px-2.5 py-1 text-[11px] font-medium ${
+                      e.type === "earnings" ? "bg-secondary text-foreground" : "bg-gain-subtle text-gain"
+                    }`}>
+                      {e.type === "earnings" ? "Earnings" : "Order"}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Economic Calendar */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Economic Calendar</p>
+              <p className="mb-3 text-xs text-muted-foreground">Upcoming economic events that may move markets</p>
+              {ECONOMIC_CALENDAR.map((event, i) => (
+                <motion.div
+                  key={event.event}
+                  className="glass-card mb-2 flex items-center justify-between px-4 py-3.5"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground">{event.date.split(" ")[0]}</p>
+                      <p className="text-sm font-semibold">{event.date.split(" ")[1]}</p>
+                    </div>
+                    <div className="h-8 w-px bg-border/50" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{event.event}</p>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          event.impact === "high" ? "bg-loss" : "bg-muted-foreground/40"
+                        }`} />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Forecast: {event.forecast} · Previous: {event.previous}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                  event.impact === "high" ? "bg-loss/10 text-loss" : "bg-secondary text-muted-foreground"
-                }`}>
-                  {event.impact}
-                </span>
-              </motion.div>
-            ))}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    event.impact === "high" ? "bg-loss/10 text-loss" : "bg-secondary text-muted-foreground"
+                  }`}>
+                    {event.impact}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
 
             <div className="glass-card p-4">
               <h3 className="mb-2 text-sm font-medium">How to Use This</h3>

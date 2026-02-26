@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2,
-  Sun, Moon, BarChart3, Bitcoin, Layers, Activity, Flame, MessageCircle,
+  Sun, Moon, BarChart3, Bitcoin, Layers, Activity, Flame, MessageCircle, Newspaper, ExternalLink, AlertTriangle,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
 import PendingTradesWidget from "@/components/widgets/PendingTradesWidget";
@@ -155,7 +157,59 @@ const hotSectors = [
   { name: "Real Estate", change: -2.1, momentum: "📉", tickers: ["O", "AMT", "PLD"] },
 ];
 
-type AssetTab = "stocks" | "futures" | "crypto" | "options" | "indices";
+/* ── News types & hook ─────────────────────────────────────────── */
+
+interface NewsArticle {
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  author: string;
+  publishedAt: string;
+  relatedSymbols: string[];
+}
+
+interface ImpactItem {
+  title: string;
+  impact: string;
+}
+
+interface NewsData {
+  yourNews: NewsArticle[];
+  marketNews: NewsArticle[];
+  impactAnalysis: ImpactItem[];
+  generatedAt: string;
+}
+
+function useStockNews() {
+  return useQuery({
+    queryKey: ["stock-news"],
+    queryFn: async (): Promise<NewsData> => {
+      const { data, error } = await supabase.functions.invoke("stock-news", {
+        body: { holdings: ["AAPL", "MSFT", "GOOGL", "TSLA"] },
+      });
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 15,
+    refetchInterval: 1000 * 60 * 15,
+  });
+}
+
+function timeAgo(dateStr: string) {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch {
+    return "";
+  }
+}
+
+type AssetTab = "stocks" | "futures" | "crypto" | "options" | "indices" | "news";
 
 const TABS: { id: AssetTab; label: string; icon: typeof TrendingUp }[] = [
   { id: "stocks", label: "Stocks", icon: TrendingUp },
@@ -163,6 +217,7 @@ const TABS: { id: AssetTab; label: string; icon: typeof TrendingUp }[] = [
   { id: "crypto", label: "Crypto", icon: Bitcoin },
   { id: "options", label: "Options", icon: Layers },
   { id: "indices", label: "Indices", icon: BarChart3 },
+  { id: "news", label: "News", icon: Newspaper },
 ];
 
 /* ── Helpers ───────────────────────────────────────────────────── */
@@ -262,6 +317,7 @@ const Invest = () => {
   const { isOpen: marketOpen, displayTime, tzLabel, statusText: marketStatusText } = useMarketStatus(timezone);
 
   const filteredOptions = OPTIONS_CHAINS.filter(o => optionFilter === "All" || o.type === optionFilter);
+  const { data: newsData, isLoading: isNewsLoading } = useStockNews();
 
   return (
     <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8">
@@ -673,6 +729,127 @@ const Invest = () => {
                   <AssetRow key={item.symbol} item={item} index={i} />
                 ))}
               </div>
+            </motion.div>
+          )}
+
+          {/* ── NEWS ───────────────────────────────────────────── */}
+          {activeTab === "news" && (
+            <motion.div key="news" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 space-y-4">
+              {/* AI Impact Analysis */}
+              {newsData?.impactAnalysis && newsData.impactAnalysis.length > 0 && (
+                <div className="glass-card p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Sparkles size={14} className="text-muted-foreground" />
+                    <span>Maven Market Analysis</span>
+                  </div>
+                  <div className="mt-3 space-y-2.5">
+                    {newsData.impactAnalysis.map((item, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <AlertTriangle size={12} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                        <div>
+                          <p className="text-xs font-medium leading-snug">{item.title}</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{item.impact}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Your Stocks News */}
+              {isNewsLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {newsData?.yourNews && newsData.yourNews.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Your Holdings</p>
+                      <div className="space-y-2">
+                        {newsData.yourNews.map((article, i) => (
+                          <motion.a
+                            key={article.url}
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="glass-card block p-4 transition-all hover:shadow-md active:scale-[0.99]"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-semibold leading-snug line-clamp-2">{article.title}</h3>
+                                {article.summary && (
+                                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-2">{article.summary}</p>
+                                )}
+                                <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                                  <span className="font-medium">{article.source}</span>
+                                  {article.author && <><span className="text-muted-foreground/40">·</span><span>by {article.author}</span></>}
+                                  {article.publishedAt && <><span className="text-muted-foreground/40">·</span><span>{timeAgo(article.publishedAt)}</span></>}
+                                  {article.relatedSymbols.length > 0 && (
+                                    <>
+                                      <span className="text-muted-foreground/40">·</span>
+                                      {article.relatedSymbols.map((s) => (
+                                        <span key={s} className="rounded bg-secondary px-1.5 py-0.5 font-semibold">{s}</span>
+                                      ))}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <ExternalLink size={14} className="mt-1 shrink-0 text-muted-foreground/40" />
+                            </div>
+                          </motion.a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {newsData?.marketNews && newsData.marketNews.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Market News</p>
+                      <div className="space-y-2">
+                        {newsData.marketNews.map((article, i) => (
+                          <motion.a
+                            key={article.url}
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="glass-card block p-4 transition-all hover:shadow-md active:scale-[0.99]"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-semibold leading-snug line-clamp-2">{article.title}</h3>
+                                {article.summary && (
+                                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-2">{article.summary}</p>
+                                )}
+                                <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                                  <span className="font-medium">{article.source}</span>
+                                  {article.author && <><span className="text-muted-foreground/40">·</span><span>by {article.author}</span></>}
+                                  {article.publishedAt && <><span className="text-muted-foreground/40">·</span><span>{timeAgo(article.publishedAt)}</span></>}
+                                </div>
+                              </div>
+                              <ExternalLink size={14} className="mt-1 shrink-0 text-muted-foreground/40" />
+                            </div>
+                          </motion.a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(!newsData?.yourNews?.length && !newsData?.marketNews?.length) && (
+                    <div className="py-16 text-center text-sm text-muted-foreground">No news available right now.</div>
+                  )}
+
+                  {newsData?.generatedAt && (
+                    <p className="pb-4 text-center text-[10px] text-muted-foreground/50">Updated {timeAgo(newsData.generatedAt)}</p>
+                  )}
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
