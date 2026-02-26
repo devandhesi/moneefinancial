@@ -38,9 +38,9 @@ function getPageContext(pathname: string) {
 }
 
 const QUICK_ACTIONS = [
-  { emoji: "💡", label: "Teach me", prompt: "Teach me something useful about this screen — what should I know as an investor?" },
-  { emoji: "🔍", label: "Analyze", prompt: "Analyze what I'm looking at and give me actionable insights or warnings." },
-  { emoji: "🎯", label: "What to do", prompt: "Based on this screen, what should I do next? Give me a clear action plan." },
+  { label: "Teach me", prompt: "Teach me something useful about this screen — what should I know as an investor?" },
+  { label: "Analyze", prompt: "Analyze what I'm looking at and give me actionable insights or warnings." },
+  { label: "What to do", prompt: "Based on this screen, what should I do next? Give me a clear action plan." },
 ];
 
 export default function MavenAssistantFAB() {
@@ -153,15 +153,14 @@ export default function MavenAssistantFAB() {
                   <p className="text-sm text-muted-foreground text-center">
                     What can I help you with on this screen?
                   </p>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     {QUICK_ACTIONS.map((action) => (
                       <button
                         key={action.label}
                         onClick={() => sendMessage(action.prompt)}
-                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border bg-background hover:bg-muted/60 transition-colors text-left"
+                        className="px-3 py-2 rounded-full bg-muted/40 hover:bg-muted/80 transition-colors text-sm text-muted-foreground hover:text-foreground"
                       >
-                        <span className="text-lg">{action.emoji}</span>
-                        <span className="text-sm font-medium text-foreground">{action.label}</span>
+                        {action.label}
                       </button>
                     ))}
                   </div>
