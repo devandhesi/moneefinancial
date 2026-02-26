@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "rec
 import AiInsightWidget from "@/components/widgets/AiInsightWidget";
 import { useTimezone } from "@/hooks/use-timezone";
 import CompactHeatmapWidget from "@/components/widgets/CompactHeatmapWidget";
-import { useLiveHoldings, useLiveIndices, usePortfolioChart } from "@/hooks/use-dashboard-data";
+import { useLiveHoldings, usePortfolioChart } from "@/hooks/use-dashboard-data";
 import { useDailyDigest } from "@/hooks/use-daily-digest";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -38,7 +38,6 @@ const timeframes = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
 // Default widget config
 const DEFAULT_WIDGETS = [
   { id: "chart", label: "Portfolio Chart", visible: true },
-  { id: "indices", label: "Market Indices", visible: true },
   { id: "accounts", label: "Accounts", visible: true },
   { id: "heatmap", label: "Market Heatmap", visible: true },
   { id: "insight", label: "Maven Insight", visible: true },
@@ -63,7 +62,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const { data: liveHoldings, isLoading: holdingsLoading } = useLiveHoldings();
-  const { data: liveIndices, isLoading: indicesLoading } = useLiveIndices();
+  
   const { data: chartData, isLoading: chartLoading } = usePortfolioChart(activeTimeframe);
   const { data: digest, isLoading: digestLoading } = useDailyDigest();
 
@@ -132,43 +131,6 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Quick Actions */}
-        <motion.div className="mt-5 grid grid-cols-3 gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
-          {[
-            { icon: TrendingUp, label: "Invest", route: "/invest", color: "text-gain" },
-            { icon: Users, label: "Social", route: "/social", color: "text-blue-400" },
-            { icon: BookOpen, label: "Learn", route: "/learn", color: "text-amber-400" },
-          ].map(({ icon: Icon, label, route, color }) => (
-            <button key={label} onClick={() => navigate(route)} className="glass-card flex flex-col items-center gap-2 p-4 transition-all hover:shadow-md active:scale-[0.98]">
-              <Icon size={20} className={color} />
-              <span className="text-xs font-medium">{label}</span>
-            </button>
-          ))}
-        </motion.div>
-
-        {/* Market Indices */}
-        {isWidgetVisible("indices") && (
-          <motion.div className="mt-5 grid grid-cols-3 gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.08 }}>
-            {indicesLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="glass-card flex items-center justify-center px-3 py-4">
-                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
-                </div>
-              ))
-            ) : (
-              (liveIndices || []).map((m) => (
-                <div key={m.label} className="glass-card px-3 py-2.5 text-center">
-                  <p className="text-[10px] text-muted-foreground">{m.label}</p>
-                  <p className="mt-0.5 text-xs font-semibold">{m.value}</p>
-                  <p className={`text-[10px] font-medium ${m.change >= 0 ? "text-gain" : "text-loss"}`}>
-                    {m.change >= 0 ? "+" : ""}{m.change.toFixed(2)}%
-                  </p>
-                </div>
-              ))
-            )}
-          </motion.div>
-        )}
-
         {/* Chart */}
         {isWidgetVisible("chart") && (
           <motion.div className="glass-card mt-5 p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
@@ -204,6 +166,20 @@ const Dashboard = () => {
             </div>
           </motion.div>
         )}
+
+        {/* Quick Actions */}
+        <motion.div className="mt-5 grid grid-cols-3 gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
+          {[
+            { icon: TrendingUp, label: "Invest", route: "/invest", color: "text-gain" },
+            { icon: Users, label: "Social", route: "/social", color: "text-blue-400" },
+            { icon: BookOpen, label: "Learn", route: "/learn", color: "text-amber-400" },
+          ].map(({ icon: Icon, label, route, color }) => (
+            <button key={label} onClick={() => navigate(route)} className="glass-card flex flex-col items-center gap-2 p-4 transition-all hover:shadow-md active:scale-[0.98]">
+              <Icon size={20} className={color} />
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          ))}
+        </motion.div>
 
         {/* Maven AI Insight */}
         {isWidgetVisible("insight") && (
