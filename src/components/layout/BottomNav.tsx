@@ -23,6 +23,7 @@ const extraGroups = [
     label: "Investing",
     pages: [
       { path: "/watchlist", icon: Star, label: "Watchlist" },
+      { path: "/news", icon: Newspaper, label: "Market News" },
       { path: "/reports", icon: FileBarChart, label: "Reports" },
       { path: "/allocation", icon: PieChart, label: "Allocation" },
       { path: "/orders", icon: ClipboardList, label: "Orders" },

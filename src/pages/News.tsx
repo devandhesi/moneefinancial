@@ -90,8 +90,8 @@ const NewsCard = ({ article }: { article: NewsArticle }) => {
     <Wrapper {...linkProps} className="block rounded-xl border border-border/40 bg-card p-4 transition-all hover:bg-secondary/30 hover:shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h3 className="text-sm font-semibold leading-snug line-clamp-2">{article.title}</h3>
-          {article.summary && <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{article.summary}</p>}
+          <h3 className="text-sm font-semibold leading-snug line-clamp-2" dangerouslySetInnerHTML={{ __html: article.title }} />
+          {article.summary && <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2" dangerouslySetInnerHTML={{ __html: article.summary }} />}
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-muted-foreground">
             <span className="font-medium">{article.source}</span>
             {article.author && article.author !== article.source && (
