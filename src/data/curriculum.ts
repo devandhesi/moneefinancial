@@ -952,7 +952,7 @@ export const curriculum: Module[] = [
   },
 ];
 
-// Helper to get progress from localStorage
+// Helper to get progress from localStorage (with DB sync in hooks)
 const PROGRESS_KEY = "monee-learn-progress";
 
 export interface LearningProgress {
@@ -984,5 +984,55 @@ export function saveProgress(progress: LearningProgress) {
     passedModuleQuizzes: Array.from(progress.passedModuleQuizzes),
     passedUnitTests: Array.from(progress.passedUnitTests),
     quizScores: progress.quizScores,
+  }));
+  // Also sync to DB if user is logged in (fire-and-forget)
+  syncProgressToDb(progress);
+}
+
+async function syncProgressToDb(progress: LearningProgress) {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("learning_progress").upsert({
+      user_id: user.id,
+      completed_lessons: Array.from(progress.completedLessons),
+      passed_module_quizzes: Array.from(progress.passedModuleQuizzes),
+      passed_unit_tests: Array.from(progress.passedUnitTests),
+    }, { onConflict: "user_id" });
+  } catch {}
+}
+
+export async function loadProgressFromDb(): Promise<LearningProgress | null> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data } = await supabase
+      .from("learning_progress")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+    if (data) {
+      const progress: LearningProgress = {
+        completedLessons: new Set(data.completed_lessons || []),
+        passedModuleQuizzes: new Set(data.passed_module_quizzes || []),
+        passedUnitTests: new Set(data.passed_unit_tests || []),
+        quizScores: {},
+      };
+      // Sync back to localStorage
+      saveProgressLocal(progress);
+      return progress;
+    }
+  } catch {}
+  return null;
+}
+
+function saveProgressLocal(progress: LearningProgress) {
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+    completedLessons: Array.from(progress.completedLessons),
+    passedModuleQuizzes: Array.from(progress.passedModuleQuizzes),
+    passedUnitTests: Array.from(progress.passedUnitTests),
+    quizScores: progress.quizScores || {},
   }));
 }

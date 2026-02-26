@@ -10,6 +10,7 @@ import HeatBadgeInline from "@/components/widgets/HeatBadgeInline";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useWatchlist } from "@/hooks/use-watchlist";
 
 const chartModes = ["Simple", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
@@ -56,6 +57,7 @@ const StockDetail = () => {
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isChartLoading, setIsChartLoading] = useState(false);
+  const { hasSymbol: isInWatchlist, addSymbol, removeSymbol: removeFromWatchlist } = useWatchlist();
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeRange, setActiveRange] = useState<TimeRange>("3M");
   const [pendingOrders, setPendingOrders] = useState<Array<{type: string; shares: number; price: number; time: string}>>([]);
@@ -110,11 +112,8 @@ const StockDetail = () => {
   // Load watchlist
   useEffect(() => {
     if (!symbol) return;
-    try {
-      const watchlist = JSON.parse(localStorage.getItem("monee-watchlist") || "[]");
-      setIsWatchlisted(watchlist.includes(symbol));
-    } catch {}
-  }, [symbol]);
+    setIsWatchlisted(isInWatchlist(symbol));
+  }, [symbol, isInWatchlist]);
 
   const fetchData = useCallback(async (sym: string, range: TimeRange, isInitial: boolean) => {
     const id = ++fetchRef.current;
@@ -247,16 +246,16 @@ const StockDetail = () => {
   const newTechPct = ((currentTechPct / 100 * portfolioValue + purchaseValue) / newPortfolioValue * 100).toFixed(1);
   const healthChange = Number(newTechPct) > 72 ? -3 : Number(newTechPct) > 70 ? -1 : 1;
 
-  const toggleWatchlist = () => {
+  const toggleWatchlist = async () => {
     if (!symbol) return;
-    try {
-      const watchlist = JSON.parse(localStorage.getItem("monee-watchlist") || "[]") as string[];
-      let updated: string[];
-      if (watchlist.includes(symbol)) { updated = watchlist.filter((s) => s !== symbol); toast.success(`${symbol} removed from watchlist`); }
-      else { updated = [...watchlist, symbol]; toast.success(`${symbol} added to watchlist`); }
-      localStorage.setItem("monee-watchlist", JSON.stringify(updated));
-      setIsWatchlisted(!isWatchlisted);
-    } catch {}
+    if (isWatchlisted) {
+      await removeFromWatchlist(symbol);
+      toast.success(`${symbol} removed from watchlist`);
+    } else {
+      await addSymbol(symbol);
+      toast.success(`${symbol} added to watchlist`);
+    }
+    setIsWatchlisted(!isWatchlisted);
   };
 
   const handleShare = async () => {
