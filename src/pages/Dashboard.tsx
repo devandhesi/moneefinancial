@@ -129,15 +129,6 @@ const Dashboard = () => {
                   <p className="text-[9px] text-muted-foreground">{marketOpen ? "Market Open" : "Closed"} · {marketStatusText}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowCustomize(!showCustomize)}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all ${
-                  showCustomize ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <SlidersHorizontal size={13} />
-                Customize
-              </button>
             </div>
           </div>
           <div className="mt-1 flex items-center gap-3">
@@ -165,43 +156,6 @@ const Dashboard = () => {
             </div>
           )}
         </motion.div>
-
-        {/* Customize Panel */}
-        <AnimatePresence>
-          {showCustomize && (
-            <motion.div
-              className="glass-card mt-4 p-4"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium">Dashboard Widgets</h3>
-                <div className="flex items-center gap-2">
-                  <button onClick={resetAll} className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Reset</button>
-                  <button onClick={() => setShowCustomize(false)} className="rounded-lg p-1 hover:bg-secondary">
-                    <X size={14} className="text-muted-foreground" />
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                {(Object.keys(widgetLabels) as WidgetKey[]).map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => toggleWidget(key)}
-                    className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium transition-all ${
-                      v[key] ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"
-                    }`}
-                  >
-                    {v[key] && <Check size={12} />}
-                    {widgetLabels[key]}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Market Mini Cards */}
         {v.marketCards && (
