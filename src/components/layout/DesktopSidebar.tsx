@@ -16,6 +16,7 @@ import {
   Hash,
   LogOut,
   Newspaper,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
@@ -24,7 +25,7 @@ import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
-  FlaskConical, Settings, Star, Bell, Hash, Newspaper,
+  FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench,
 };
 
 interface NavGroup {
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/learn", icon: "BookOpen", label: "Learn" },
       { path: "/simulation", icon: "FlaskConical", label: "Sim Lab" },
+      { path: "/tools", icon: "Wrench", label: "Tools" },
     ],
   },
 ];

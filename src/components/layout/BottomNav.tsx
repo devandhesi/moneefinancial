@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Hash, TrendingUp, Bell, MoreHorizontal, Star, MessageCircle, BookOpen, FlaskConical, User, Settings, Newspaper, X } from "lucide-react";
+import { LayoutDashboard, Hash, TrendingUp, Bell, MoreHorizontal, Star, MessageCircle, BookOpen, FlaskConical, User, Settings, Newspaper, Wrench, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const primaryTabs = [
@@ -32,6 +32,7 @@ const extraGroups = [
     pages: [
       { path: "/learn", icon: BookOpen, label: "Learn" },
       { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
+      { path: "/tools", icon: Wrench, label: "Tools" },
       { path: "/profile", icon: User, label: "Profile" },
       { path: "/settings", icon: Settings, label: "Settings" },
     ],
