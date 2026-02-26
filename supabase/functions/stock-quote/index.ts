@@ -16,21 +16,48 @@ const rangeMap: Record<string, { range: string; interval: string }> = {
   "ALL": { range: "max", interval: "1wk" },
 };
 
+// Helper to map crypto/commodity symbols to Yahoo tickers if needed
+const mapSymbol = (s: string) => {
+  const sym = s.toUpperCase();
+  // Crypto
+  if (sym === "BTC") return "BTC-USD";
+  if (sym === "ETH") return "ETH-USD";
+  if (sym === "SOL") return "SOL-USD";
+  if (sym === "BNB") return "BNB-USD";
+  if (sym === "XRP") return "XRP-USD";
+  if (sym === "ADA") return "ADA-USD";
+  if (sym === "AVAX") return "AVAX-USD";
+  if (sym === "DOGE") return "DOGE-USD";
+  if (sym === "DOT") return "DOT-USD";
+  if (sym === "LINK") return "LINK-USD";
+  // Commodities (Futures)
+  if (sym === "GC" || sym === "GOLD") return "GC=F";
+  if (sym === "SI" || sym === "SILVER") return "SI=F";
+  if (sym === "CL" || sym === "OIL") return "CL=F";
+  if (sym === "NG" || sym === "NATGAS") return "NG=F";
+  if (sym === "HG" || sym === "COPPER") return "HG=F";
+  if (sym === "PL" || sym === "PLATINUM") return "PL=F";
+  if (sym === "ZW" || sym === "WHEAT") return "ZW=F";
+  if (sym === "ZC" || sym === "CORN") return "ZC=F";
+  return sym;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const body = await req.json();
-    const symbol = body.symbol;
+    const rawSymbol = body.symbol;
     const timeRange = body.range || "3M";
 
-    if (!symbol) {
+    if (!rawSymbol) {
       return new Response(JSON.stringify({ error: "Symbol required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const symbol = mapSymbol(rawSymbol);
     const params = rangeMap[timeRange] || rangeMap["3M"];
 
     const chartRes = await fetch(
@@ -39,8 +66,6 @@ serve(async (req) => {
     );
 
     if (!chartRes.ok) {
-      const txt = await chartRes.text();
-      console.error("Chart API error:", chartRes.status, txt);
       throw new Error(`Chart API failed: ${chartRes.status}`);
     }
 

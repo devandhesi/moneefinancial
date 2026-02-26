@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2, Share2, ZoomIn, ZoomOut, RotateCcw, Ruler } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2, Share2, ZoomIn, ZoomOut, RotateCcw, Ruler, Bell, BellOff } from "lucide-react";
 import {
   ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Brush, ReferenceArea, ReferenceLine,
 } from "recharts";
 import { getStockQuote, type StockQuote } from "@/lib/market-api";
 import HeatBadgeInline from "@/components/widgets/HeatBadgeInline";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 const chartModes = ["Simple", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
@@ -31,9 +33,18 @@ const formatPrice = (p: number): string => {
   return p.toFixed(4);
 };
 
+// Alert types
+const ALERT_TYPES = [
+  { value: "price_above", label: "Price goes above", icon: "📈" },
+  { value: "price_below", label: "Price drops below", icon: "📉" },
+  { value: "percent_change", label: "% change exceeds", icon: "📊" },
+  { value: "sudden_move", label: "Sudden movement", icon: "⚡" },
+];
+
 const StockDetail = () => {
   const { symbol } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [chartMode, setChartMode] = useState<ChartMode>("Simple");
   const [activeIndicators, setActiveIndicators] = useState<Set<AnyIndicator>>(new Set());
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
@@ -48,16 +59,53 @@ const StockDetail = () => {
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeRange, setActiveRange] = useState<TimeRange>("3M");
   const [pendingOrders, setPendingOrders] = useState<Array<{type: string; shares: number; price: number; time: string}>>([]);
-  // Zoom via scroll/pinch (percentage range 0-100)
   const [zoomStart, setZoomStart] = useState(0);
   const [zoomEnd, setZoomEnd] = useState(100);
-  // Measure via drag
   const [measureFrom, setMeasureFrom] = useState<string | null>(null);
   const [measureTo, setMeasureTo] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [measureResult, setMeasureResult] = useState<{ fromPrice: number; toPrice: number; fromDate: string; toDate: string } | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const fetchRef = useRef(0);
+
+  // Alerts state
+  const [showAlertPanel, setShowAlertPanel] = useState(false);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [newAlertType, setNewAlertType] = useState("price_above");
+  const [newAlertValue, setNewAlertValue] = useState("");
+
+  // Load alerts
+  useEffect(() => {
+    if (!user || !symbol) return;
+    supabase.from("stock_alerts").select("*").eq("user_id", user.id).eq("symbol", symbol.toUpperCase()).then(({ data }) => {
+      if (data) setAlerts(data);
+    });
+  }, [user, symbol]);
+
+  const createAlert = async () => {
+    if (!user || !symbol) return;
+    const val = newAlertType === "sudden_move" ? null : parseFloat(newAlertValue);
+    if (newAlertType !== "sudden_move" && (!val || isNaN(val))) {
+      toast.error("Enter a valid target value");
+      return;
+    }
+    const { data, error } = await supabase.from("stock_alerts").insert({
+      user_id: user.id,
+      symbol: symbol.toUpperCase(),
+      alert_type: newAlertType,
+      target_value: val,
+    }).select().single();
+    if (error) { toast.error("Failed to create alert"); return; }
+    setAlerts(prev => [...prev, data]);
+    setNewAlertValue("");
+    toast.success(`Alert created for ${symbol.toUpperCase()}`);
+  };
+
+  const deleteAlert = async (id: string) => {
+    await supabase.from("stock_alerts").delete().eq("id", id);
+    setAlerts(prev => prev.filter(a => a.id !== id));
+    toast.success("Alert removed");
+  };
 
   // Load watchlist
   useEffect(() => {
@@ -68,34 +116,25 @@ const StockDetail = () => {
     } catch {}
   }, [symbol]);
 
-  // Fetch data reactively when symbol or range changes
   const fetchData = useCallback(async (sym: string, range: TimeRange, isInitial: boolean) => {
     const id = ++fetchRef.current;
     if (isInitial) setIsLoading(true);
     else setIsChartLoading(true);
-
     try {
       const data = await getStockQuote(sym, range);
-      if (fetchRef.current !== id) return; // stale
+      if (fetchRef.current !== id) return;
       setQuote(data);
       if (isInitial) setLimitPrice(data.price.toFixed(2));
     } catch (e) {
       console.error(e);
       if (fetchRef.current === id) toast.error("Failed to load stock data.");
     } finally {
-      if (fetchRef.current === id) {
-        setIsLoading(false);
-        setIsChartLoading(false);
-      }
+      if (fetchRef.current === id) { setIsLoading(false); setIsChartLoading(false); }
     }
   }, []);
 
-  useEffect(() => {
-    if (!symbol) return;
-    fetchData(symbol, activeRange, true);
-  }, [symbol]);
+  useEffect(() => { if (symbol) fetchData(symbol, activeRange, true); }, [symbol]);
 
-  // When range changes, re-fetch chart data
   const handleRangeChange = useCallback((range: TimeRange) => {
     if (range === activeRange) return;
     setActiveRange(range);
@@ -104,32 +143,22 @@ const StockDetail = () => {
   }, [activeRange, symbol, fetchData]);
 
   const toggleIndicator = (ind: AnyIndicator) => {
-    setActiveIndicators((prev) => {
-      const next = new Set(prev);
-      next.has(ind) ? next.delete(ind) : next.add(ind);
-      return next;
-    });
+    setActiveIndicators((prev) => { const next = new Set(prev); next.has(ind) ? next.delete(ind) : next.add(ind); return next; });
   };
 
   const chartData = useMemo(() => {
     if (!quote?.chart) return [];
     const prices = quote.chart.map(p => p.price);
-
     const ema = (data: number[], period: number) => {
       const k = 2 / (period + 1);
       const result: number[] = [data[0]];
-      for (let i = 1; i < data.length; i++) {
-        result.push(data[i] * k + result[i - 1] * (1 - k));
-      }
+      for (let i = 1; i < data.length; i++) result.push(data[i] * k + result[i - 1] * (1 - k));
       return result;
     };
-
     const ema12Series = ema(prices, 12);
     const ema26Series = ema(prices, 26);
     const macdLine = ema12Series.map((v, i) => v - ema26Series[i]);
     const signalLine = ema(macdLine, 9);
-
-    // RSI (14-period)
     const rsiSeries: (number | null)[] = [];
     let avgGain = 0, avgLoss = 0;
     for (let i = 0; i < prices.length; i++) {
@@ -137,54 +166,31 @@ const StockDetail = () => {
       const delta = prices[i] - prices[i - 1];
       const gain = delta > 0 ? delta : 0;
       const loss = delta < 0 ? -delta : 0;
-      if (i <= 14) {
-        avgGain += gain; avgLoss += loss;
-        if (i === 14) { avgGain /= 14; avgLoss /= 14; rsiSeries.push(100 - 100 / (1 + avgGain / (avgLoss || 0.001))); }
-        else { rsiSeries.push(null); }
-      } else {
-        avgGain = (avgGain * 13 + gain) / 14;
-        avgLoss = (avgLoss * 13 + loss) / 14;
-        rsiSeries.push(100 - 100 / (1 + avgGain / (avgLoss || 0.001)));
-      }
+      if (i <= 14) { avgGain += gain; avgLoss += loss; if (i === 14) { avgGain /= 14; avgLoss /= 14; rsiSeries.push(100 - 100 / (1 + avgGain / (avgLoss || 0.001))); } else rsiSeries.push(null); }
+      else { avgGain = (avgGain * 13 + gain) / 14; avgLoss = (avgLoss * 13 + loss) / 14; rsiSeries.push(100 - 100 / (1 + avgGain / (avgLoss || 0.001))); }
     }
-
-    // VWAP (cumulative)
-    let cumVolPrice = 0;
-    let cumVol = 0;
-
+    let cumVolPrice = 0, cumVol = 0;
     return quote.chart.map((point, i, arr) => {
       const sma20Window = arr.slice(Math.max(0, i - 19), i + 1);
       const sma20 = sma20Window.reduce((sum, p) => sum + p.price, 0) / sma20Window.length;
       const stdDev = Math.sqrt(sma20Window.reduce((sum, p) => sum + (p.price - sma20) ** 2, 0) / sma20Window.length);
-      const bbUpper = sma20 + 2 * stdDev;
-      const bbLower = sma20 - 2 * stdDev;
-
-      // VWAP
       const vol = point.volume || 1;
       const typical = (point.high + point.low + point.close) / 3;
       cumVolPrice += typical * vol;
       cumVol += vol;
-      const vwap = cumVolPrice / cumVol;
-
       return {
-        ...point,
-        sma20: +sma20.toFixed(4),
-        ema12: +ema12Series[i].toFixed(4),
-        bbUpper: +bbUpper.toFixed(4),
-        bbLower: +bbLower.toFixed(4),
-        bbBand: [+bbLower.toFixed(4), +bbUpper.toFixed(4)],
+        ...point, sma20: +sma20.toFixed(4), ema12: +ema12Series[i].toFixed(4),
+        bbUpper: +(sma20 + 2 * stdDev).toFixed(4), bbLower: +(sma20 - 2 * stdDev).toFixed(4),
+        bbBand: [+(sma20 - 2 * stdDev).toFixed(4), +(sma20 + 2 * stdDev).toFixed(4)],
         rsi: rsiSeries[i] != null ? +rsiSeries[i]!.toFixed(2) : null,
-        macd: +macdLine[i].toFixed(4),
-        macdSignal: +signalLine[i].toFixed(4),
-        macdHist: +(macdLine[i] - signalLine[i]).toFixed(4),
-        vwap: +vwap.toFixed(4),
+        macd: +macdLine[i].toFixed(4), macdSignal: +signalLine[i].toFixed(4), macdHist: +(macdLine[i] - signalLine[i]).toFixed(4),
+        vwap: +(cumVolPrice / cumVol).toFixed(4),
         bullish: point.close >= point.open,
         candleBody: [Math.min(point.open, point.close), Math.max(point.open, point.close)],
       };
     });
   }, [quote]);
 
-  // Visible data based on zoom percentage
   const visibleData = useMemo(() => {
     if (chartData.length === 0) return [];
     const startIdx = Math.floor((zoomStart / 100) * chartData.length);
@@ -194,28 +200,21 @@ const StockDetail = () => {
 
   const isZoomed = zoomStart > 0 || zoomEnd < 100;
 
-  // Compute Y domain for visible data
   const yDomain = useMemo(() => {
     if (!visibleData.length) return [0, 100];
     const allPrices = visibleData.flatMap(d => [d.high, d.low, d.price].filter(Boolean));
-    if (activeIndicators.has("BB")) {
-      visibleData.forEach(d => { allPrices.push(d.bbUpper, d.bbLower); });
-    }
+    if (activeIndicators.has("BB")) visibleData.forEach(d => { allPrices.push(d.bbUpper, d.bbLower); });
     const min = Math.min(...allPrices);
     const max = Math.max(...allPrices);
     const padding = (max - min) * 0.08 || 1;
     return [+(min - padding).toFixed(4), +(max + padding).toFixed(4)];
   }, [visibleData, activeIndicators]);
 
-  // Scroll to zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomSpeed = 3;
-    const delta = e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+    const delta = e.deltaY > 0 ? 3 : -3;
     const range = zoomEnd - zoomStart;
     const center = (zoomStart + zoomEnd) / 2;
-
-    // Zoom in: shrink range around center; Zoom out: expand
     const newRange = Math.max(10, Math.min(100, range + delta));
     const newStart = Math.max(0, center - newRange / 2);
     const newEnd = Math.min(100, newStart + newRange);
@@ -223,74 +222,24 @@ const StockDetail = () => {
     setZoomEnd(newEnd);
   }, [zoomStart, zoomEnd]);
 
-  // Drag to measure price change
-  const handleChartMouseDown = useCallback((e: any) => {
-    if (e?.activeLabel) {
-      setMeasureFrom(e.activeLabel);
-      setMeasureTo(null);
-      setIsDragging(true);
-      setMeasureResult(null);
-    }
-  }, []);
-
-  const handleChartMouseMove = useCallback((e: any) => {
-    if (isDragging && e?.activeLabel) {
-      setMeasureTo(e.activeLabel);
-    }
-  }, [isDragging]);
-
+  const handleChartMouseDown = useCallback((e: any) => { if (e?.activeLabel) { setMeasureFrom(e.activeLabel); setMeasureTo(null); setIsDragging(true); setMeasureResult(null); } }, []);
+  const handleChartMouseMove = useCallback((e: any) => { if (isDragging && e?.activeLabel) setMeasureTo(e.activeLabel); }, [isDragging]);
   const handleChartMouseUp = useCallback(() => {
     if (isDragging && measureFrom && measureTo && measureFrom !== measureTo) {
       const fromPoint = chartData.find(d => d.date === measureFrom);
       const toPoint = chartData.find(d => d.date === measureTo);
-      if (fromPoint && toPoint) {
-        setMeasureResult({
-          fromPrice: fromPoint.price,
-          toPrice: toPoint.price,
-          fromDate: measureFrom,
-          toDate: measureTo,
-        });
-      }
+      if (fromPoint && toPoint) setMeasureResult({ fromPrice: fromPoint.price, toPrice: toPoint.price, fromDate: measureFrom, toDate: measureTo });
     }
     setIsDragging(false);
   }, [isDragging, measureFrom, measureTo, chartData]);
-
-  const clearMeasure = () => {
-    setMeasureFrom(null);
-    setMeasureTo(null);
-    setMeasureResult(null);
-  };
-
-  const resetZoom = () => {
-    setZoomStart(0);
-    setZoomEnd(100);
-    clearMeasure();
-  };
-
-  const zoomIn = () => {
-    const range = zoomEnd - zoomStart;
-    const center = (zoomStart + zoomEnd) / 2;
-    const newRange = Math.max(10, range * 0.7);
-    const ns = Math.max(0, center - newRange / 2);
-    const ne = Math.min(100, ns + newRange);
-    setZoomStart(Math.max(0, ne - newRange));
-    setZoomEnd(ne);
-  };
-
-  const zoomOut = () => {
-    const range = zoomEnd - zoomStart;
-    const center = (zoomStart + zoomEnd) / 2;
-    const newRange = Math.min(100, range * 1.4);
-    const ns = Math.max(0, center - newRange / 2);
-    const ne = Math.min(100, ns + newRange);
-    setZoomStart(Math.max(0, ne - newRange));
-    setZoomEnd(ne);
-  };
+  const clearMeasure = () => { setMeasureFrom(null); setMeasureTo(null); setMeasureResult(null); };
+  const resetZoom = () => { setZoomStart(0); setZoomEnd(100); clearMeasure(); };
+  const zoomIn = () => { const range = zoomEnd - zoomStart; const center = (zoomStart + zoomEnd) / 2; const nr = Math.max(10, range * 0.7); const ns = Math.max(0, center - nr / 2); const ne = Math.min(100, ns + nr); setZoomStart(Math.max(0, ne - nr)); setZoomEnd(ne); };
+  const zoomOut = () => { const range = zoomEnd - zoomStart; const center = (zoomStart + zoomEnd) / 2; const nr = Math.min(100, range * 1.4); const ns = Math.max(0, center - nr / 2); const ne = Math.min(100, ns + nr); setZoomStart(Math.max(0, ne - nr)); setZoomEnd(ne); };
 
   const currentPrice = quote?.price ?? 0;
   const changePercent = quote?.changePercent ?? 0;
   const isPositive = changePercent >= 0;
-
   const purchaseValue = shares * currentPrice;
   const portfolioValue = 12438.5;
   const currentTechPct = 68;
@@ -303,13 +252,8 @@ const StockDetail = () => {
     try {
       const watchlist = JSON.parse(localStorage.getItem("monee-watchlist") || "[]") as string[];
       let updated: string[];
-      if (watchlist.includes(symbol)) {
-        updated = watchlist.filter((s) => s !== symbol);
-        toast.success(`${symbol} removed from watchlist`);
-      } else {
-        updated = [...watchlist, symbol];
-        toast.success(`${symbol} added to watchlist`);
-      }
+      if (watchlist.includes(symbol)) { updated = watchlist.filter((s) => s !== symbol); toast.success(`${symbol} removed from watchlist`); }
+      else { updated = [...watchlist, symbol]; toast.success(`${symbol} added to watchlist`); }
       localStorage.setItem("monee-watchlist", JSON.stringify(updated));
       setIsWatchlisted(!isWatchlisted);
     } catch {}
@@ -318,20 +262,11 @@ const StockDetail = () => {
   const handleShare = async () => {
     const url = window.location.href;
     const text = `Check out ${symbol} - $${formatPrice(currentPrice)} (${isPositive ? "+" : ""}${changePercent.toFixed(2)}%)`;
-    if (navigator.share) {
-      try { await navigator.share({ title: `${symbol} Stock`, text, url }); } catch {}
-    } else {
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      toast.success("Link copied to clipboard");
-    }
+    if (navigator.share) { try { await navigator.share({ title: `${symbol} Stock`, text, url }); } catch {} }
+    else { await navigator.clipboard.writeText(`${text}\n${url}`); toast.success("Link copied to clipboard"); }
   };
 
-  const handleBuy = () => {
-    if (shares <= 0) { toast.error("Enter a valid number of shares"); return; }
-    if (coachMode && Number(newTechPct) > 70) { setShowCoachWarning(true); return; }
-    executeBuy();
-  };
-
+  const handleBuy = () => { if (shares <= 0) { toast.error("Enter a valid number of shares"); return; } if (coachMode && Number(newTechPct) > 70) { setShowCoachWarning(true); return; } executeBuy(); };
   const executeBuy = () => {
     const price = orderType === "limit" ? Number(limitPrice) : currentPrice;
     const order = { type: orderType === "limit" ? "Limit Buy" : "Market Buy", shares, price, time: new Date().toLocaleTimeString() };
@@ -339,7 +274,6 @@ const StockDetail = () => {
     setShowCoachWarning(false);
     toast.success(`📄 Paper ${order.type}: ${shares} share${shares > 1 ? "s" : ""} of ${symbol} at $${formatPrice(price)}`, { description: `Total: $${formatPrice(shares * price)}` });
   };
-
   const handleSell = () => {
     if (shares <= 0) { toast.error("Enter a valid number of shares"); return; }
     const price = orderType === "limit" ? Number(limitPrice) : currentPrice;
@@ -348,7 +282,6 @@ const StockDetail = () => {
     toast.success(`📄 Paper ${order.type}: ${shares} share${shares > 1 ? "s" : ""} of ${symbol} at $${formatPrice(price)}`, { description: `Total: $${formatPrice(shares * price)}` });
   };
 
-  // Tooltip with proper formatting
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0]?.payload;
@@ -367,467 +300,271 @@ const StockDetail = () => {
           <div className="flex justify-between gap-4"><span className="text-muted-foreground">Price</span><span className="font-medium">${formatPrice(d.price)}</span></div>
         )}
         {d.volume != null && (
-          <div className="flex justify-between gap-4 mt-0.5 pt-0.5 border-t border-border/50">
-            <span className="text-muted-foreground">Volume</span>
-            <span className="font-medium">{formatVolume(d.volume)}</span>
-          </div>
+          <div className="flex justify-between gap-4 mt-0.5 pt-0.5 border-t border-border/50"><span className="text-muted-foreground">Volume</span><span className="font-medium">{formatVolume(d.volume)}</span></div>
         )}
       </div>
     );
   };
 
-  // Candle shape rendered via customized Bar content (no ref issue)
   const renderCandleBar = useCallback((props: any) => {
     const { x, width, payload } = props;
     if (!payload) return null;
     const { open, close, high, low, bullish } = payload;
-
-    // Use the chart's actual Y axis to map values
     const allPrices = visibleData.flatMap(d => [d.high, d.low].filter(Boolean));
-    const minP = Math.min(...allPrices);
-    const maxP = Math.max(...allPrices);
+    const minP = Math.min(...allPrices); const maxP = Math.max(...allPrices);
     const padding = (maxP - minP) * 0.08 || 1;
-    const domainMin = minP - padding;
-    const domainMax = maxP + padding;
-
-    const chartHeight = 290;
-    const chartTop = 8;
-    const yScale = (val: number) => {
-      return chartTop + chartHeight - ((val - domainMin) / (domainMax - domainMin)) * chartHeight;
-    };
-
+    const domainMin = minP - padding; const domainMax = maxP + padding;
+    const chartHeight = 290; const chartTop = 8;
+    const yScale = (val: number) => chartTop + chartHeight - ((val - domainMin) / (domainMax - domainMin)) * chartHeight;
     const color = bullish ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)";
-    const bodyTop = yScale(Math.max(open, close));
-    const bodyBottom = yScale(Math.min(open, close));
-    const wickTop = yScale(high);
-    const wickBottom = yScale(low);
-    const barW = Math.max(width * 0.6, 2);
-    const cx = x + width / 2;
-
-    return (
-      <g>
-        <line x1={cx} x2={cx} y1={wickTop} y2={wickBottom} stroke={color} strokeWidth={1} />
-        <rect x={cx - barW / 2} y={bodyTop} width={barW} height={Math.max(bodyBottom - bodyTop, 1)} fill={color} rx={1} />
-      </g>
-    );
+    const bodyTop = yScale(Math.max(open, close)); const bodyBottom = yScale(Math.min(open, close));
+    const wickTop = yScale(high); const wickBottom = yScale(low);
+    const barW = Math.max(width * 0.6, 2); const cx = x + width / 2;
+    return (<g><line x1={cx} x2={cx} y1={wickTop} y2={wickBottom} stroke={color} strokeWidth={1} /><rect x={cx - barW / 2} y={bodyTop} width={barW} height={Math.max(bodyBottom - bodyTop, 1)} fill={color} rx={1} /></g>);
   }, [visibleData]);
 
-  // Tick label format based on range
-  const xTickInterval = useMemo(() => {
-    const len = visibleData.length;
-    if (len <= 10) return 0;
-    if (len <= 30) return Math.floor(len / 6);
-    return Math.floor(len / 8);
-  }, [visibleData]);
+  const xTickInterval = useMemo(() => { const len = visibleData.length; if (len <= 10) return 0; if (len <= 30) return Math.floor(len / 6); return Math.floor(len / 8); }, [visibleData]);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (isLoading) return <div className="flex h-[60vh] items-center justify-center"><Loader2 size={24} className="animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="px-5 pt-14 pb-8 lg:pt-8">
       {/* Header */}
       <motion.div className="flex items-center gap-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <button onClick={() => navigate(-1)} className="rounded-xl p-2 transition-colors hover:bg-secondary">
-          <ArrowLeft size={18} />
-        </button>
+        <button onClick={() => navigate(-1)} className="rounded-xl p-2 transition-colors hover:bg-secondary"><ArrowLeft size={18} /></button>
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold">{symbol}</h1>
             {symbol && <HeatBadgeInline symbol={symbol} />}
           </div>
-          <p className="text-sm text-muted-foreground">{quote?.name || "Stock Detail"}</p>
+          <p className="text-xs text-muted-foreground">{quote?.name}</p>
         </div>
-        <button onClick={handleShare} className="rounded-xl p-2 hover:bg-secondary" title="Share">
-          <Share2 size={18} className="text-muted-foreground" />
-        </button>
-        <button onClick={toggleWatchlist} className="rounded-xl p-2 hover:bg-secondary" title={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}>
-          <Star size={18} className={isWatchlisted ? "fill-foreground text-foreground" : "text-muted-foreground"} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowAlertPanel(!showAlertPanel)} className={`rounded-xl p-2.5 transition-colors ${alerts.length > 0 ? "text-foreground" : "text-muted-foreground"} hover:bg-secondary`} title="Price alerts">
+            {alerts.length > 0 ? <Bell size={18} /> : <BellOff size={18} />}
+          </button>
+          <button onClick={toggleWatchlist} className={`rounded-xl p-2.5 transition-colors ${isWatchlisted ? "text-foreground" : "text-muted-foreground"} hover:bg-secondary`}>
+            <Star size={18} className={isWatchlisted ? "fill-current" : ""} />
+          </button>
+          <button onClick={handleShare} className="rounded-xl p-2.5 text-muted-foreground transition-colors hover:bg-secondary"><Share2 size={18} /></button>
+          <button onClick={() => navigate(`/chat?q=Analyze ${symbol} for me`)} className="rounded-xl p-2.5 text-muted-foreground transition-colors hover:bg-secondary" title="Ask Maven"><Sparkles size={18} /></button>
+        </div>
       </motion.div>
 
-      {/* Price Hero */}
-      <motion.div className="mt-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-        <p className="text-3xl font-semibold tabular-nums">${formatPrice(currentPrice)}</p>
-        <p className={`mt-1 flex items-center gap-1 text-sm tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
-          {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-          {isPositive ? "+" : ""}{quote?.change?.toFixed(2)} ({Math.abs(changePercent).toFixed(2)}%) today
-        </p>
-      </motion.div>
-
-      <div className="mt-3 rounded-lg bg-secondary px-3 py-2 text-center text-[11px] text-muted-foreground">
-        📄 Simulated Trading · Real market data, paper trades
-      </div>
-
-      {/* Chart Mode + Time Range */}
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex gap-1.5">
-          {chartModes.map((mode) => (
-            <button key={mode} onClick={() => { setChartMode(mode); setActiveIndicators(new Set()); }}
-              className={`rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${chartMode === mode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
-              {mode}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-0.5">
-          {timeRanges.map((range) => (
-            <button key={range} onClick={() => handleRangeChange(range)}
-              className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-all ${activeRange === range ? "bg-foreground text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {range}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-          {allIndicators.map((ind) => (
-            <button key={ind} onClick={() => toggleIndicator(ind as AnyIndicator)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${activeIndicators.has(ind as AnyIndicator) ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
-              {ind}
-            </button>
-          ))}
-        </div>
-
-      {/* Chart */}
-      <motion.div className="glass-card mt-4 p-4 relative select-none" ref={chartContainerRef} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        {isChartLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/60 backdrop-blur-sm">
-            <Loader2 size={20} className="animate-spin text-muted-foreground" />
-          </div>
-        )}
-
-        {/* Chart toolbar */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Ruler size={12} />
-            <span>Drag to measure</span>
-            <span className="text-muted-foreground/40 mx-1">|</span>
-            <span>Scroll to zoom</span>
-            {isZoomed && <span className="text-muted-foreground/40 mx-1">|</span>}
-            {isZoomed && <span>{visibleData.length} of {chartData.length} pts</span>}
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={zoomIn} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Zoom in">
-              <ZoomIn size={13} />
-            </button>
-            <button onClick={zoomOut} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Zoom out">
-              <ZoomOut size={13} />
-            </button>
-            {(isZoomed || measureResult) && (
-              <button onClick={resetZoom} className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-                <RotateCcw size={10} /> Reset
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Measure result overlay */}
-        {measureResult && (
-          <div className="mb-2 flex items-center justify-between rounded-lg bg-secondary px-3 py-2">
-            <div className="flex items-center gap-3 text-xs">
-              <span className="text-muted-foreground">{measureResult.fromDate}</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="text-muted-foreground">{measureResult.toDate}</span>
-            </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="font-medium tabular-nums">${formatPrice(measureResult.fromPrice)} → ${formatPrice(measureResult.toPrice)}</span>
-              <span className={`font-semibold tabular-nums ${measureResult.toPrice >= measureResult.fromPrice ? "text-gain" : "text-loss"}`}>
-                {measureResult.toPrice >= measureResult.fromPrice ? "+" : ""}
-                ${formatPrice(Math.abs(measureResult.toPrice - measureResult.fromPrice))}
-                {" "}({((measureResult.toPrice - measureResult.fromPrice) / measureResult.fromPrice * 100).toFixed(2)}%)
-              </span>
-              <button onClick={clearMeasure} className="text-muted-foreground hover:text-foreground">×</button>
-            </div>
-          </div>
-        )}
-
-        {visibleData.length > 0 ? (
-          <div onWheel={handleWheel}>
-          <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart
-              data={visibleData}
-              margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-              onMouseDown={handleChartMouseDown}
-              onMouseMove={handleChartMouseMove}
-              onMouseUp={handleChartMouseUp}
-            >
-              <defs>
-                <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"} stopOpacity={0.15} />
-                  <stop offset="100%" stopColor={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="bbGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(270, 50%, 55%)" stopOpacity={0.06} />
-                  <stop offset="100%" stopColor="hsl(270, 50%, 55%)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              {chartMode !== "Simple" && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />}
-              <XAxis
-                dataKey="date"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10, fill: "hsl(220, 8%, 50%)" }}
-                interval={xTickInterval}
-                angle={activeRange === "1D" || activeRange === "1W" ? -30 : 0}
-                dy={activeRange === "1D" || activeRange === "1W" ? 8 : 0}
-                height={activeRange === "1D" || activeRange === "1W" ? 45 : 30}
-              />
-              <YAxis
-                yAxisId="price"
-                domain={yDomain}
-                tickFormatter={(v) => `$${formatPrice(v)}`}
-                tick={{ fontSize: 9, fill: "hsl(220, 8%, 50%)" }}
-                axisLine={false}
-                tickLine={false}
-                width={65}
-                tickCount={6}
-              />
-              <YAxis yAxisId="volume" hide orientation="right" domain={[0, "dataMax * 3"]} />
-              <Tooltip content={<CustomTooltip />} />
-              {activeIndicators.has("Volume") && (
-                <Bar yAxisId="volume" dataKey="volume" fill="hsl(220, 8%, 85%)" opacity={0.3} />
-              )}
-              {activeIndicators.has("BB") && (
-                <>
-                  <Area yAxisId="price" type="monotone" dataKey="bbBand" stroke="none" fill="url(#bbGrad)" dot={false} animationDuration={300} />
-                  <Line yAxisId="price" type="monotone" dataKey="bbUpper" stroke="hsl(270, 50%, 55%)" strokeWidth={0.8} dot={false} strokeDasharray="3 2" animationDuration={300} />
-                  <Line yAxisId="price" type="monotone" dataKey="bbLower" stroke="hsl(270, 50%, 55%)" strokeWidth={0.8} dot={false} strokeDasharray="3 2" animationDuration={300} />
-                </>
-              )}
-              {activeIndicators.has("VWAP") && (
-                <Line yAxisId="price" type="monotone" dataKey="vwap" stroke="hsl(180, 50%, 45%)" strokeWidth={1} dot={false} strokeDasharray="6 3" animationDuration={300} />
-              )}
-              {chartMode !== "Candle" && (
-                <Area
-                  yAxisId="price"
-                  type="monotone"
-                  dataKey="price"
-                  stroke={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"}
-                  strokeWidth={chartMode === "Simple" ? 2 : 1.5}
-                  fill="url(#priceGrad)"
-                  dot={false}
-                  animationDuration={300}
-                />
-              )}
-              {chartMode === "Candle" && (
-                <Bar yAxisId="price" dataKey="candleBody" shape={renderCandleBar} animationDuration={300} />
-              )}
-              {activeIndicators.has("SMA20") && (
-                <Line yAxisId="price" type="monotone" dataKey="sma20" stroke="hsl(215, 60%, 55%)" strokeWidth={1} dot={false} animationDuration={300} />
-              )}
-              {activeIndicators.has("EMA12") && (
-                <Line yAxisId="price" type="monotone" dataKey="ema12" stroke="hsl(35, 80%, 50%)" strokeWidth={1} dot={false} strokeDasharray="4 2" animationDuration={300} />
-              )}
-              {/* Measure drag highlight */}
-              {isDragging && measureFrom && measureTo && (
-                <ReferenceArea yAxisId="price" x1={measureFrom} x2={measureTo} strokeOpacity={0.3} fill="hsl(215, 60%, 55%)" fillOpacity={0.08} stroke="hsl(215, 60%, 55%)" strokeDasharray="3 3" />
-              )}
-              {/* Measure result lines */}
-              {measureResult && (
-                <>
-                  <ReferenceLine yAxisId="price" x={measureResult.fromDate} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                  <ReferenceLine yAxisId="price" x={measureResult.toDate} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                </>
-              )}
-              <Brush
-                dataKey="date"
-                height={24}
-                stroke="hsl(var(--border))"
-                travellerWidth={8}
-                fill="hsl(var(--secondary))"
-                tickFormatter={() => ""}
-                startIndex={Math.floor((zoomStart / 100) * chartData.length)}
-                endIndex={Math.min(chartData.length - 1, Math.ceil((zoomEnd / 100) * chartData.length) - 1)}
-                onChange={(range: any) => {
-                  if (range && typeof range.startIndex === "number" && typeof range.endIndex === "number") {
-                    setZoomStart((range.startIndex / chartData.length) * 100);
-                    setZoomEnd(((range.endIndex + 1) / chartData.length) * 100);
-                  }
-                }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">No chart data available</div>
-        )}
-
-        {/* Legend for active indicators */}
-        {(activeIndicators.size > 0 || chartMode === "Candle") && (
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px]">
-            {chartMode === "Candle" && (
+      {/* Alert Panel */}
+      <AnimatePresence>
+        {showAlertPanel && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="glass-card mt-3 p-4 space-y-3">
+            <h3 className="text-sm font-medium">Price Alerts for {symbol?.toUpperCase()}</h3>
+            {!user ? (
+              <p className="text-xs text-muted-foreground">Sign in to create alerts.</p>
+            ) : (
               <>
-                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "hsl(152, 28%, 40%)" }} /> Bullish</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "hsl(0, 32%, 52%)" }} /> Bearish</span>
+                <div className="flex gap-2">
+                  <select value={newAlertType} onChange={(e) => setNewAlertType(e.target.value)} className="rounded-lg bg-secondary px-2 py-1.5 text-xs outline-none flex-1">
+                    {ALERT_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+                  </select>
+                  {newAlertType !== "sudden_move" && (
+                    <input type="number" value={newAlertValue} onChange={(e) => setNewAlertValue(e.target.value)} placeholder={newAlertType === "percent_change" ? "e.g. 5%" : `e.g. ${currentPrice.toFixed(2)}`} className="rounded-lg bg-secondary px-2 py-1.5 text-xs outline-none w-28" />
+                  )}
+                  <button onClick={createAlert} className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-primary-foreground">Add</button>
+                </div>
+                {alerts.length > 0 && (
+                  <div className="space-y-1.5">
+                    {alerts.map(a => (
+                      <div key={a.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+                        <span className="text-xs">
+                          {ALERT_TYPES.find(t => t.value === a.alert_type)?.icon} {ALERT_TYPES.find(t => t.value === a.alert_type)?.label}
+                          {a.target_value != null && <span className="font-medium ml-1">{a.alert_type === "percent_change" ? `${a.target_value}%` : `$${a.target_value}`}</span>}
+                        </span>
+                        <button onClick={() => deleteAlert(a.id)} className="text-xs text-muted-foreground hover:text-destructive">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
-            {activeIndicators.has("SMA20") && (
-              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(215, 60%, 55%)" }} /> SMA 20</span>
-            )}
-            {activeIndicators.has("EMA12") && (
-              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded border-t border-dashed" style={{ borderColor: "hsl(35, 80%, 50%)" }} /> EMA 12</span>
-            )}
-            {activeIndicators.has("BB") && (
-              <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm border border-dashed" style={{ borderColor: "hsl(270, 50%, 55%)", background: "hsl(270, 50%, 55%, 0.1)" }} /> Bollinger</span>
-            )}
-            {activeIndicators.has("VWAP") && (
-              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(180, 50%, 45%)" }} /> VWAP</span>
-            )}
-          </div>
-        )}
-      </motion.div>
-
-      {/* What If */}
-      <motion.button onClick={() => setShowWhatIf(!showWhatIf)}
-        className="glass-card mt-4 flex w-full items-center justify-center gap-2 p-3 text-sm font-medium transition-all hover:shadow-md"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }}>
-        <Zap size={14} className="text-muted-foreground" />
-        {showWhatIf ? "Hide What If" : "What If I…"}
-      </motion.button>
-
-      <AnimatePresence>
-        {showWhatIf && (
-          <motion.div className="glass-card mt-2 p-4" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs text-muted-foreground">Shares:</span>
-              <div className="flex items-center gap-2 flex-wrap">
-                {[1, 5, 10, 25, 50, 100].map((n) => (
-                  <button key={n} onClick={() => setShares(n)}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${shares === n ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between"><span className="text-muted-foreground">Purchase Value</span><span className="font-medium tabular-nums">${formatPrice(purchaseValue)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">New Portfolio Value</span><span className="font-medium tabular-nums">${formatPrice(newPortfolioValue)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Tech Allocation</span><span className={`font-medium ${Number(newTechPct) > 70 ? "text-loss" : ""}`}>{currentTechPct}% → {newTechPct}%</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Health Score Impact</span><span className={`font-medium ${healthChange < 0 ? "text-loss" : "text-gain"}`}>{healthChange > 0 ? "+" : ""}{healthChange} pts</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Projected Annual Cost</span><span className="font-medium tabular-nums">${(purchaseValue * 0.002).toFixed(2)} (MER)</span></div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Key Stats */}
-      <motion.div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+      {/* Price */}
+      <motion.div className="mt-4 flex items-baseline gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        <span className="text-3xl font-semibold">${formatPrice(currentPrice)}</span>
+        <span className={`flex items-center gap-0.5 text-sm font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
+          {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+          {isPositive ? "+" : ""}{changePercent.toFixed(2)}%
+        </span>
+        {isChartLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+      </motion.div>
+
+      {/* Time range tabs */}
+      <div className="mt-3 flex items-center gap-1">
+        {timeRanges.map((r) => (
+          <button key={r} onClick={() => handleRangeChange(r)} className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${activeRange === r ? "bg-foreground text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{r}</button>
+        ))}
+      </div>
+
+      {/* Chart */}
+      <motion.div className="glass-card mt-3 p-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} ref={chartContainerRef} onWheel={handleWheel}>
+        {/* Zoom + Measure toolbar */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1">
+            {chartModes.map(m => (
+              <button key={m} onClick={() => setChartMode(m)} className={`rounded-md px-2 py-1 text-[10px] font-medium ${chartMode === m ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{m}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={zoomIn} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Zoom in"><ZoomIn size={13} /></button>
+            <button onClick={zoomOut} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Zoom out"><ZoomOut size={13} /></button>
+            {isZoomed && <button onClick={resetZoom} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Reset"><RotateCcw size={13} /></button>}
+            {measureResult && (
+              <div className="flex items-center gap-1 ml-2 rounded-md bg-secondary px-2 py-0.5">
+                <Ruler size={10} className="text-muted-foreground" />
+                <span className={`text-[10px] font-medium ${measureResult.toPrice >= measureResult.fromPrice ? "text-gain" : "text-loss"}`}>
+                  {measureResult.toPrice >= measureResult.fromPrice ? "+" : ""}{((measureResult.toPrice - measureResult.fromPrice) / measureResult.fromPrice * 100).toFixed(2)}%
+                </span>
+                <button onClick={clearMeasure} className="ml-1 text-muted-foreground hover:text-foreground"><span className="text-[10px]">×</span></button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <ResponsiveContainer width="100%" height={300}>
+          <ComposedChart data={visibleData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} onMouseDown={handleChartMouseDown} onMouseMove={handleChartMouseMove} onMouseUp={handleChartMouseUp}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
+            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={xTickInterval} />
+            <YAxis domain={yDomain as any} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${formatPrice(v)}`} width={60} />
+            <Tooltip content={<CustomTooltip />} />
+            {isDragging && measureFrom && measureTo && <ReferenceArea x1={measureFrom} x2={measureTo} fill="hsl(var(--foreground))" fillOpacity={0.05} stroke="hsl(var(--foreground))" strokeOpacity={0.2} strokeDasharray="3 3" />}
+            {activeIndicators.has("BB") && <Area type="monotone" dataKey="bbUpper" stroke="hsl(var(--muted-foreground))" strokeWidth={0.5} fill="hsl(var(--muted-foreground))" fillOpacity={0.03} strokeDasharray="2 2" dot={false} />}
+            {activeIndicators.has("BB") && <Area type="monotone" dataKey="bbLower" stroke="hsl(var(--muted-foreground))" strokeWidth={0.5} fill="none" strokeDasharray="2 2" dot={false} />}
+            {chartMode === "Simple" && <Area type="monotone" dataKey="price" stroke={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"} strokeWidth={1.5} fill={isPositive ? "hsl(152, 28%, 40%)" : "hsl(0, 32%, 52%)"} fillOpacity={0.06} dot={false} />}
+            {chartMode === "Candle" && <Bar dataKey="candleBody" shape={renderCandleBar} />}
+            {activeIndicators.has("SMA20") && <Line type="monotone" dataKey="sma20" stroke="hsl(45, 90%, 55%)" strokeWidth={1} dot={false} />}
+            {activeIndicators.has("EMA12") && <Line type="monotone" dataKey="ema12" stroke="hsl(280, 60%, 55%)" strokeWidth={1} dot={false} />}
+            {activeIndicators.has("VWAP") && <Line type="monotone" dataKey="vwap" stroke="hsl(200, 60%, 55%)" strokeWidth={1} dot={false} strokeDasharray="4 2" />}
+            {activeIndicators.has("Volume") && <Bar dataKey="volume" yAxisId="volume" fill="hsl(var(--muted-foreground))" fillOpacity={0.1} />}
+          </ComposedChart>
+        </ResponsiveContainer>
+        {activeIndicators.has("Volume") && <YAxis yAxisId="volume" hide />}
+
+        {/* Indicators */}
+        <div className="mt-2 flex flex-wrap gap-1">
+          {(allIndicators as readonly string[]).map((ind) => (
+            <button key={ind} onClick={() => toggleIndicator(ind as AnyIndicator)} className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-all ${activeIndicators.has(ind as AnyIndicator) ? "bg-foreground text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{ind}</button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Stats Grid */}
+      <motion.div className="mt-4 grid grid-cols-3 gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
         {[
-          { label: "Open", value: quote ? `$${formatPrice(quote.open)}` : "—" },
-          { label: "Day High", value: quote ? `$${formatPrice(quote.dayHigh)}` : "—" },
-          { label: "Day Low", value: quote ? `$${formatPrice(quote.dayLow)}` : "—" },
-          { label: "Prev Close", value: quote ? `$${formatPrice(quote.previousClose)}` : "—" },
-          { label: "Mkt Cap", value: quote?.marketCap || "—" },
-          { label: "52W High", value: quote ? `$${formatPrice(quote.fiftyTwoWeekHigh)}` : "—" },
-          { label: "52W Low", value: quote ? `$${formatPrice(quote.fiftyTwoWeekLow)}` : "—" },
-          { label: "Avg Vol", value: quote?.avgVolume || "—" },
+          { label: "Open", value: `$${formatPrice(quote?.open ?? 0)}` },
+          { label: "Day High", value: `$${formatPrice(quote?.dayHigh ?? 0)}` },
+          { label: "Day Low", value: `$${formatPrice(quote?.dayLow ?? 0)}` },
+          { label: "52W High", value: `$${formatPrice(quote?.fiftyTwoWeekHigh ?? 0)}` },
+          { label: "52W Low", value: `$${formatPrice(quote?.fiftyTwoWeekLow ?? 0)}` },
+          { label: "Volume", value: formatVolume(quote?.volume ?? 0) },
+          { label: "Mkt Cap", value: quote?.marketCap || "N/A" },
+          { label: "P/E", value: quote?.peRatio || "N/A" },
+          { label: "Avg Vol", value: quote?.avgVolume || "N/A" },
         ].map((s) => (
           <div key={s.label} className="glass-card px-3 py-2.5">
             <p className="text-[10px] text-muted-foreground">{s.label}</p>
-            <p className="mt-0.5 text-xs font-semibold tabular-nums">{s.value}</p>
+            <p className="mt-0.5 text-xs font-semibold">{s.value}</p>
           </div>
         ))}
       </motion.div>
 
-      {/* AI Analysis */}
-      <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Sparkles size={14} className="text-muted-foreground" />
-          <span>Maven Analysis</span>
+      {/* Trade Panel */}
+      <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium">Paper Trade</h2>
+          <div className="flex gap-1">
+            {(["market", "limit"] as const).map(t => (
+              <button key={t} onClick={() => setOrderType(t)} className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${orderType === t ? "bg-secondary text-foreground" : "text-muted-foreground"}`}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+            ))}
+          </div>
         </div>
-        <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          {quote ? (
-            <>
-              {quote.name} ({symbol}) is trading at ${formatPrice(quote.price)}, {isPositive ? "up" : "down"} {Math.abs(quote.changePercent).toFixed(2)}% today.
-              {quote.peRatio !== "N/A" && ` P/E ratio of ${quote.peRatio}.`}
-              {quote.beta && ` Beta of ${quote.beta.toFixed(2)} suggests ${quote.beta > 1 ? "higher" : "lower"} volatility than the market.`}
-              {" "}Adding {shares} share{shares > 1 ? "s" : ""} would shift your tech allocation to {newTechPct}%.
-            </>
-          ) : "Loading analysis..."}
-        </p>
-        <button onClick={() => navigate("/chat")} className="mt-3 text-xs font-medium text-foreground underline-offset-2 hover:underline">
-          Ask Maven for deeper analysis →
-        </button>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground">Shares</label>
+            <input type="number" min={1} value={shares} onChange={(e) => setShares(Math.max(1, +e.target.value))} className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm font-medium outline-none" />
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground">{orderType === "limit" ? "Limit Price" : "Market Price"}</label>
+            {orderType === "limit" ? (
+              <input type="number" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm font-medium outline-none" />
+            ) : (
+              <p className="mt-1 rounded-lg bg-secondary px-3 py-2 text-sm font-medium">${formatPrice(currentPrice)}</p>
+            )}
+          </div>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">Est. cost: <span className="font-medium text-foreground">${formatPrice(purchaseValue)}</span></p>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={handleBuy} className="rounded-xl bg-gain py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90">Buy</button>
+          <button onClick={handleSell} className="rounded-xl bg-loss py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90">Sell</button>
+        </div>
       </motion.div>
 
-      {/* Order Ticket */}
-      <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Simulated Order</h3>
-          <button onClick={() => {
-            setCoachMode(!coachMode);
-            toast.info(coachMode ? "Coach Mode disabled" : "Coach Mode enabled", { duration: 2000 });
-          }}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${coachMode ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
-            <Sparkles size={10} /> Coach {coachMode ? "ON" : "OFF"}
-          </button>
-        </div>
-        <div className="mt-3 flex gap-2">
-          <button onClick={() => setOrderType("market")} className={`flex-1 rounded-xl py-2 text-xs font-medium transition-all ${orderType === "market" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>Market</button>
-          <button onClick={() => setOrderType("limit")} className={`flex-1 rounded-xl py-2 text-xs font-medium transition-all ${orderType === "limit" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>Limit</button>
-        </div>
-        {orderType === "limit" && (
-          <div className="glass-input mt-3 px-3 py-2">
-            <label className="text-[10px] text-muted-foreground">Limit Price</label>
-            <input type="number" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} step="0.01" className="mt-0.5 w-full bg-transparent text-sm font-medium outline-none tabular-nums" />
-          </div>
-        )}
-        <div className="glass-input mt-2 px-3 py-2">
-          <label className="text-[10px] text-muted-foreground">Shares</label>
-          <input type="number" value={shares} onChange={(e) => setShares(Number(e.target.value) || 1)} min={1} className="mt-0.5 w-full bg-transparent text-sm font-medium outline-none tabular-nums" />
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-          <span>Estimated Total</span>
-          <span className="font-medium text-foreground tabular-nums">${formatPrice(shares * (orderType === "limit" ? Number(limitPrice) : currentPrice))}</span>
-        </div>
-
+      {/* What-If Analysis */}
+      <motion.div className="mt-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+        <button onClick={() => setShowWhatIf(!showWhatIf)} className="flex w-full items-center justify-between glass-card px-4 py-3">
+          <div className="flex items-center gap-2"><Zap size={14} /><span className="text-sm font-medium">What-If Analysis</span></div>
+          <span className="text-xs text-muted-foreground">{showWhatIf ? "Hide" : "Show"}</span>
+        </button>
         <AnimatePresence>
-          {showCoachWarning && (
-            <motion.div className="mt-3 rounded-xl bg-loss/5 border border-loss/10 p-3" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-              <div className="flex items-center gap-2 text-xs font-medium text-loss"><Sparkles size={12} /> Maven Coach Warning</div>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                This trade increases your tech exposure to {newTechPct}%. Health score would drop by {Math.abs(healthChange)} points.
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button onClick={executeBuy} className="rounded-lg bg-foreground px-3 py-1.5 text-[11px] font-medium text-primary-foreground">Proceed Anyway</button>
-                <button onClick={() => setShowCoachWarning(false)} className="rounded-lg glass-card px-3 py-1.5 text-[11px] font-medium text-muted-foreground">Cancel</button>
+          {showWhatIf && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="glass-card mt-2 p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-secondary p-3 text-center"><p className="text-[10px] text-muted-foreground">New Portfolio Value</p><p className="text-sm font-semibold">${formatPrice(newPortfolioValue)}</p></div>
+                <div className="rounded-lg bg-secondary p-3 text-center"><p className="text-[10px] text-muted-foreground">New Tech Allocation</p><p className="text-sm font-semibold">{newTechPct}%</p></div>
+              </div>
+              <div className={`rounded-lg p-3 text-xs ${healthChange > 0 ? "bg-gain/10 text-gain" : healthChange < 0 ? "bg-loss/10 text-loss" : "bg-secondary text-muted-foreground"}`}>
+                {healthChange > 0 ? "This trade improves portfolio diversification" : healthChange < 0 ? "Warning: This increases tech concentration above 70%" : "Neutral impact on portfolio balance"}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button onClick={handleBuy} className="rounded-xl bg-foreground py-3 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98]">Buy (Paper)</button>
-          <button onClick={handleSell} className="glass-card py-3 text-sm font-medium transition-transform active:scale-[0.98]">Sell (Paper)</button>
-        </div>
       </motion.div>
 
-      {/* Recent Paper Orders */}
+      {/* Coach Warning Modal */}
       <AnimatePresence>
-        {pendingOrders.length > 0 && (
-          <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <h3 className="text-sm font-medium mb-3">Session Orders</h3>
-            <div className="space-y-2">
-              {pendingOrders.map((order, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <div>
-                    <span className={`font-medium ${order.type.includes("Buy") ? "text-gain" : "text-loss"}`}>{order.type}</span>
-                    <span className="text-muted-foreground"> · {order.shares} shares</span>
-                  </div>
-                  <div className="text-right tabular-nums">
-                    <span className="font-medium">${formatPrice(order.shares * order.price)}</span>
-                    <span className="text-muted-foreground ml-2">{order.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {showCoachWarning && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm px-4" onClick={() => setShowCoachWarning(false)}>
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="glass-card-strong max-w-sm w-full p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2"><Sparkles size={16} /><h3 className="text-sm font-semibold">Maven Coach Warning</h3></div>
+              <p className="text-xs text-muted-foreground leading-relaxed">Adding {shares} share{shares > 1 ? "s" : ""} of {symbol} would push your tech allocation to <strong className="text-foreground">{newTechPct}%</strong> which is above the recommended 70% threshold.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowCoachWarning(false)} className="flex-1 rounded-xl bg-secondary py-2 text-xs font-medium text-foreground">Cancel</button>
+                <button onClick={executeBuy} className="flex-1 rounded-xl bg-foreground py-2 text-xs font-medium text-primary-foreground">Buy Anyway</button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Pending Orders */}
+      {pendingOrders.length > 0 && (
+        <motion.div className="mt-4 space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <h3 className="text-xs font-medium text-muted-foreground">Recent Paper Orders</h3>
+          {pendingOrders.slice(0, 5).map((order, i) => (
+            <div key={i} className="glass-card flex items-center justify-between px-4 py-2.5">
+              <div>
+                <span className={`text-xs font-medium ${order.type.includes("Buy") ? "text-gain" : "text-loss"}`}>{order.type}</span>
+                <span className="text-xs text-muted-foreground ml-2">{order.shares} × ${formatPrice(order.price)}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">{order.time}</span>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Disclaimer */}
+      <motion.div className="mt-6 mb-4 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+        <p className="text-[11px] text-muted-foreground">Paper Trading · Educational demo only · Not financial advice</p>
+      </motion.div>
     </div>
   );
 };
