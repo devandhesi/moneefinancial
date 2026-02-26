@@ -10,6 +10,7 @@ interface NewsArticle {
   summary: string;
   url: string;
   source: string;
+  author: string;
   publishedAt: string;
   relatedSymbols: string[];
   thumbnail?: string;
@@ -48,6 +49,8 @@ async function fetchYahooNews(symbol?: string): Promise<NewsArticle[]> {
       const description = getTag("description");
       const pubDate = getTag("pubDate");
       const source = getTag("source") || "Yahoo Finance";
+      // Extract author from dc:creator, author, or credit tags
+      const author = getTag("dc:creator") || getTag("author") || getTag("media:credit") || "";
 
       if (title && link) {
         articles.push({
@@ -55,6 +58,7 @@ async function fetchYahooNews(symbol?: string): Promise<NewsArticle[]> {
           summary: description.replace(/<[^>]*>/g, "").slice(0, 200),
           url: link,
           source,
+          author,
           publishedAt: pubDate || new Date().toISOString(),
           relatedSymbols: symbol ? [symbol] : [],
         });
