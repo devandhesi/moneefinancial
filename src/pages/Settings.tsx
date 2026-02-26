@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, type LucideIcon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
@@ -30,7 +31,7 @@ const brokers: Broker[] = [
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
   const { timezone, setTimezone } = useTimezone();
   const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(new Set());
@@ -70,23 +71,18 @@ const Settings = () => {
       {/* Appearance */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Appearance</h2>
-        <button
-          onClick={toggleTheme}
-          className="glass-card flex w-full items-center justify-between p-4 transition-shadow hover:shadow-md"
-        >
+        <div className="glass-card flex w-full items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
               {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium">Theme</p>
-              <p className="text-[11px] text-muted-foreground">{theme === "dark" ? "Dark mode" : "Light mode"}</p>
+              <p className="text-sm font-medium">Dark Mode</p>
+              <p className="text-[11px] text-muted-foreground">{theme === "dark" ? "On" : "Off"}</p>
             </div>
           </div>
-          <div className={`relative h-6 w-11 rounded-full transition-colors ${theme === "dark" ? "bg-foreground" : "bg-border"}`}>
-            <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform ${theme === "dark" ? "translate-x-[22px]" : "translate-x-0.5"}`} />
-          </div>
-        </button>
+          <Switch checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} />
+        </div>
       </motion.div>
 
       {/* Timezone */}

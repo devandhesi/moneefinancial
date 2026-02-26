@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
+import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -40,7 +41,7 @@ const iconMap: Record<string, LucideIcon> = {
 
 const DesktopSidebar = () => {
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { links } = useSidebarConfig();
 
   const mainLinks = links.filter(l => l.section === "main" && l.visible);
@@ -88,13 +89,13 @@ const DesktopSidebar = () => {
       </nav>
 
       <div className="border-t border-border/50 px-4 py-4 space-y-3">
-        <button
-          onClick={toggleTheme}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
-        >
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-        </button>
+        <div className="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground">
+          <div className="flex items-center gap-3">
+            {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+            <span>Dark Mode</span>
+          </div>
+          <Switch checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} />
+        </div>
         <p className="px-4 text-[10px] text-muted-foreground">
           📄 Paper Trading Mode · Educational only
         </p>
