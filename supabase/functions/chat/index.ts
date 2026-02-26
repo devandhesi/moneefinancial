@@ -8,25 +8,43 @@ const corsHeaders = {
 // ── helpers ──────────────────────────────────────────────
 
 function extractTickers(text: string): string[] {
-  // Match $AAPL or standalone uppercase 1-5 letter words that look like tickers
+  // 1. Explicit $TICKER mentions
   const explicit = [...text.matchAll(/\$([A-Z]{1,5})\b/g)].map(m => m[1]);
-  // Common tickers people mention without $
-  const known = [
-    "AAPL","MSFT","GOOGL","GOOG","AMZN","TSLA","META","NVDA","NFLX","AMD",
-    "INTC","CRM","ORCL","ADBE","PYPL","SQ","SHOP","ROKU","SNAP","UBER",
-    "LYFT","COIN","HOOD","PLTR","SOFI","NIO","RIVN","LCID","F","GM",
-    "DIS","BA","JPM","GS","V","MA","WMT","TGT","COST","HD",
-    "XOM","CVX","PFE","JNJ","UNH","ABBV","MRK","LLY","BMY","AMGN",
-    "SPY","QQQ","VTI","VOO","IWM","DIA","XLK","XLV","XLE","XLF",
-    "BND","GLD","SLV","BTC","ETH","DOGE","SOL","VIX","VXX",
-  ];
-  const upper = text.toUpperCase();
-  const contextual = known.filter(t => {
-    const regex = new RegExp(`\\b${t}\\b`);
-    return regex.test(upper);
-  });
-  const all = [...new Set([...explicit, ...contextual])];
-  return all.slice(0, 5); // cap at 5
+
+  // 2. Detect any uppercase word that looks like a ticker (1-5 chars, all caps)
+  //    Filter out common English words that aren't tickers
+  const stopWords = new Set([
+    "I","A","AM","AN","AS","AT","BE","BY","DO","GO","HE","IF","IN","IS","IT",
+    "ME","MY","NO","OF","OH","OK","ON","OR","OUR","SO","TO","UP","US","WE",
+    "ADD","ALL","AND","ANY","ARE","ASK","BIG","BUT","BUY","CAN","DAY","DID",
+    "END","FAR","FEW","FOR","GET","GOT","HAS","HAD","HER","HIM","HIS","HOW",
+    "ITS","LET","LOT","MAY","NEW","NOT","NOW","OLD","ONE","OUR","OUT","OWN",
+    "PUT","RAN","RUN","SAY","SET","SHE","THE","TOO","TOP","TRY","TWO","USE",
+    "WAS","WAY","WHO","WHY","WIN","WON","YES","YET","YOU",
+    "ALSO","BEEN","BEST","BOTH","CAME","COME","DOES","DONE","DOWN","EACH",
+    "EVEN","FIND","FROM","GAVE","GIVE","GOES","GOOD","GROW","HAVE","HEAD",
+    "HELP","HERE","HIGH","HOLD","HOME","INTO","JUST","KEEP","KIND","KNOW",
+    "LAST","LEFT","LIKE","LINE","LIST","LONG","LOOK","MADE","MAIN","MAKE",
+    "MANY","MORE","MOST","MUCH","MUST","NAME","NEAR","NEED","NEXT","ONLY",
+    "OPEN","OVER","PART","PLAY","REAL","RISK","SAID","SAME","SELL","SHOW",
+    "SIDE","SOME","SUCH","SURE","TAKE","TELL","THAN","THAT","THEM","THEN",
+    "THEY","THIS","TIME","TURN","VERY","WANT","WELL","WENT","WERE","WHAT",
+    "WHEN","WILL","WITH","WORK","YEAR","YOUR",
+    "ABOUT","AFTER","BEING","BELOW","COULD","EVERY","FIRST","GREAT","LARGE",
+    "MIGHT","NEVER","OTHER","POINT","RIGHT","SHALL","SINCE","SMALL","STILL",
+    "STOCK","THEIR","THERE","THESE","THINK","THREE","TODAY","UNDER","UNTIL",
+    "USING","WHICH","WHILE","WORLD","WOULD","PRICE","SHARE","WORTH","TREND",
+    "TRADE","CLOSE","CHART","WATCH","AVOID","TRACK","START","SHORT",
+    "ETF","CEO","CFO","IPO","SEC","GDP","CPI","FED","APR","MAR","JAN","FEB",
+    "JUN","JUL","AUG","SEP","OCT","NOV","DEC","MON","TUE","WED","THU","FRI",
+    "SAT","SUN","EST","PST","CST","USD","EUR","GBP","CAD","AUD","JPY","CNY",
+  ]);
+
+  const words = text.match(/\b[A-Z]{1,5}\b/g) || [];
+  const candidates = words.filter(w => !stopWords.has(w) && w.length >= 1);
+
+  const all = [...new Set([...explicit, ...candidates])];
+  return all.slice(0, 5); // cap at 5 to keep response fast
 }
 
 function fmt(n: number | null | undefined): string {
