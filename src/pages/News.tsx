@@ -2,7 +2,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Newspaper, ExternalLink, Loader2, Sparkles, TrendingUp, AlertTriangle, ChevronRight } from "lucide-react";
+import { Newspaper, ExternalLink, Loader2, Sparkles, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface NewsArticle {
   title: string;
@@ -36,8 +37,8 @@ function useStockNews() {
       if (error) throw error;
       return data;
     },
-    staleTime: 1000 * 60 * 15,
-    refetchInterval: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60 * 5,
   });
 }
 
@@ -45,6 +46,7 @@ function timeAgo(dateStr: string) {
   try {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
@@ -54,66 +56,96 @@ function timeAgo(dateStr: string) {
   }
 }
 
-const NewsCard = ({ article }: { article: NewsArticle }) => (
-  <a
-    href={article.url}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="glass-card block p-4 transition-all hover:shadow-md active:scale-[0.99]"
-  >
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-semibold leading-snug line-clamp-2">{article.title}</h3>
-        {article.summary && (
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground line-clamp-2">
-            {article.summary}
-          </p>
-        )}
-        <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-          <span className="font-medium">{article.source}</span>
-          {article.author && (
-            <>
-              <span className="text-muted-foreground/40">·</span>
-              <span>by {article.author}</span>
-            </>
+function isValidUrl(url: string): boolean {
+  try {
+    return url?.startsWith("http://") || url?.startsWith("https://");
+  } catch {
+    return false;
+  }
+}
+
+const NewsCard = ({ article }: { article: NewsArticle }) => {
+  const hasValidLink = isValidUrl(article.url);
+  const Wrapper = hasValidLink ? "a" : "div";
+  const linkProps = hasValidLink
+    ? { href: article.url, target: "_blank" as const, rel: "noopener noreferrer" }
+    : {};
+
+  return (
+    <Wrapper
+      {...linkProps}
+      className="block rounded-xl border border-border/40 bg-card p-4 transition-all hover:bg-secondary/30 hover:shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <h3 className="text-sm font-semibold leading-snug line-clamp-2">{article.title}</h3>
+          {article.summary && (
+            <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
+              {article.summary}
+            </p>
           )}
-          {article.publishedAt && (
-            <>
-              <span className="text-muted-foreground/40">·</span>
-              <span>{timeAgo(article.publishedAt)}</span>
-            </>
-          )}
-          {article.relatedSymbols.length > 0 && (
-            <>
-              <span className="text-muted-foreground/40">·</span>
-              {article.relatedSymbols.map((s) => (
-                <span key={s} className="rounded bg-secondary px-1.5 py-0.5 font-semibold">
-                  {s}
-                </span>
-              ))}
-            </>
-          )}
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-muted-foreground">
+            <span className="font-medium">{article.source}</span>
+            {article.author && article.author !== article.source && (
+              <>
+                <span className="opacity-40">·</span>
+                <span>{article.author}</span>
+              </>
+            )}
+            {article.publishedAt && (
+              <>
+                <span className="opacity-40">·</span>
+                <span>{timeAgo(article.publishedAt)}</span>
+              </>
+            )}
+            {article.relatedSymbols?.length > 0 && (
+              <>
+                <span className="opacity-40">·</span>
+                {article.relatedSymbols.map((s) => (
+                  <span key={s} className="rounded bg-secondary px-1.5 py-0.5 font-semibold text-foreground">
+                    {s}
+                  </span>
+                ))}
+              </>
+            )}
+          </div>
         </div>
+        {hasValidLink && (
+          <ExternalLink size={13} className="mt-1 shrink-0 text-muted-foreground/30" />
+        )}
       </div>
-      <ExternalLink size={14} className="mt-1 shrink-0 text-muted-foreground/40" />
-    </div>
-  </a>
-);
+    </Wrapper>
+  );
+};
 
 const News = () => {
-  const { data, isLoading } = useStockNews();
+  const { data, isLoading, refetch, isFetching } = useStockNews();
   const [activeTab, setActiveTab] = useState<"your" | "market">("your");
 
   return (
-    <div className="px-5 pt-14 lg:pt-8">
+    <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8 max-w-4xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-2">
-          <Newspaper size={20} className="text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">News</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Newspaper size={20} className="text-muted-foreground" />
+              <h1 className="text-2xl font-semibold tracking-tight">News</h1>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              News that matters to your portfolio
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="gap-1.5"
+          >
+            <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
+            Refresh
+          </Button>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Stay informed with news that matters to your portfolio
-        </p>
       </motion.div>
 
       {/* Tabs */}
@@ -140,7 +172,7 @@ const News = () => {
       {/* AI Impact Analysis Banner */}
       {activeTab === "market" && data?.impactAnalysis && data.impactAnalysis.length > 0 && (
         <motion.div
-          className="glass-card mt-4 p-4"
+          className="mt-4 rounded-xl border border-border/40 bg-card p-4"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -172,7 +204,7 @@ const News = () => {
           data?.yourNews && data.yourNews.length > 0 ? (
             data.yourNews.map((article, i) => (
               <motion.div
-                key={article.url}
+                key={`${article.title}-${i}`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
@@ -188,7 +220,7 @@ const News = () => {
         ) : data?.marketNews && data.marketNews.length > 0 ? (
           data.marketNews.map((article, i) => (
             <motion.div
-              key={article.url}
+              key={`${article.title}-${i}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
