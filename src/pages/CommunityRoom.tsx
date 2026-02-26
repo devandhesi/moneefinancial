@@ -1,0 +1,423 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft, Send, Hash, TrendingUp, Users, Pin, Info,
+  MoreHorizontal, Smile, Reply, Flag, Loader2, Bot,
+  ChevronRight, X,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+
+interface Message {
+  id: string;
+  content: string;
+  user_id: string | null;
+  is_bot: boolean;
+  is_pinned: boolean;
+  is_edited: boolean;
+  is_deleted: boolean;
+  reply_to: string | null;
+  created_at: string;
+  profile?: { username: string; display_name: string | null; avatar_url: string | null; is_verified: boolean };
+  reactions?: { emoji: string; count: number; reacted: boolean }[];
+}
+
+const QUICK_EMOJIS = ["🚀", "🔥", "💎", "🐻", "🐂", "📈", "📉", "💰"];
+
+const CommunityRoom = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
+  const [roomInfo] = useState({
+    name: slug?.startsWith("#") ? slug : `$${slug?.toUpperCase()}`,
+    type: slug && /^[A-Za-z]{1,5}$/.test(slug) ? "stock" : "hashtag",
+    members: Math.floor(Math.random() * 5000) + 500,
+    description: `Discussion room for ${slug}`,
+  });
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Load messages & subscribe to realtime
+  useEffect(() => {
+    const loadMessages = async () => {
+      // Try to find room by slug
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("id")
+        .eq("slug", slug)
+        .single();
+
+      if (room) {
+        const { data } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("room_id", room.id)
+          .order("created_at", { ascending: true })
+          .limit(100);
+        if (data) setMessages(data as Message[]);
+      }
+      setLoading(false);
+    };
+
+    loadMessages();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel(`room-${slug}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      }, (payload) => {
+        const newMsg = payload.new as Message;
+        setMessages((prev) => [...prev, newMsg]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [slug]);
+
+  const handleSend = async () => {
+    if (!input.trim() || sending || !user) return;
+    setSending(true);
+
+    // Find or create room
+    let roomId: string | null = null;
+    const { data: existingRoom } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("slug", slug)
+      .single();
+
+    if (existingRoom) {
+      roomId = existingRoom.id;
+    } else {
+      const { data: newRoom } = await supabase
+        .from("rooms")
+        .insert({
+          type: roomInfo.type === "stock" ? "stock" : "hashtag",
+          name: roomInfo.name,
+          slug: slug!,
+          description: roomInfo.description,
+          symbol: roomInfo.type === "stock" ? slug!.toUpperCase() : null,
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (newRoom) roomId = newRoom.id;
+    }
+
+    if (!roomId) {
+      toast.error("Failed to send message");
+      setSending(false);
+      return;
+    }
+
+    const { error } = await supabase.from("messages").insert({
+      room_id: roomId,
+      user_id: user.id,
+      content: input.trim(),
+      reply_to: replyTo?.id || null,
+    });
+
+    if (error) {
+      toast.error("Failed to send");
+    } else {
+      // Optimistic add
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          content: input.trim(),
+          user_id: user.id,
+          is_bot: false,
+          is_pinned: false,
+          is_edited: false,
+          is_deleted: false,
+          reply_to: replyTo?.id || null,
+          created_at: new Date().toISOString(),
+          profile: profile ? {
+            username: profile.username,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            is_verified: profile.is_verified,
+          } : undefined,
+        },
+      ]);
+      setInput("");
+      setReplyTo(null);
+    }
+    setSending(false);
+  };
+
+  const addReaction = async (messageId: string, emoji: string) => {
+    if (!user) return;
+    await supabase.from("message_reactions").insert({
+      message_id: messageId,
+      user_id: user.id,
+      emoji,
+    });
+    toast.success(`Reacted ${emoji}`);
+  };
+
+  const formatTime = (ts: string) => {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  // Parse cashtags and hashtags in message content
+  const renderContent = (content: string) => {
+    const parts = content.split(/(\$[A-Z]{1,5}|#\w+|@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("$")) {
+        return (
+          <button
+            key={i}
+            onClick={() => navigate(`/community/room/${part.slice(1)}`)}
+            className="font-semibold text-accent-foreground hover:underline"
+          >
+            {part}
+          </button>
+        );
+      }
+      if (part.startsWith("#")) {
+        return (
+          <button
+            key={i}
+            onClick={() => navigate(`/community/room/${part.slice(1)}`)}
+            className="font-medium text-gain hover:underline"
+          >
+            {part}
+          </button>
+        );
+      }
+      if (part.startsWith("@")) {
+        return <span key={i} className="font-semibold text-foreground">{part}</span>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-5rem)] flex-col lg:flex-row px-0 pt-0 lg:pt-0">
+      {/* Chat Column */}
+      <div className="flex flex-1 flex-col">
+        {/* Room Header */}
+        <div className="flex items-center justify-between border-b border-border/30 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate("/community")} className="rounded-lg p-1.5 hover:bg-secondary lg:hidden">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary">
+              {roomInfo.type === "stock" ? <TrendingUp size={16} /> : <Hash size={16} />}
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{roomInfo.name}</p>
+              <p className="text-[11px] text-muted-foreground">
+                <Users size={10} className="mr-1 inline" />
+                {roomInfo.members.toLocaleString()} members
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowInfo(!showInfo)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground">
+              <Info size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 size={20} className="animate-spin text-muted-foreground" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary mb-3">
+                {roomInfo.type === "stock" ? <TrendingUp size={24} /> : <Hash size={24} />}
+              </div>
+              <p className="text-sm font-medium">Welcome to {roomInfo.name}</p>
+              <p className="mt-1 text-xs text-muted-foreground max-w-[240px]">
+                Be the first to start a conversation. Use $TICKER tags and #hashtags.
+              </p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`group flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-secondary/30 ${
+                  msg.is_bot ? "bg-secondary/20" : ""
+                }`}
+              >
+                {/* Avatar */}
+                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold ${
+                  msg.is_bot ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"
+                }`}>
+                  {msg.is_bot ? <Bot size={14} /> : (
+                    msg.profile?.display_name?.[0]?.toUpperCase() ||
+                    msg.profile?.username?.[0]?.toUpperCase() ||
+                    "U"
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold ${msg.is_bot ? "text-accent-foreground" : ""}`}>
+                      {msg.is_bot ? "🤖 Bot" : (msg.profile?.display_name || msg.profile?.username || "User")}
+                    </span>
+                    {msg.profile?.is_verified && (
+                      <span className="rounded bg-accent/20 px-1 text-[9px] font-medium text-accent-foreground">✓</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">{formatTime(msg.created_at)}</span>
+                    {msg.is_pinned && <Pin size={10} className="text-accent-foreground" />}
+                  </div>
+
+                  {msg.is_deleted ? (
+                    <p className="mt-0.5 text-xs italic text-muted-foreground">Message deleted</p>
+                  ) : (
+                    <p className="mt-0.5 text-[13px] leading-relaxed break-words">
+                      {renderContent(msg.content)}
+                    </p>
+                  )}
+
+                  {/* Quick actions on hover */}
+                  <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    {QUICK_EMOJIS.slice(0, 4).map((e) => (
+                      <button
+                        key={e}
+                        onClick={() => addReaction(msg.id, e)}
+                        className="rounded px-1 py-0.5 text-xs hover:bg-secondary"
+                      >
+                        {e}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setReplyTo(msg)}
+                      className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    >
+                      <Reply size={12} />
+                    </button>
+                    <button className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                      <Flag size={12} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Reply bar */}
+        <AnimatePresence>
+          {replyTo && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="border-t border-border/30 px-4 py-2 flex items-center gap-2"
+            >
+              <Reply size={12} className="text-muted-foreground" />
+              <span className="text-xs text-muted-foreground truncate flex-1">
+                Replying to {replyTo.profile?.username || "user"}: {replyTo.content.slice(0, 60)}...
+              </span>
+              <button onClick={() => setReplyTo(null)}>
+                <X size={14} className="text-muted-foreground" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Input */}
+        <div className="border-t border-border/30 px-4 py-3">
+          {user ? (
+            <div className="glass-card flex items-center gap-2 px-3 py-2.5">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder={`Message ${roomInfo.name}...`}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                disabled={sending}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || sending}
+                className="rounded-lg bg-foreground p-1.5 text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"
+              >
+                <Send size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate("/auth")}
+              className="w-full rounded-xl bg-foreground py-3 text-center text-sm font-medium text-primary-foreground"
+            >
+              Sign in to chat
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stock Data Panel (desktop) */}
+      {roomInfo.type === "stock" && (
+        <AnimatePresence>
+          {showInfo && (
+            <motion.aside
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="hidden lg:flex flex-col border-l border-border/30 overflow-y-auto"
+            >
+              <div className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">{slug?.toUpperCase()} Overview</h3>
+                  <button onClick={() => setShowInfo(false)} className="text-muted-foreground"><X size={14} /></button>
+                </div>
+                <div className="glass-card p-3 space-y-2">
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">Price</span><span className="font-medium">$142.50</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">Change</span><span className="text-gain font-medium">+4.2%</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">Volume</span><span className="font-medium">52.3M</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">Mkt Cap</span><span className="font-medium">$3.5T</span></div>
+                </div>
+                <div className="glass-card p-3">
+                  <p className="text-xs font-medium mb-2">Latest News</p>
+                  <div className="space-y-2">
+                    {["Q4 earnings beat expectations", "New AI chip announced", "Analyst upgrades to Buy"].map((n, i) => (
+                      <p key={i} className="text-[11px] text-muted-foreground">• {n}</p>
+                    ))}
+                  </div>
+                </div>
+                <div className="glass-card p-3">
+                  <p className="text-xs font-medium mb-2">Room Rules</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Be respectful. No pump-and-dump schemes. Disclose your positions. No financial advice.
+                  </p>
+                </div>
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      )}
+    </div>
+  );
+};
+
+export default CommunityRoom;
