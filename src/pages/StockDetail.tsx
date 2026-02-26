@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2, Share2, ZoomIn, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Sparkles, Star, Zap, Loader2, Share2, ZoomIn, ZoomOut, RotateCcw, Ruler } from "lucide-react";
 import {
-  ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Brush, ReferenceArea,
+  ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Brush, ReferenceArea, ReferenceLine,
 } from "recharts";
 import { getStockQuote, type StockQuote } from "@/lib/market-api";
 import { toast } from "sonner";
@@ -11,10 +11,8 @@ import { toast } from "sonner";
 const chartModes = ["Simple", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
 
-const simpleIndicators = ["Volume"] as const;
-const candleIndicators = ["SMA20", "EMA12", "Volume"] as const;
-
-type AnyIndicator = "SMA20" | "EMA12" | "Volume" | "BB" | "RSI" | "MACD";
+const allIndicators = ["Volume", "SMA20", "EMA12", "BB", "VWAP"] as const;
+type AnyIndicator = "SMA20" | "EMA12" | "Volume" | "BB" | "RSI" | "MACD" | "VWAP";
 
 const timeRanges = ["1D", "1W", "1M", "3M", "6M", "1Y"] as const;
 type TimeRange = typeof timeRanges[number];
@@ -29,7 +27,7 @@ const formatVolume = (v: number): string => {
 const formatPrice = (p: number): string => {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (p >= 1) return p.toFixed(2);
-  return p.toFixed(4); // penny stocks
+  return p.toFixed(4);
 };
 
 const StockDetail = () => {
@@ -49,11 +47,15 @@ const StockDetail = () => {
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeRange, setActiveRange] = useState<TimeRange>("3M");
   const [pendingOrders, setPendingOrders] = useState<Array<{type: string; shares: number; price: number; time: string}>>([]);
-  const [zoomLeft, setZoomLeft] = useState<string | null>(null);
-  const [zoomRight, setZoomRight] = useState<string | null>(null);
-  const [zoomRefAreaLeft, setZoomRefAreaLeft] = useState<string>("");
-  const [zoomRefAreaRight, setZoomRefAreaRight] = useState<string>("");
-  const [isZooming, setIsZooming] = useState(false);
+  // Zoom via scroll/pinch (percentage range 0-100)
+  const [zoomStart, setZoomStart] = useState(0);
+  const [zoomEnd, setZoomEnd] = useState(100);
+  // Measure via drag
+  const [measureFrom, setMeasureFrom] = useState<string | null>(null);
+  const [measureTo, setMeasureTo] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [measureResult, setMeasureResult] = useState<{ fromPrice: number; toPrice: number; fromDate: string; toDate: string } | null>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const fetchRef = useRef(0);
 
   // Load watchlist
@@ -100,11 +102,6 @@ const StockDetail = () => {
     if (symbol) fetchData(symbol, range, false);
   }, [activeRange, symbol, fetchData]);
 
-  const availableIndicators = useMemo(() => {
-    if (chartMode === "Simple") return simpleIndicators;
-    return candleIndicators;
-  }, [chartMode]);
-
   const toggleIndicator = (ind: AnyIndicator) => {
     setActiveIndicators((prev) => {
       const next = new Set(prev);
@@ -117,7 +114,6 @@ const StockDetail = () => {
     if (!quote?.chart) return [];
     const prices = quote.chart.map(p => p.price);
 
-    // Pre-compute EMA series (iterative, not O(n²))
     const ema = (data: number[], period: number) => {
       const k = 2 / (period + 1);
       const result: number[] = [data[0]];
@@ -129,8 +125,6 @@ const StockDetail = () => {
 
     const ema12Series = ema(prices, 12);
     const ema26Series = ema(prices, 26);
-
-    // MACD line = EMA12 - EMA26
     const macdLine = ema12Series.map((v, i) => v - ema26Series[i]);
     const signalLine = ema(macdLine, 9);
 
@@ -153,14 +147,23 @@ const StockDetail = () => {
       }
     }
 
+    // VWAP (cumulative)
+    let cumVolPrice = 0;
+    let cumVol = 0;
+
     return quote.chart.map((point, i, arr) => {
       const sma20Window = arr.slice(Math.max(0, i - 19), i + 1);
       const sma20 = sma20Window.reduce((sum, p) => sum + p.price, 0) / sma20Window.length;
-
-      // Bollinger Bands (20-period, 2 std dev)
       const stdDev = Math.sqrt(sma20Window.reduce((sum, p) => sum + (p.price - sma20) ** 2, 0) / sma20Window.length);
       const bbUpper = sma20 + 2 * stdDev;
       const bbLower = sma20 - 2 * stdDev;
+
+      // VWAP
+      const vol = point.volume || 1;
+      const typical = (point.high + point.low + point.close) / 3;
+      cumVolPrice += typical * vol;
+      cumVol += vol;
+      const vwap = cumVolPrice / cumVol;
 
       return {
         ...point,
@@ -173,49 +176,114 @@ const StockDetail = () => {
         macd: +macdLine[i].toFixed(4),
         macdSignal: +signalLine[i].toFixed(4),
         macdHist: +(macdLine[i] - signalLine[i]).toFixed(4),
+        vwap: +vwap.toFixed(4),
         bullish: point.close >= point.open,
         candleBody: [Math.min(point.open, point.close), Math.max(point.open, point.close)],
       };
     });
   }, [quote]);
 
+  // Visible data based on zoom percentage
   const visibleData = useMemo(() => {
-    if (!zoomLeft || !zoomRight) return chartData;
-    const leftIdx = chartData.findIndex((d) => d.date === zoomLeft);
-    const rightIdx = chartData.findIndex((d) => d.date === zoomRight);
-    if (leftIdx === -1 || rightIdx === -1) return chartData;
-    return chartData.slice(Math.min(leftIdx, rightIdx), Math.max(leftIdx, rightIdx) + 1);
-  }, [chartData, zoomLeft, zoomRight]);
+    if (chartData.length === 0) return [];
+    const startIdx = Math.floor((zoomStart / 100) * chartData.length);
+    const endIdx = Math.ceil((zoomEnd / 100) * chartData.length);
+    return chartData.slice(Math.max(0, startIdx), Math.min(chartData.length, endIdx));
+  }, [chartData, zoomStart, zoomEnd]);
+
+  const isZoomed = zoomStart > 0 || zoomEnd < 100;
 
   // Compute Y domain for visible data
   const yDomain = useMemo(() => {
     if (!visibleData.length) return [0, 100];
-    const prices = visibleData.flatMap(d => [d.high, d.low, d.price].filter(Boolean));
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
+    const allPrices = visibleData.flatMap(d => [d.high, d.low, d.price].filter(Boolean));
+    if (activeIndicators.has("BB")) {
+      visibleData.forEach(d => { allPrices.push(d.bbUpper, d.bbLower); });
+    }
+    const min = Math.min(...allPrices);
+    const max = Math.max(...allPrices);
     const padding = (max - min) * 0.08 || 1;
     return [+(min - padding).toFixed(4), +(max + padding).toFixed(4)];
-  }, [visibleData]);
+  }, [visibleData, activeIndicators]);
 
-  const handleZoom = () => {
-    if (!zoomRefAreaLeft || !zoomRefAreaRight || zoomRefAreaLeft === zoomRefAreaRight) {
-      setZoomRefAreaLeft("");
-      setZoomRefAreaRight("");
-      return;
+  // Scroll to zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const zoomSpeed = 3;
+    const delta = e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+    const range = zoomEnd - zoomStart;
+    const center = (zoomStart + zoomEnd) / 2;
+
+    // Zoom in: shrink range around center; Zoom out: expand
+    const newRange = Math.max(10, Math.min(100, range + delta));
+    const newStart = Math.max(0, center - newRange / 2);
+    const newEnd = Math.min(100, newStart + newRange);
+    setZoomStart(Math.max(0, newEnd - newRange));
+    setZoomEnd(newEnd);
+  }, [zoomStart, zoomEnd]);
+
+  // Drag to measure price change
+  const handleChartMouseDown = useCallback((e: any) => {
+    if (e?.activeLabel) {
+      setMeasureFrom(e.activeLabel);
+      setMeasureTo(null);
+      setIsDragging(true);
+      setMeasureResult(null);
     }
-    setZoomLeft(zoomRefAreaLeft);
-    setZoomRight(zoomRefAreaRight);
-    setZoomRefAreaLeft("");
-    setZoomRefAreaRight("");
-    setIsZooming(true);
+  }, []);
+
+  const handleChartMouseMove = useCallback((e: any) => {
+    if (isDragging && e?.activeLabel) {
+      setMeasureTo(e.activeLabel);
+    }
+  }, [isDragging]);
+
+  const handleChartMouseUp = useCallback(() => {
+    if (isDragging && measureFrom && measureTo && measureFrom !== measureTo) {
+      const fromPoint = chartData.find(d => d.date === measureFrom);
+      const toPoint = chartData.find(d => d.date === measureTo);
+      if (fromPoint && toPoint) {
+        setMeasureResult({
+          fromPrice: fromPoint.price,
+          toPrice: toPoint.price,
+          fromDate: measureFrom,
+          toDate: measureTo,
+        });
+      }
+    }
+    setIsDragging(false);
+  }, [isDragging, measureFrom, measureTo, chartData]);
+
+  const clearMeasure = () => {
+    setMeasureFrom(null);
+    setMeasureTo(null);
+    setMeasureResult(null);
   };
 
   const resetZoom = () => {
-    setZoomLeft(null);
-    setZoomRight(null);
-    setZoomRefAreaLeft("");
-    setZoomRefAreaRight("");
-    setIsZooming(false);
+    setZoomStart(0);
+    setZoomEnd(100);
+    clearMeasure();
+  };
+
+  const zoomIn = () => {
+    const range = zoomEnd - zoomStart;
+    const center = (zoomStart + zoomEnd) / 2;
+    const newRange = Math.max(10, range * 0.7);
+    const ns = Math.max(0, center - newRange / 2);
+    const ne = Math.min(100, ns + newRange);
+    setZoomStart(Math.max(0, ne - newRange));
+    setZoomEnd(ne);
+  };
+
+  const zoomOut = () => {
+    const range = zoomEnd - zoomStart;
+    const center = (zoomStart + zoomEnd) / 2;
+    const newRange = Math.min(100, range * 1.4);
+    const ns = Math.max(0, center - newRange / 2);
+    const ne = Math.min(100, ns + newRange);
+    setZoomStart(Math.max(0, ne - newRange));
+    setZoomEnd(ne);
   };
 
   const currentPrice = quote?.price ?? 0;
@@ -411,48 +479,77 @@ const StockDetail = () => {
         </div>
       </div>
 
-      {availableIndicators.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {availableIndicators.map((ind) => (
+      <div className="mt-3 flex flex-wrap gap-1.5">
+          {allIndicators.map((ind) => (
             <button key={ind} onClick={() => toggleIndicator(ind as AnyIndicator)}
               className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${activeIndicators.has(ind as AnyIndicator) ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"}`}>
               {ind}
             </button>
           ))}
         </div>
-      )}
 
       {/* Chart */}
-      <motion.div className="glass-card mt-4 p-4 relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+      <motion.div className="glass-card mt-4 p-4 relative select-none" ref={chartContainerRef} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         {isChartLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/60 backdrop-blur-sm">
             <Loader2 size={20} className="animate-spin text-muted-foreground" />
           </div>
         )}
-        {isZooming && (
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <ZoomIn size={12} /> {visibleData.length} of {chartData.length} points
-            </div>
-            <button onClick={resetZoom} className="flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-              <RotateCcw size={10} /> Reset
+
+        {/* Chart toolbar */}
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Ruler size={12} />
+            <span>Drag to measure</span>
+            <span className="text-muted-foreground/40 mx-1">|</span>
+            <span>Scroll to zoom</span>
+            {isZoomed && <span className="text-muted-foreground/40 mx-1">|</span>}
+            {isZoomed && <span>{visibleData.length} of {chartData.length} pts</span>}
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={zoomIn} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Zoom in">
+              <ZoomIn size={13} />
             </button>
+            <button onClick={zoomOut} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Zoom out">
+              <ZoomOut size={13} />
+            </button>
+            {(isZoomed || measureResult) && (
+              <button onClick={resetZoom} className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <RotateCcw size={10} /> Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Measure result overlay */}
+        {measureResult && (
+          <div className="mb-2 flex items-center justify-between rounded-lg bg-secondary px-3 py-2">
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-muted-foreground">{measureResult.fromDate}</span>
+              <span className="text-muted-foreground">→</span>
+              <span className="text-muted-foreground">{measureResult.toDate}</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="font-medium tabular-nums">${formatPrice(measureResult.fromPrice)} → ${formatPrice(measureResult.toPrice)}</span>
+              <span className={`font-semibold tabular-nums ${measureResult.toPrice >= measureResult.fromPrice ? "text-gain" : "text-loss"}`}>
+                {measureResult.toPrice >= measureResult.fromPrice ? "+" : ""}
+                ${formatPrice(Math.abs(measureResult.toPrice - measureResult.fromPrice))}
+                {" "}({((measureResult.toPrice - measureResult.fromPrice) / measureResult.fromPrice * 100).toFixed(2)}%)
+              </span>
+              <button onClick={clearMeasure} className="text-muted-foreground hover:text-foreground">×</button>
+            </div>
           </div>
         )}
-        {!isZooming && chartData.length > 0 && (
-          <div className="mb-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <ZoomIn size={12} /> Drag to zoom · {chartData.length} data points
-          </div>
-        )}
+
         {visibleData.length > 0 ? (
-          <>
+          <div onWheel={handleWheel}>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart
               data={visibleData}
               margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-              onMouseDown={(e: any) => { if (e?.activeLabel) setZoomRefAreaLeft(e.activeLabel); }}
-              onMouseMove={(e: any) => { if (zoomRefAreaLeft && e?.activeLabel) setZoomRefAreaRight(e.activeLabel); }}
-              onMouseUp={handleZoom}
+              onMouseDown={handleChartMouseDown}
+              onMouseMove={handleChartMouseMove}
+              onMouseUp={handleChartMouseUp}
             >
               <defs>
                 <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
@@ -497,6 +594,9 @@ const StockDetail = () => {
                   <Line yAxisId="price" type="monotone" dataKey="bbLower" stroke="hsl(270, 50%, 55%)" strokeWidth={0.8} dot={false} strokeDasharray="3 2" animationDuration={300} />
                 </>
               )}
+              {activeIndicators.has("VWAP") && (
+                <Line yAxisId="price" type="monotone" dataKey="vwap" stroke="hsl(180, 50%, 45%)" strokeWidth={1} dot={false} strokeDasharray="6 3" animationDuration={300} />
+              )}
               {chartMode !== "Candle" && (
                 <Area
                   yAxisId="price"
@@ -518,16 +618,36 @@ const StockDetail = () => {
               {activeIndicators.has("EMA12") && (
                 <Line yAxisId="price" type="monotone" dataKey="ema12" stroke="hsl(35, 80%, 50%)" strokeWidth={1} dot={false} strokeDasharray="4 2" animationDuration={300} />
               )}
-              {zoomRefAreaLeft && zoomRefAreaRight && (
-                <ReferenceArea yAxisId="price" x1={zoomRefAreaLeft} x2={zoomRefAreaRight} strokeOpacity={0.3} fill="hsl(215, 60%, 55%)" fillOpacity={0.1} />
+              {/* Measure drag highlight */}
+              {isDragging && measureFrom && measureTo && (
+                <ReferenceArea yAxisId="price" x1={measureFrom} x2={measureTo} strokeOpacity={0.3} fill="hsl(215, 60%, 55%)" fillOpacity={0.08} stroke="hsl(215, 60%, 55%)" strokeDasharray="3 3" />
               )}
-              {!isZooming && visibleData.length > 15 && (
-                <Brush dataKey="date" height={24} stroke="hsl(var(--border))" travellerWidth={8} fill="hsl(var(--secondary))" tickFormatter={() => ""} />
+              {/* Measure result lines */}
+              {measureResult && (
+                <>
+                  <ReferenceLine yAxisId="price" x={measureResult.fromDate} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <ReferenceLine yAxisId="price" x={measureResult.toDate} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                </>
               )}
+              <Brush
+                dataKey="date"
+                height={24}
+                stroke="hsl(var(--border))"
+                travellerWidth={8}
+                fill="hsl(var(--secondary))"
+                tickFormatter={() => ""}
+                startIndex={Math.floor((zoomStart / 100) * chartData.length)}
+                endIndex={Math.min(chartData.length - 1, Math.ceil((zoomEnd / 100) * chartData.length) - 1)}
+                onChange={(range: any) => {
+                  if (range && typeof range.startIndex === "number" && typeof range.endIndex === "number") {
+                    setZoomStart((range.startIndex / chartData.length) * 100);
+                    setZoomEnd(((range.endIndex + 1) / chartData.length) * 100);
+                  }
+                }}
+              />
             </ComposedChart>
           </ResponsiveContainer>
-
-        </>
+          </div>
         ) : (
           <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">No chart data available</div>
         )}
@@ -550,11 +670,8 @@ const StockDetail = () => {
             {activeIndicators.has("BB") && (
               <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm border border-dashed" style={{ borderColor: "hsl(270, 50%, 55%)", background: "hsl(270, 50%, 55%, 0.1)" }} /> Bollinger</span>
             )}
-            {activeIndicators.has("RSI") && (
-              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(280, 60%, 55%)" }} /> RSI 14</span>
-            )}
-            {activeIndicators.has("MACD") && (
-              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(215, 60%, 55%)" }} /> MACD</span>
+            {activeIndicators.has("VWAP") && (
+              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 rounded" style={{ background: "hsl(180, 50%, 45%)" }} /> VWAP</span>
             )}
           </div>
         )}
