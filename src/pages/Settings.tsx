@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, ExternalLink, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, type LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Shield, Link2, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, ExternalLink, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -9,57 +8,16 @@ import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
 import { useTradingMode } from "@/hooks/use-trading-mode";
 
-interface Broker {
-  id: string;
-  name: string;
-  logo: string;
-  color: string;
-  connected: boolean;
-}
-
-const brokers: Broker[] = [
-  { id: "ws", name: "Wealthsimple", logo: "https://logo.clearbit.com/wealthsimple.com", color: "hsl(0, 0%, 10%)", connected: false },
-  { id: "rbc", name: "RBC Direct Investing", logo: "https://logo.clearbit.com/rbcdirectinvesting.com", color: "hsl(215, 80%, 45%)", connected: false },
-  { id: "td", name: "TD Direct Investing", logo: "https://logo.clearbit.com/td.com", color: "hsl(130, 60%, 35%)", connected: false },
-  { id: "cibc", name: "CIBC Investor's Edge", logo: "https://logo.clearbit.com/cibc.com", color: "hsl(0, 70%, 45%)", connected: false },
-  { id: "scotia", name: "Scotia iTRADE", logo: "https://logo.clearbit.com/scotiabank.com", color: "hsl(0, 75%, 48%)", connected: false },
-  { id: "questrade", name: "Questrade", logo: "https://logo.clearbit.com/questrade.com", color: "hsl(130, 50%, 40%)", connected: false },
-  { id: "bmo", name: "BMO InvestorLine", logo: "https://logo.clearbit.com/bmo.com", color: "hsl(210, 70%, 40%)", connected: false },
-  { id: "nbdb", name: "National Bank Direct", logo: "https://logo.clearbit.com/nbc.ca", color: "hsl(0, 70%, 40%)", connected: false },
-  { id: "ibkr", name: "Interactive Brokers", logo: "https://logo.clearbit.com/interactivebrokers.com", color: "hsl(0, 65%, 45%)", connected: false },
-  { id: "fidelity", name: "Fidelity Canada", logo: "https://logo.clearbit.com/fidelity.ca", color: "hsl(130, 60%, 30%)", connected: false },
-];
-
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
   const { timezone, setTimezone } = useTimezone();
-  const { mode, setMode, hasBrokerConnected, setHasBrokerConnected } = useTradingMode();
-  const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(() => {
-    return hasBrokerConnected ? new Set(["ws"]) : new Set();
-  });
-  const [connecting, setConnecting] = useState<string | null>(null);
-  const [brokersOpen, setBrokersOpen] = useState(false);
+  const { mode, setMode, hasBrokerConnected } = useTradingMode();
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
     ClipboardList, CalendarDays, FlaskConical, Shield, Settings: SettingsIcon, Users, Star, Globe,
-  };
-
-  const handleConnect = (id: string) => {
-    setConnecting(id);
-    setTimeout(() => {
-      setConnectedBrokers((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        const anyConnected = next.size > 0;
-        setHasBrokerConnected(anyConnected);
-        return next;
-      });
-      setConnecting(null);
-    }, 1200);
   };
 
   return (
@@ -116,6 +74,7 @@ const Settings = () => {
         </div>
       </motion.div>
 
+      {/* Sidebar Layout */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -149,28 +108,18 @@ const Settings = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => moveUp(link.id)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Move up"
-                      >
+                      <button onClick={() => moveUp(link.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Move up">
                         <ChevronUp size={14} />
                       </button>
-                      <button
-                        onClick={() => moveDown(link.id)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Move down"
-                      >
+                      <button onClick={() => moveDown(link.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Move down">
                         <ChevronDown size={14} />
                       </button>
                       <button
                         onClick={() => toggleVisibility(link.id)}
                         disabled={isProtected}
                         className={`rounded-lg p-1.5 transition-colors ${
-                          isProtected
-                            ? "text-muted-foreground/30 cursor-not-allowed"
-                            : link.visible
-                            ? "text-foreground hover:bg-secondary"
+                          isProtected ? "text-muted-foreground/30 cursor-not-allowed"
+                            : link.visible ? "text-foreground hover:bg-secondary"
                             : "text-muted-foreground/40 hover:bg-secondary hover:text-foreground"
                         }`}
                         title={isProtected ? "Always visible" : link.visible ? "Hide" : "Show"}
@@ -186,9 +135,11 @@ const Settings = () => {
         ))}
       </motion.div>
 
+      {/* Broker Connections */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Connections</h2>
         <button
-          onClick={() => setBrokersOpen(!brokersOpen)}
+          onClick={() => navigate("/settings/broker")}
           className="glass-card flex w-full items-center justify-between p-4 transition-shadow hover:shadow-md"
         >
           <div className="flex items-center gap-3">
@@ -196,78 +147,14 @@ const Settings = () => {
               <Link2 size={18} />
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium">Connect Your Broker</p>
+              <p className="text-sm font-medium">Broker Connections</p>
               <p className="text-[11px] text-muted-foreground">
-                {connectedBrokers.size > 0
-                  ? `${connectedBrokers.size} connected`
-                  : "Link your brokerage account"}
+                Plaid, Alpaca, CSV import · Read-only
               </p>
             </div>
           </div>
-          <ChevronDown
-            size={16}
-            className={`text-muted-foreground transition-transform ${brokersOpen ? "rotate-180" : ""}`}
-          />
+          <ExternalLink size={14} className="text-muted-foreground" />
         </button>
-
-        <AnimatePresence>
-          {brokersOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="overflow-hidden"
-            >
-              <p className="text-xs text-muted-foreground mt-3 mb-3">All connections use bank-level encryption.</p>
-              <div className="space-y-1.5">
-                {brokers.map((broker) => {
-                  const isConnected = connectedBrokers.has(broker.id);
-                  const isConnecting = connecting === broker.id;
-                  return (
-                    <div
-                      key={broker.id}
-                      className="glass-card flex items-center justify-between px-4 py-2.5"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary overflow-hidden">
-                          <img
-                            src={broker.logo}
-                            alt={broker.name}
-                            className="h-5 w-5 object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                              (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[10px] font-bold text-muted-foreground">${broker.name.slice(0, 2).toUpperCase()}</span>`;
-                            }}
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{broker.name}</p>
-                          {isConnected && (
-                            <span className="text-[10px] text-gain flex items-center gap-0.5">
-                              <Check size={10} /> Connected
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleConnect(broker.id)}
-                        disabled={isConnecting}
-                        className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all active:scale-[0.97] ${
-                          isConnected
-                            ? "glass-card text-muted-foreground"
-                            : "bg-foreground text-primary-foreground"
-                        } ${isConnecting ? "opacity-50" : ""}`}
-                      >
-                        {isConnecting ? "..." : isConnected ? "Disconnect" : "Connect"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Trading Mode Toggle */}
         <div className="glass-card mt-3 flex items-center justify-between p-4">
@@ -279,9 +166,7 @@ const Settings = () => {
               <p className="text-sm font-medium">Real Portfolio Mode</p>
               <p className="text-[11px] text-muted-foreground">
                 {hasBrokerConnected
-                  ? mode === "real"
-                    ? "Viewing real broker data"
-                    : "Switch to view your real investments"
+                  ? mode === "real" ? "Viewing real broker data" : "Switch to view your real investments"
                   : "Connect a broker to enable"}
               </p>
             </div>
@@ -300,7 +185,7 @@ const Settings = () => {
         <div>
           <p className="text-xs font-medium">Bank-Level Security</p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            Broker connections use read-only access with 256-bit encryption. We never store your login credentials. Data is synced securely via authorized APIs.
+            Broker connections use read-only access with encryption. We never store your login credentials. Data is synced securely via authorized APIs.
           </p>
         </div>
       </motion.div>
