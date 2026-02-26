@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Newspaper, ExternalLink, Loader2, Sparkles, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
+import {
+  Newspaper, ExternalLink, Loader2, Sparkles, TrendingUp,
+  AlertTriangle, RefreshCw, Briefcase, Eye, Flame, BarChart3,
+  Globe,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface NewsArticle {
   title: string;
@@ -13,6 +19,7 @@ interface NewsArticle {
   author: string;
   publishedAt: string;
   relatedSymbols: string[];
+  category?: string;
 }
 
 interface ImpactItem {
@@ -21,24 +28,42 @@ interface ImpactItem {
 }
 
 interface NewsData {
-  yourNews: NewsArticle[];
+  holdingsNews: NewsArticle[];
+  watchlistNews: NewsArticle[];
+  trendingNews: NewsArticle[];
+  sectorNews: NewsArticle[];
   marketNews: NewsArticle[];
   impactAnalysis: ImpactItem[];
   generatedAt: string;
 }
 
+const TABS = [
+  { key: "all", label: "All", icon: Globe },
+  { key: "holdings", label: "Holdings", icon: Briefcase },
+  { key: "watchlist", label: "Watchlist", icon: Eye },
+  { key: "trending", label: "Trending", icon: Flame },
+  { key: "sectors", label: "Sectors", icon: BarChart3 },
+  { key: "market", label: "Market", icon: TrendingUp },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
 function useStockNews() {
   return useQuery({
-    queryKey: ["stock-news"],
+    queryKey: ["stock-news-v2"],
     queryFn: async (): Promise<NewsData> => {
       const { data, error } = await supabase.functions.invoke("stock-news", {
-        body: { holdings: ["AAPL", "MSFT", "GOOGL", "TSLA"] },
+        body: {
+          holdings: ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"],
+          watchlist: ["NVDA", "META", "AMD", "PLTR", "COIN"],
+          trending: ["NVDA", "TSLA", "SMCI", "PLTR", "GME", "RIVN", "SOFI", "ARM"],
+        },
       });
       if (error) throw error;
       return data;
     },
-    staleTime: 1000 * 60 * 5,
-    refetchInterval: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 3,
+    refetchInterval: 1000 * 60 * 3,
   });
 }
 
@@ -102,10 +127,18 @@ const NewsCard = ({ article }: { article: NewsArticle }) => {
               <>
                 <span className="opacity-40">·</span>
                 {article.relatedSymbols.map((s) => (
-                  <span key={s} className="rounded bg-secondary px-1.5 py-0.5 font-semibold text-foreground">
+                  <Badge key={s} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-semibold">
                     {s}
-                  </span>
+                  </Badge>
                 ))}
+              </>
+            )}
+            {article.category && (
+              <>
+                <span className="opacity-40">·</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                  {article.category}
+                </Badge>
               </>
             )}
           </div>
@@ -118,9 +151,40 @@ const NewsCard = ({ article }: { article: NewsArticle }) => {
   );
 };
 
+function getArticlesForTab(data: NewsData | undefined, tab: TabKey): NewsArticle[] {
+  if (!data) return [];
+  switch (tab) {
+    case "all": {
+      // Merge all, dedup by title
+      const all = [
+        ...data.holdingsNews,
+        ...data.watchlistNews,
+        ...data.trendingNews,
+        ...data.marketNews,
+        ...data.sectorNews,
+      ];
+      const seen = new Set<string>();
+      return all.filter(a => {
+        const key = a.title.toLowerCase().slice(0, 60);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    }
+    case "holdings": return data.holdingsNews;
+    case "watchlist": return data.watchlistNews;
+    case "trending": return data.trendingNews;
+    case "sectors": return data.sectorNews;
+    case "market": return data.marketNews;
+  }
+}
+
 const News = () => {
   const { data, isLoading, refetch, isFetching } = useStockNews();
-  const [activeTab, setActiveTab] = useState<"your" | "market">("your");
+  const [activeTab, setActiveTab] = useState<TabKey>("all");
+
+  const articles = getArticlesForTab(data, activeTab);
+  const showImpact = (activeTab === "all" || activeTab === "market") && data?.impactAnalysis?.length;
 
   return (
     <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8 max-w-4xl mx-auto">
@@ -132,7 +196,7 @@ const News = () => {
               <h1 className="text-2xl font-semibold tracking-tight">News</h1>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              News that matters to your portfolio
+              Real-time stock &amp; market intelligence
             </p>
           </div>
           <Button
@@ -148,89 +212,92 @@ const News = () => {
         </div>
       </motion.div>
 
-      {/* Tabs */}
-      <div className="mt-5 flex gap-1 rounded-xl bg-secondary p-1">
-        {[
-          { key: "your" as const, label: "Your Stocks", icon: TrendingUp },
-          { key: "market" as const, label: "Market News", icon: Newspaper },
-        ].map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-all ${
-              activeTab === key
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Icon size={14} />
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Scrollable Tabs */}
+      <ScrollArea className="mt-5 w-full">
+        <div className="flex gap-1 rounded-xl bg-secondary p-1 w-max min-w-full">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                activeTab === key
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon size={13} />
+              {label}
+              {data && (
+                <span className={`ml-0.5 text-[10px] ${activeTab === key ? "text-muted-foreground" : "opacity-50"}`}>
+                  {getArticlesForTab(data, key).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
 
-      {/* AI Impact Analysis Banner */}
-      {activeTab === "market" && data?.impactAnalysis && data.impactAnalysis.length > 0 && (
-        <motion.div
-          className="mt-4 rounded-xl border border-border/40 bg-card p-4"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Sparkles size={14} className="text-muted-foreground" />
-            <span>Maven Market Analysis</span>
-          </div>
-          <div className="mt-3 space-y-2.5">
-            {data.impactAnalysis.map((item, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <AlertTriangle size={12} className="mt-0.5 shrink-0 text-muted-foreground/60" />
-                <div>
-                  <p className="text-xs font-medium leading-snug">{item.title}</p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{item.impact}</p>
+      {/* AI Impact Analysis */}
+      <AnimatePresence mode="wait">
+        {showImpact && (
+          <motion.div
+            key="impact"
+            className="mt-4 rounded-xl border border-border/40 bg-card p-4"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+          >
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles size={14} className="text-muted-foreground" />
+              <span>Maven Market Analysis</span>
+            </div>
+            <div className="mt-3 space-y-2.5">
+              {data!.impactAnalysis.map((item, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <AlertTriangle size={12} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                  <div>
+                    <p className="text-xs font-medium leading-snug">{item.title}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{item.impact}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* News List */}
       <div className="mt-4 space-y-2 pb-8">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center justify-center py-16 gap-2">
             <Loader2 size={20} className="animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Loading news feeds...</span>
           </div>
-        ) : activeTab === "your" ? (
-          data?.yourNews && data.yourNews.length > 0 ? (
-            data.yourNews.map((article, i) => (
-              <motion.div
-                key={`${article.title}-${i}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
-                <NewsCard article={article} />
-              </motion.div>
-            ))
-          ) : (
-            <div className="py-16 text-center text-sm text-muted-foreground">
-              No news found for your holdings right now.
-            </div>
-          )
-        ) : data?.marketNews && data.marketNews.length > 0 ? (
-          data.marketNews.map((article, i) => (
+        ) : articles.length > 0 ? (
+          <AnimatePresence mode="wait">
             <motion.div
-              key={`${article.title}-${i}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
+              key={activeTab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-2"
             >
-              <NewsCard article={article} />
+              {articles.map((article, i) => (
+                <motion.div
+                  key={`${article.title}-${i}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.02 }}
+                >
+                  <NewsCard article={article} />
+                </motion.div>
+              ))}
             </motion.div>
-          ))
+          </AnimatePresence>
         ) : (
           <div className="py-16 text-center text-sm text-muted-foreground">
-            No market news available right now.
+            No news available for this category right now.
           </div>
         )}
       </div>
@@ -238,7 +305,7 @@ const News = () => {
       {/* Last updated */}
       {data?.generatedAt && (
         <p className="pb-4 text-center text-[10px] text-muted-foreground/50">
-          Updated {timeAgo(data.generatedAt)}
+          Auto-refreshes every 3 min · Updated {timeAgo(data.generatedAt)}
         </p>
       )}
     </div>
