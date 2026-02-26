@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
+import { useTradingMode } from "@/hooks/use-trading-mode";
 
 interface Broker {
   id: string;
@@ -34,7 +35,10 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
   const { timezone, setTimezone } = useTimezone();
-  const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(new Set());
+  const { mode, setMode, hasBrokerConnected, setHasBrokerConnected } = useTradingMode();
+  const [connectedBrokers, setConnectedBrokers] = useState<Set<string>>(() => {
+    return hasBrokerConnected ? new Set(["ws"]) : new Set();
+  });
   const [connecting, setConnecting] = useState<string | null>(null);
   const [brokersOpen, setBrokersOpen] = useState(false);
 
@@ -50,6 +54,8 @@ const Settings = () => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
         else next.add(id);
+        const anyConnected = next.size > 0;
+        setHasBrokerConnected(anyConnected);
         return next;
       });
       setConnecting(null);
@@ -262,6 +268,30 @@ const Settings = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Trading Mode Toggle */}
+        <div className="glass-card mt-3 flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${mode === "real" ? "bg-gain/15" : "bg-secondary"}`}>
+              <TrendingUp size={18} className={mode === "real" ? "text-gain" : "text-muted-foreground"} />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-medium">Real Portfolio Mode</p>
+              <p className="text-[11px] text-muted-foreground">
+                {hasBrokerConnected
+                  ? mode === "real"
+                    ? "Viewing real broker data"
+                    : "Switch to view your real investments"
+                  : "Connect a broker to enable"}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={mode === "real"}
+            onCheckedChange={(checked) => setMode(checked ? "real" : "paper")}
+            disabled={!hasBrokerConnected}
+          />
+        </div>
       </motion.div>
 
       {/* Security Note */}
@@ -296,7 +326,9 @@ const Settings = () => {
       </motion.div>
 
       <motion.div className="mt-6 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }}>
-        <p className="text-[11px] text-muted-foreground">📄 Paper Trading Mode · Broker sync coming soon</p>
+        <p className="text-[11px] text-muted-foreground">
+          {mode === "real" ? "📊 Real Portfolio Mode · Read-only broker sync" : "📄 Paper Trading Mode · All trades are simulated"}
+        </p>
       </motion.div>
     </div>
   );

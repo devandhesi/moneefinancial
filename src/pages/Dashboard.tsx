@@ -8,6 +8,7 @@ import AiInsightWidget from "@/components/widgets/AiInsightWidget";
 import { useTimezone } from "@/hooks/use-timezone";
 import { useLiveHoldings, useLiveIndices, usePortfolioChart } from "@/hooks/use-dashboard-data";
 import { useDailyDigest } from "@/hooks/use-daily-digest";
+import { useTradingMode } from "@/hooks/use-trading-mode";
 
 /* ── Market status hook ───────────────────────────────────────── */
 function useMarketStatus(userTimezone: string) {
@@ -51,6 +52,7 @@ const Dashboard = () => {
   const { isOpen: marketOpen, displayTime, tzLabel } = useMarketStatus(timezone);
 
   const navigate = useNavigate();
+  const { mode } = useTradingMode();
 
   const { data: liveHoldings, isLoading: holdingsLoading } = useLiveHoldings();
   const { data: liveIndices, isLoading: indicesLoading } = useLiveIndices();
@@ -71,7 +73,12 @@ const Dashboard = () => {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Good morning</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">Good morning</p>
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${mode === "real" ? "bg-gain/15 text-gain" : "bg-secondary text-muted-foreground"}`}>
+                {mode === "real" ? "Real" : "Paper"}
+              </span>
+            </div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className={`h-1 w-1 rounded-full ${marketOpen ? "bg-gain" : "bg-muted-foreground/30"}`} />
               <span>{displayTime} {tzLabel}</span>
@@ -226,7 +233,9 @@ const Dashboard = () => {
 
         {/* Disclaimer */}
         <motion.div className="mt-6 mb-4 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.5 }}>
-          <p className="text-[11px] text-muted-foreground">Paper Trading Mode · Educational demo only · Not financial advice</p>
+          <p className="text-[11px] text-muted-foreground">
+            {mode === "real" ? "📊 Real Portfolio · Read-only broker sync" : "Paper Trading Mode · Educational demo only · Not financial advice"}
+          </p>
         </motion.div>
       </div>
 
