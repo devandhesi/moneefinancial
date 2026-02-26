@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2,
-  Sun, Moon, BarChart3, Bitcoin, Layers, Activity, Flame,
+  Sun, Moon, BarChart3, Bitcoin, Layers, Activity, Flame, MessageCircle,
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
@@ -371,13 +371,25 @@ const Invest = () => {
                 </div>
                 <div className="mt-2 space-y-2">
                   {suggestedForYou.map((s) => (
-                    <button key={s.symbol} onClick={() => navigate(`/invest/${s.symbol}`)} className="glass-card flex w-full items-center justify-between p-3 text-left transition-shadow hover:shadow-md">
-                      <div>
+                    <div key={s.symbol} className="glass-card flex w-full items-center justify-between p-3 transition-shadow hover:shadow-md">
+                      <button onClick={() => navigate(`/invest/${s.symbol}`)} className="flex-1 text-left">
                         <p className="text-sm font-semibold">{s.symbol} <span className="font-normal text-muted-foreground">· {s.name}</span></p>
                         <p className="mt-0.5 text-[11px] text-muted-foreground">{s.reason}</p>
+                      </button>
+                      <div className="flex items-center gap-1.5 ml-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/chat?q=Tell me about ${s.symbol} (${s.name}) and why it might be a good addition to my portfolio. ${s.reason}`); }}
+                          className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title="Ask Maven"
+                        >
+                          <MessageCircle size={12} />
+                          <span className="hidden sm:inline">Ask Maven</span>
+                        </button>
+                        <button onClick={() => navigate(`/invest/${s.symbol}`)} className="text-muted-foreground hover:text-foreground transition-colors">
+                          <ArrowUpRight size={14} />
+                        </button>
                       </div>
-                      <ArrowUpRight size={14} className="text-muted-foreground" />
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
