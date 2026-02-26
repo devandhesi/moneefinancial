@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, X, TrendingUp, ArrowUpRight, ArrowDownRight, Search, Loader2, Sparkles } from "lucide-react";
+import { Star, X, TrendingUp, ArrowUpRight, ArrowDownRight, Search, Loader2, Sparkles, Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getStockQuote } from "@/lib/market-api";
 import { supabase } from "@/integrations/supabase/client";
+import MicroSparkline from "@/components/widgets/MicroSparkline";
 
 interface WatchlistItem {
   symbol: string;
@@ -14,14 +15,23 @@ interface WatchlistItem {
   loading: boolean;
   suggestion?: string;
   suggestionLoading?: boolean;
+  signal?: "Buy" | "Sell" | "Hold";
+  reason?: string;
+  sparkData?: number[];
 }
+
+const SIGNAL_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  Buy: { bg: "bg-gain/15", text: "text-gain", label: "BUY" },
+  Sell: { bg: "bg-loss/15", text: "text-loss", label: "SELL" },
+  Hold: { bg: "bg-muted", text: "text-muted-foreground", label: "HOLD" },
+};
 
 const Watchlist = () => {
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
 
-  // Load watchlist and fetch prices
+  // Load watchlist and fetch prices + chart data
   useEffect(() => {
     const load = async () => {
       try {
@@ -30,11 +40,11 @@ const Watchlist = () => {
         
         setItems(symbols.map(s => ({ symbol: s, loading: true })));
 
-        // Fetch prices in parallel
         const results = await Promise.allSettled(
           symbols.map(async (symbol) => {
             const quote = await getStockQuote(symbol, "1D");
-            return { symbol, price: quote.price, change: quote.change, changePct: quote.changePercent };
+            const sparkData = quote.chart?.map((p) => p.close).filter(Boolean) || [];
+            return { symbol, price: quote.price, change: quote.change, changePct: quote.changePercent, sparkData };
           })
         );
 
@@ -55,7 +65,7 @@ const Watchlist = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch AI suggestions for all items
+  // Fetch AI signals
   const fetchSuggestions = async () => {
     const symbolsWithPrices = items.filter(i => i.price);
     if (symbolsWithPrices.length === 0) return;
@@ -68,24 +78,26 @@ const Watchlist = () => {
           messages: [
             {
               role: "user",
-              content: `Give me a one-word recommendation (Buy, Sell, or Hold) and a one-sentence reason for each of these stocks I'm watching: ${symbolsWithPrices.map(i => `${i.symbol} at $${i.price?.toFixed(2)} (${i.changePct && i.changePct >= 0 ? "+" : ""}${i.changePct?.toFixed(2)}% today)`).join(", ")}. Format: SYMBOL: Recommendation - Reason`
+              content: `For each stock, give a recommendation (Buy, Sell, or Hold) and a concise 1-sentence reason. Consider current price action, momentum, and risk.
+
+Stocks: ${symbolsWithPrices.map(i => `${i.symbol} at $${i.price?.toFixed(2)} (${i.changePct && i.changePct >= 0 ? "+" : ""}${i.changePct?.toFixed(2)}% today)`).join(", ")}
+
+Format each as: SYMBOL: Buy|Sell|Hold - Reason`
             }
           ]
         }
       });
 
-      // Parse streaming response
       if (data) {
         const text = typeof data === "string" ? data : "";
-        // Set suggestions from response
         setItems(prev => prev.map(i => {
           const regex = new RegExp(`${i.symbol}:\\s*(Buy|Sell|Hold)\\s*[-–]\\s*(.+?)(?=\\n|$)`, "i");
           const match = text.match(regex);
-          return {
-            ...i,
-            suggestion: match ? `${match[1]} — ${match[2].trim()}` : undefined,
-            suggestionLoading: false,
-          };
+          if (match) {
+            const signal = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() as "Buy" | "Sell" | "Hold";
+            return { ...i, signal, reason: match[2].trim(), suggestionLoading: false };
+          }
+          return { ...i, suggestionLoading: false };
         }));
       }
     } catch {
@@ -105,8 +117,10 @@ const Watchlist = () => {
     i.symbol.toLowerCase().includes(filter.toLowerCase())
   );
 
+  const buyAlerts = items.filter(i => i.signal === "Buy");
+
   return (
-    <div className="px-5 pt-14 pb-6 lg:pt-8 space-y-6">
+    <div className="px-5 pt-14 pb-6 lg:pt-8 space-y-5">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
@@ -127,6 +141,35 @@ const Watchlist = () => {
           )}
         </div>
       </motion.div>
+
+      {/* Buy Alerts Banner */}
+      <AnimatePresence>
+        {buyAlerts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl border border-gain/20 bg-gain/8 p-4"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Bell size={14} className="text-gain" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-gain">Buy Alerts</span>
+            </div>
+            <div className="space-y-1.5">
+              {buyAlerts.map(item => (
+                <div
+                  key={item.symbol}
+                  className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate(`/invest/${item.symbol}`)}
+                >
+                  <span className="text-sm font-bold text-gain">{item.symbol}</span>
+                  <span className="text-[11px] text-gain/80">{item.reason}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search */}
       {items.length > 3 && (
@@ -160,8 +203,7 @@ const Watchlist = () => {
           </div>
           <h3 className="text-base font-medium">No stocks saved yet</h3>
           <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-            Star stocks from the Invest page to add them to your watchlist for
-            quick access.
+            Star stocks from the Invest page to add them to your watchlist for quick access.
           </p>
           <button
             onClick={() => navigate("/invest")}
@@ -175,72 +217,89 @@ const Watchlist = () => {
 
       {/* Watchlist items */}
       <AnimatePresence mode="popLayout">
-        {filtered.map((item, i) => (
-          <motion.div
-            key={item.symbol}
-            layout
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ delay: i * 0.03 }}
-            className="glass-card group cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
-            onClick={() => navigate(`/invest/${item.symbol}`)}
-          >
-            <div className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
-                  <Star size={16} className="fill-foreground text-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">{item.symbol}</p>
-                  {item.loading ? (
-                    <Loader2 size={12} className="animate-spin text-muted-foreground" />
-                  ) : item.price ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium">${item.price.toFixed(2)}</span>
-                      <span className={`flex items-center gap-0.5 text-xs ${(item.changePct ?? 0) >= 0 ? "text-gain" : "text-loss"}`}>
-                        {(item.changePct ?? 0) >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                        {(item.changePct ?? 0) >= 0 ? "+" : ""}{item.changePct?.toFixed(2)}%
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Tap to view</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <ArrowUpRight
-                  size={16}
-                  className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFromWatchlist(item.symbol);
-                  }}
-                  className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                  title="Remove from watchlist"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
+        {filtered.map((item, i) => {
+          const isPositive = (item.changePct ?? 0) >= 0;
+          const signalStyle = item.signal ? SIGNAL_STYLES[item.signal] : null;
 
-            {/* AI Suggestion */}
-            {item.suggestionLoading && (
-              <div className="border-t border-border/30 px-5 py-2 flex items-center gap-2">
-                <Loader2 size={12} className="animate-spin text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground">Analyzing...</span>
+          return (
+            <motion.div
+              key={item.symbol}
+              layout
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ delay: i * 0.03 }}
+              className="glass-card group cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
+              onClick={() => navigate(`/invest/${item.symbol}`)}
+            >
+              <div className="flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                    <Star size={16} className="fill-foreground text-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">{item.symbol}</p>
+                      {signalStyle && (
+                        <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${signalStyle.bg} ${signalStyle.text}`}>
+                          {signalStyle.label}
+                        </span>
+                      )}
+                    </div>
+                    {item.loading ? (
+                      <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                    ) : item.price ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">${item.price.toFixed(2)}</span>
+                        <span className={`flex items-center gap-0.5 text-xs ${isPositive ? "text-gain" : "text-loss"}`}>
+                          {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                          {isPositive ? "+" : ""}{item.changePct?.toFixed(2)}%
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Tap to view</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Micro sparkline */}
+                  {item.sparkData && item.sparkData.length > 2 && (
+                    <MicroSparkline data={item.sparkData} positive={isPositive} width={72} height={28} />
+                  )}
+                  <ArrowUpRight
+                    size={16}
+                    className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromWatchlist(item.symbol);
+                    }}
+                    className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                    title="Remove from watchlist"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
-            )}
-            {item.suggestion && !item.suggestionLoading && (
-              <div className="border-t border-border/30 px-5 py-2.5 flex items-center gap-2">
-                <Sparkles size={12} className="shrink-0 text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground">{item.suggestion}</span>
-              </div>
-            )}
-          </motion.div>
-        ))}
+
+              {/* AI Reason */}
+              {item.suggestionLoading && (
+                <div className="border-t border-border/30 px-5 py-2 flex items-center gap-2">
+                  <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground">Analyzing...</span>
+                </div>
+              )}
+              {item.reason && !item.suggestionLoading && (
+                <div className="border-t border-border/30 px-5 py-2.5 flex items-center gap-2">
+                  <Sparkles size={12} className="shrink-0 text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground">{item.reason}</span>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
 
       {filter && filtered.length === 0 && items.length > 0 && (
