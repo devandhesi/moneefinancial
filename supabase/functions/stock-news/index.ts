@@ -71,6 +71,13 @@ function parseRssItems(xml: string, defaultSource: string, symbols: string[]): N
       const m = item.match(/<guid[^>]*>(?:<!\[CDATA\[)?(https?:\/\/[^\s<\]]+)/);
       if (m) link = m[1];
     }
+
+    // For Google News, extract actual source URL from <source url="..."> tag
+    const sourceUrlMatch = item.match(/<source[^>]+url="(https?:\/\/[^"]+)"/);
+    if (sourceUrlMatch && link?.includes("news.google.com")) {
+      link = sourceUrlMatch[1];
+    }
+
     const description = getTag("description");
     const pubDate = getTag("pubDate");
     const rssSource = getTag("source") || defaultSource;
