@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "rec
 import ContextSidebar from "@/components/layout/ContextSidebar";
 import AiInsightWidget from "@/components/widgets/AiInsightWidget";
 import { useTimezone } from "@/hooks/use-timezone";
+import TrendingHeatStrip from "@/components/widgets/TrendingHeatStrip";
 import { useLiveHoldings, useLiveIndices, usePortfolioChart } from "@/hooks/use-dashboard-data";
 import { useDailyDigest } from "@/hooks/use-daily-digest";
 import { useTradingMode } from "@/hooks/use-trading-mode";
@@ -170,6 +171,11 @@ const Dashboard = () => {
         {/* Maven AI Insight (mobile) */}
         <motion.div className="mt-4 xl:hidden" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
           <AiInsightWidget insight={digest?.aiInsight} isLoading={digestLoading} />
+        </motion.div>
+
+        {/* Trending Heat Strip */}
+        <motion.div className="mt-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.22 }}>
+          <TrendingHeatStrip />
         </motion.div>
 
         {/* Accounts Summary — Cash & Investment only */}
