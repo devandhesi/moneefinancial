@@ -10,24 +10,48 @@ const primaryTabs = [
   { path: "/learn", icon: BookOpen, label: "Learn" },
 ];
 
-const extraPages = [
-  { path: "/watchlist", icon: Star, label: "Watchlist" },
-  { path: "/markets", icon: Globe, label: "Markets" },
-  { path: "/transactions", icon: Receipt, label: "Transactions" },
-  { path: "/orders", icon: ClipboardList, label: "Orders" },
-  { path: "/calendar", icon: CalendarDays, label: "Calendar" },
-  { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
-  { path: "/risk", icon: Shield, label: "Risk Map" },
-  { path: "/social", icon: Users, label: "Social" },
-  { path: "/profile", icon: User, label: "Profile" },
-  { path: "/settings", icon: Settings, label: "Settings" },
+const extraGroups = [
+  {
+    label: "Learning & Simulation",
+    pages: [
+      { path: "/learn", icon: BookOpen, label: "Learn" },
+      { path: "/simulation", icon: FlaskConical, label: "Sim Lab" },
+    ],
+  },
+  {
+    label: "Portfolio & Risk",
+    pages: [
+      { path: "/invest", icon: TrendingUp, label: "Holdings" },
+      { path: "/risk", icon: Shield, label: "Risk Map" },
+    ],
+  },
+  {
+    label: "Activity",
+    pages: [
+      { path: "/transactions", icon: Receipt, label: "Transactions" },
+      { path: "/orders", icon: ClipboardList, label: "Orders" },
+    ],
+  },
+  {
+    label: "More",
+    pages: [
+      { path: "/watchlist", icon: Star, label: "Watchlist" },
+      { path: "/markets", icon: Globe, label: "Markets" },
+      { path: "/calendar", icon: CalendarDays, label: "Calendar" },
+      { path: "/social", icon: Users, label: "Social" },
+      { path: "/profile", icon: User, label: "Profile" },
+      { path: "/settings", icon: Settings, label: "Settings" },
+    ],
+  },
 ];
+
+const allExtraPaths = extraGroups.flatMap(g => g.pages.map(p => p.path));
 
 const BottomNav = () => {
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
 
-  const isExtraActive = extraPages.some((p) => location.pathname === p.path);
+  const isExtraActive = allExtraPaths.some((p) => location.pathname === p);
 
   return (
     <>
@@ -48,7 +72,7 @@ const BottomNav = () => {
       <AnimatePresence>
         {showMore && (
           <motion.div
-            className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-[70] glass-card-strong p-4 lg:hidden"
+            className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-[70] glass-card-strong p-4 lg:hidden max-h-[70vh] overflow-y-auto"
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -60,30 +84,39 @@ const BottomNav = () => {
                 <X size={14} className="text-muted-foreground" />
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {extraPages.map((page) => {
-                const Icon = page.icon;
-                const isActive = location.pathname === page.path;
-                return (
-                  <NavLink
-                    key={page.path}
-                    to={page.path}
-                    onClick={() => setShowMore(false)}
-                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 transition-colors ${
-                      isActive ? "bg-foreground/10" : "hover:bg-secondary"
-                    }`}
-                  >
-                    <Icon
-                      size={18}
-                      strokeWidth={isActive ? 2 : 1.5}
-                      className={isActive ? "text-foreground" : "text-muted-foreground"}
-                    />
-                    <span className={`text-[10px] leading-tight ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                      {page.label}
-                    </span>
-                  </NavLink>
-                );
-              })}
+            <div className="space-y-4">
+              {extraGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {group.pages.map((page) => {
+                      const Icon = page.icon;
+                      const isActive = location.pathname === page.path;
+                      return (
+                        <NavLink
+                          key={page.path + page.label}
+                          to={page.path}
+                          onClick={() => setShowMore(false)}
+                          className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 transition-colors ${
+                            isActive ? "bg-foreground/10" : "hover:bg-secondary"
+                          }`}
+                        >
+                          <Icon
+                            size={18}
+                            strokeWidth={isActive ? 2 : 1.5}
+                            className={isActive ? "text-foreground" : "text-muted-foreground"}
+                          />
+                          <span className={`text-[10px] leading-tight text-center ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                            {page.label}
+                          </span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
