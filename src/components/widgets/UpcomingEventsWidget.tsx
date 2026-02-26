@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Loader2 } from "lucide-react";
+import type { UpcomingEvent } from "@/hooks/use-daily-digest";
 
-const events = [
-  { date: "Feb 27", label: "AAPL Earnings", type: "earnings" },
-  { date: "Mar 3", label: "NVDA Earnings", type: "earnings" },
-  { date: "Mar 5", label: "MSFT Limit Buy triggers", type: "order" },
-];
+interface Props {
+  events?: UpcomingEvent[];
+  isLoading?: boolean;
+}
 
-const UpcomingEventsWidget = () => (
+const UpcomingEventsWidget = ({ events, isLoading }: Props) => (
   <motion.div
     className="glass-card p-4"
     initial={{ opacity: 0, y: 8 }}
@@ -19,12 +19,19 @@ const UpcomingEventsWidget = () => (
       <span>Upcoming</span>
     </div>
     <div className="mt-3 space-y-2">
-      {events.map((e, i) => (
-        <div key={i} className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">{e.date}</span>
-          <span className="font-medium">{e.label}</span>
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 size={12} className="animate-spin" />
+          <span className="text-xs">Loading events…</span>
         </div>
-      ))}
+      ) : (
+        (events || []).map((e, i) => (
+          <div key={i} className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{e.date}</span>
+            <span className="font-medium">{e.label}</span>
+          </div>
+        ))
+      )}
     </div>
   </motion.div>
 );

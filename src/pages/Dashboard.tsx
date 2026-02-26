@@ -8,8 +8,10 @@ import PortfolioHealthWidget from "@/components/widgets/PortfolioHealthWidget";
 import MarketMoodWidget from "@/components/widgets/MarketMoodWidget";
 import ProjectionWidget from "@/components/widgets/ProjectionWidget";
 import AchievementsWidget from "@/components/widgets/AchievementsWidget";
+import AiInsightWidget from "@/components/widgets/AiInsightWidget";
 import { useTimezone } from "@/hooks/use-timezone";
 import { useLiveHoldings, useLiveIndices, usePortfolioChart } from "@/hooks/use-dashboard-data";
+import { useDailyDigest } from "@/hooks/use-daily-digest";
 
 /* ── Market status hook ───────────────────────────────────────── */
 function useMarketStatus(userTimezone: string) {
@@ -87,6 +89,7 @@ const Dashboard = () => {
   const { data: liveHoldings, isLoading: holdingsLoading } = useLiveHoldings();
   const { data: liveIndices, isLoading: indicesLoading } = useLiveIndices();
   const { data: chartData, isLoading: chartLoading } = usePortfolioChart(activeTimeframe);
+  const { data: digest, isLoading: digestLoading } = useDailyDigest();
 
   // Compute totals from live data
   const totalValue = liveHoldings?.reduce((sum, h) => sum + h.value, 0) ?? 0;
@@ -212,24 +215,18 @@ const Dashboard = () => {
         {/* Health + Mood row */}
         {v.healthMood && (
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <PortfolioHealthWidget />
-            <MarketMoodWidget />
+            <PortfolioHealthWidget data={digest?.health} isLoading={digestLoading} />
+            <MarketMoodWidget data={digest?.mood} isLoading={digestLoading} />
           </div>
         )}
 
         {/* Projection */}
-        {v.projection && <ProjectionWidget />}
+        {v.projection && <ProjectionWidget currentValue={totalValue} />}
 
         {/* AI Insight (mobile) */}
         {v.insight && (
-          <motion.div className="glass-card mt-4 p-4 xl:hidden" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Sparkles size={14} className="text-muted-foreground" />
-              <span>Maven Insight</span>
-            </div>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-              Your tech sector exposure is 68% of total portfolio. Consider diversifying into healthcare or consumer staples to reduce correlation risk.
-            </p>
+          <motion.div className="mt-4 xl:hidden" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+            <AiInsightWidget insight={digest?.aiInsight} isLoading={digestLoading} />
           </motion.div>
         )}
 
