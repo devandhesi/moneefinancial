@@ -532,6 +532,7 @@ export type Database = {
       market_news: {
         Row: {
           created_at: string
+          external_id: string | null
           headline: string
           id: string
           published_at: string | null
@@ -542,6 +543,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_id?: string | null
           headline: string
           id?: string
           published_at?: string | null
@@ -552,6 +554,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_id?: string | null
           headline?: string
           id?: string
           published_at?: string | null
@@ -849,7 +852,6 @@ export type Database = {
           name: string
           rules: string | null
           slug: string
-          symbol: string | null
           ticker: string | null
           type: Database["public"]["Enums"]["room_type"]
           updated_at: string
@@ -864,7 +866,6 @@ export type Database = {
           name: string
           rules?: string | null
           slug: string
-          symbol?: string | null
           ticker?: string | null
           type: Database["public"]["Enums"]["room_type"]
           updated_at?: string
@@ -879,7 +880,6 @@ export type Database = {
           name?: string
           rules?: string | null
           slug?: string
-          symbol?: string | null
           ticker?: string | null
           type?: Database["public"]["Enums"]["room_type"]
           updated_at?: string
