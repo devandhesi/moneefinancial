@@ -182,7 +182,7 @@ const News = () => {
           <motion.div key="impact" className="mt-4 rounded-xl border border-border/40 bg-card p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
             <div className="flex items-center gap-2 text-sm font-medium">
               <Sparkles size={14} className="text-muted-foreground" />
-              <span>Maven Market Analysis</span>
+              <span>Market Impact Analysis</span>
             </div>
             <div className="mt-3 space-y-2.5">
               {data!.impactAnalysis.map((item, i) => (
