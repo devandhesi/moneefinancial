@@ -67,6 +67,11 @@ const MarketMoodWidget = () => {
         <span>Fearful</span>
         <span>Euphoric</span>
       </div>
+
+      {/* Insight */}
+      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+        Markets are trading sideways with balanced sentiment. Low volatility suggests a consolidation phase — a good time to review positions.
+      </p>
     </motion.div>
   );
 };
