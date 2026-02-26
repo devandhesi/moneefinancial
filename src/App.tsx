@@ -22,6 +22,7 @@ import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
 import SimulationLab from "./pages/SimulationLab";
 import Tools from "./pages/Tools";
+import Reports from "./pages/Reports";
 import Watchlist from "./pages/Watchlist";
 import Auth from "./pages/Auth";
 import CommunityFeed from "./pages/CommunityFeed";
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/orders" element={<Orders />} />
               <Route path="/simulation" element={<SimulationLab />} />
               <Route path="/tools" element={<Tools />} />
+              <Route path="/reports" element={<Reports />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/community" element={<CommunityFeed />} />
               <Route path="/community/room/:slug" element={<CommunityRoom />} />

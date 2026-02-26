@@ -6,6 +6,7 @@ import {
   TrendingUp,
   BookOpen,
   User,
+  FileBarChart,
   FlaskConical,
   Settings,
   Moon,
@@ -25,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
-  FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench,
+  FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench, FileBarChart,
 };
 
 interface NavGroup {
@@ -59,6 +60,7 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
+      { path: "/reports", icon: "FileBarChart", label: "Reports" },
     ],
   },
   {
