@@ -14,6 +14,219 @@ export type Database = {
   }
   public: {
     Tables: {
+      broker_accounts: {
+        Row: {
+          account_id: string
+          account_name: string | null
+          account_type: string | null
+          as_of: string | null
+          buying_power: number | null
+          cash: number | null
+          currency: string | null
+          id: string
+          provider: string
+          total_value: number | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          account_name?: string | null
+          account_type?: string | null
+          as_of?: string | null
+          buying_power?: number | null
+          cash?: number | null
+          currency?: string | null
+          id?: string
+          provider: string
+          total_value?: number | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          account_name?: string | null
+          account_type?: string | null
+          as_of?: string | null
+          buying_power?: number | null
+          cash?: number | null
+          currency?: string | null
+          id?: string
+          provider?: string
+          total_value?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broker_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          metadata: Json | null
+          provider: string
+          refresh_token_encrypted: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          metadata?: Json | null
+          provider: string
+          refresh_token_encrypted?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          metadata?: Json | null
+          provider?: string
+          refresh_token_encrypted?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broker_fills: {
+        Row: {
+          account_id: string
+          executed_at: string
+          execution_id: string
+          id: string
+          order_id: string | null
+          price: number
+          provider: string
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          executed_at?: string
+          execution_id: string
+          id?: string
+          order_id?: string | null
+          price: number
+          provider: string
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          executed_at?: string
+          execution_id?: string
+          id?: string
+          order_id?: string | null
+          price?: number
+          provider?: string
+          quantity?: number
+          side?: string
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broker_orders: {
+        Row: {
+          account_id: string
+          created_at: string | null
+          id: string
+          order_id: string
+          order_type: string | null
+          provider: string
+          quantity: number
+          side: string
+          status: string | null
+          symbol: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string | null
+          id?: string
+          order_id: string
+          order_type?: string | null
+          provider: string
+          quantity: number
+          side: string
+          status?: string | null
+          symbol: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          order_type?: string | null
+          provider?: string
+          quantity?: number
+          side?: string
+          status?: string | null
+          symbol?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broker_positions: {
+        Row: {
+          account_id: string
+          average_price: number | null
+          id: string
+          market_price: number | null
+          market_value: number | null
+          provider: string
+          quantity: number
+          symbol: string
+          unrealized_pl: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          average_price?: number | null
+          id?: string
+          market_price?: number | null
+          market_value?: number | null
+          provider: string
+          quantity?: number
+          symbol: string
+          unrealized_pl?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          average_price?: number | null
+          id?: string
+          market_price?: number | null
+          market_value?: number | null
+          provider?: string
+          quantity?: number
+          symbol?: string
+          unrealized_pl?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
