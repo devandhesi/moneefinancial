@@ -20,6 +20,13 @@ import {
   Wrench,
   type LucideIcon,
   Users,
+  PieChart,
+  ShieldAlert,
+  Flame,
+  Grid3X3,
+  Receipt,
+  ClipboardList,
+  Link2,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,6 +35,7 @@ import { Switch } from "@/components/ui/switch";
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
   FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench, FileBarChart, Users,
+  PieChart, ShieldAlert, Flame, Grid3X3, Receipt, ClipboardList, Link2,
 };
 
 interface NavGroup {
@@ -52,6 +60,9 @@ const navGroups: NavGroup[] = [
       { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
       { path: "/reports", icon: "FileBarChart", label: "Reports" },
+      { path: "/allocation", icon: "PieChart", label: "Allocation" },
+      { path: "/orders", icon: "ClipboardList", label: "Orders" },
+      { path: "/transactions", icon: "Receipt", label: "Transactions" },
     ],
   },
   {
@@ -62,6 +73,14 @@ const navGroups: NavGroup[] = [
       { path: "/community", icon: "Hash", label: "Rooms" },
       { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
       { path: "/notifications", icon: "Bell", label: "Notifications" },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { path: "/heat-engine", icon: "Flame", label: "Heat Engine" },
+      { path: "/heatmap", icon: "Grid3X3", label: "Heatmap" },
+      { path: "/behavioral-risk", icon: "ShieldAlert", label: "Behavioral Risk" },
     ],
   },
   {
