@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.trending-stocks]
 verify_jwt = false
+
+[functions.reports-data]
+verify_jwt = false
