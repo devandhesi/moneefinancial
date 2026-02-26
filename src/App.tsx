@@ -29,6 +29,7 @@ import CommunityFeed from "./pages/CommunityFeed";
 import CommunityRoom from "./pages/CommunityRoom";
 import DirectMessages from "./pages/DirectMessages";
 import Notifications from "./pages/Notifications";
+import BrokerConnections from "./pages/BrokerConnections";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/community/room/:slug" element={<CommunityRoom />} />
               <Route path="/community/dms" element={<DirectMessages />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/settings/broker" element={<BrokerConnections />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
