@@ -38,9 +38,9 @@ function getPageContext(pathname: string) {
 }
 
 const QUICK_ACTIONS = [
-  { label: "Teach me", prompt: "Teach me something useful about this screen — what should I know as an investor?" },
-  { label: "Analyze", prompt: "Analyze what I'm looking at and give me actionable insights or warnings." },
-  { label: "What to do", prompt: "Based on this screen, what should I do next? Give me a clear action plan." },
+  { label: "📚 Teach me about this screen", prompt: "Teach me something useful about this screen — what should I know as an investor?" },
+  { label: "📊 Analyze what I see", prompt: "Analyze what I'm looking at and give me actionable insights or warnings." },
+  { label: "🎯 What should I do next?", prompt: "Based on this screen, what should I do next? Give me a clear action plan." },
 ];
 
 export default function MavenAssistantFAB() {
@@ -128,7 +128,7 @@ export default function MavenAssistantFAB() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="fixed bottom-28 right-4 lg:bottom-8 lg:right-8 z-50 w-[340px] sm:w-[380px] max-h-[70vh] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-28 right-4 lg:bottom-8 lg:right-8 z-50 w-[340px] sm:w-[380px] max-h-[75vh] rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
@@ -147,18 +147,21 @@ export default function MavenAssistantFAB() {
             </div>
 
             {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[240px]">
               {messages.length === 0 && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground text-center">
-                    What can I help you with on this screen?
-                  </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
+                <div className="space-y-4 pt-2">
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-foreground">How can I help?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Context-aware on <span className="font-medium">{ctx.label}</span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
                     {QUICK_ACTIONS.map((action) => (
                       <button
                         key={action.label}
                         onClick={() => sendMessage(action.prompt)}
-                        className="px-3 py-2 rounded-full bg-muted/40 hover:bg-muted/80 transition-colors text-sm text-muted-foreground hover:text-foreground"
+                        className="w-full text-left px-3.5 py-2.5 rounded-xl border border-border/40 bg-muted/30 hover:bg-muted/60 transition-colors text-[13px] text-foreground"
                       >
                         {action.label}
                       </button>
@@ -181,7 +184,7 @@ export default function MavenAssistantFAB() {
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
-                      msg.content.length > 60 ? msg.content.slice(0, 40) + "…" : msg.content
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
                     )}
                   </div>
                 </div>
