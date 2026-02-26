@@ -7,6 +7,7 @@ import ContextSidebar from "@/components/layout/ContextSidebar";
 import AiInsightWidget from "@/components/widgets/AiInsightWidget";
 import { useTimezone } from "@/hooks/use-timezone";
 import TrendingHeatStrip from "@/components/widgets/TrendingHeatStrip";
+import CompactHeatmapWidget from "@/components/widgets/CompactHeatmapWidget";
 import { useLiveHoldings, useLiveIndices, usePortfolioChart } from "@/hooks/use-dashboard-data";
 import { useDailyDigest } from "@/hooks/use-daily-digest";
 import { useTradingMode } from "@/hooks/use-trading-mode";
@@ -176,6 +177,11 @@ const Dashboard = () => {
         {/* Trending Heat Strip */}
         <motion.div className="mt-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.22 }}>
           <TrendingHeatStrip />
+        </motion.div>
+
+        {/* Compact Heatmap */}
+        <motion.div className="mt-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.24 }}>
+          <CompactHeatmapWidget />
         </motion.div>
 
         {/* Accounts Summary — Cash & Investment only */}
