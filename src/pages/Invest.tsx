@@ -413,6 +413,7 @@ const Invest = () => {
                   )}
                   {filteredStocks.map((stock, i) => {
                     const isPositive = stock.change >= 0;
+                    const sparkline = mkSparkline(stock.price, stock.price * 0.02);
                     return (
                       <motion.div
                         key={stock.symbol}
@@ -429,12 +430,27 @@ const Invest = () => {
                             <p className="text-xs text-muted-foreground">{stock.name}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">${stock.price.toFixed(2)}</p>
-                          <p className={`flex items-center justify-end gap-0.5 text-xs ${isPositive ? "text-gain" : "text-loss"}`}>
-                            {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                            {Math.abs(stock.change)}%
-                          </p>
+                        <div className="flex items-center gap-4">
+                          <div className="hidden h-8 w-16 sm:block">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={sparkline}>
+                                <defs>
+                                  <linearGradient id={`sg-stock-${stock.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0.3} />
+                                    <stop offset="100%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <Area type="monotone" dataKey="v" stroke={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} strokeWidth={1.5} fill={`url(#sg-stock-${stock.symbol})`} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium tabular-nums">${stock.price.toFixed(2)}</p>
+                            <p className={`flex items-center justify-end gap-0.5 text-xs tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
+                              {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                              {isPositive ? "+" : ""}{stock.change.toFixed(2)}%
+                            </p>
+                          </div>
                         </div>
                       </motion.div>
                     );
