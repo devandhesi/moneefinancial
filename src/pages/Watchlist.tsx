@@ -7,6 +7,7 @@ import { getStockQuote } from "@/lib/market-api";
 import { supabase } from "@/integrations/supabase/client";
 import MicroSparkline from "@/components/widgets/MicroSparkline";
 import AskMavenButton from "@/components/AskMavenButton";
+import StockAlertButton from "@/components/StockAlertButton";
 
 interface WatchlistItem {
   symbol: string;
@@ -269,6 +270,7 @@ Format each as: SYMBOL: Buy|Sell|Hold - Reason`
                     <MicroSparkline data={item.sparkData} positive={isPositive} width={72} height={28} />
                   )}
                   <AskMavenButton symbol={item.symbol} compact />
+                  <StockAlertButton symbol={item.symbol} currentPrice={item.price} compact />
                   <ArrowUpRight
                     size={16}
                     className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
