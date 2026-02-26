@@ -20,6 +20,9 @@ import {
   User,
   Building2,
   AlertTriangle,
+  Rss,
+  Search,
+  X,
 } from "lucide-react";
 
 interface InsiderReport {
@@ -58,14 +61,28 @@ interface NewsItem {
   category: string;
 }
 
+interface MarketNewsItem {
+  id: string;
+  ticker: string | null;
+  headline: string;
+  source: string | null;
+  url: string | null;
+  summary: string | null;
+  published_at: string | null;
+  created_at: string;
+}
+
 const AUTO_REFRESH_MS = 60_000; // 1 min
 
 const Reports = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("news");
+  const [tab, setTab] = useState("market-news");
   const [news, setNews] = useState<NewsItem[]>([]);
   const [sedi, setSedi] = useState<InsiderReport[]>([]);
   const [stockWatch, setStockWatch] = useState<StockWatchItem[]>([]);
+  const [marketNews, setMarketNews] = useState<MarketNewsItem[]>([]);
+  const [marketNewsTicker, setMarketNewsTicker] = useState("");
+  const [marketNewsLoading, setMarketNewsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,6 +107,30 @@ const Reports = () => {
       setRefreshing(false);
     }
   }, []);
+
+  const fetchMarketNews = useCallback(async () => {
+    setMarketNewsLoading(true);
+    try {
+      let query = supabase
+        .from("market_news")
+        .select("*")
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .limit(50);
+      if (marketNewsTicker.trim()) {
+        query = query.ilike("ticker", `%${marketNewsTicker.trim()}%`);
+      }
+      const { data } = await query;
+      setMarketNews((data as MarketNewsItem[]) || []);
+    } catch (e) {
+      console.error("Market news fetch error:", e);
+    } finally {
+      setMarketNewsLoading(false);
+    }
+  }, [marketNewsTicker]);
+
+  useEffect(() => {
+    if (tab === "market-news") fetchMarketNews();
+  }, [tab, fetchMarketNews]);
 
   useEffect(() => {
     fetchData();
@@ -171,10 +212,14 @@ const Reports = () => {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full grid grid-cols-3">
+        <TabsList className="w-full grid grid-cols-4">
+          <TabsTrigger value="market-news" className="gap-1.5">
+            <Rss size={14} />
+            Market News
+          </TabsTrigger>
           <TabsTrigger value="news" className="gap-1.5">
             <Newspaper size={14} />
-            News
+            AI News
           </TabsTrigger>
           <TabsTrigger value="sedi" className="gap-1.5">
             <FileText size={14} />
@@ -185,6 +230,89 @@ const Reports = () => {
             StockWatch
           </TabsTrigger>
         </TabsList>
+
+        {/* MARKET NEWS TAB */}
+        <TabsContent value="market-news" className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="glass-card flex flex-1 items-center gap-2 px-3 py-2">
+              <Search size={14} className="text-muted-foreground" />
+              <input
+                type="text"
+                value={marketNewsTicker}
+                onChange={(e) => setMarketNewsTicker(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && fetchMarketNews()}
+                placeholder="Filter by ticker (e.g. AAPL)..."
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+              />
+              {marketNewsTicker && (
+                <button onClick={() => { setMarketNewsTicker(""); }} className="text-muted-foreground hover:text-foreground">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchMarketNews} disabled={marketNewsLoading} className="gap-1.5">
+              <RefreshCw size={14} className={marketNewsLoading ? "animate-spin" : ""} />
+              Refresh
+            </Button>
+          </div>
+
+          {marketNewsLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i} className="p-4 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-1/3" />
+              </Card>
+            ))
+          ) : marketNews.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground">
+              <Rss size={32} className="mx-auto mb-2 opacity-40" />
+              <p>No market news available{marketNewsTicker ? ` for "${marketNewsTicker}"` : ""}.</p>
+            </Card>
+          ) : (
+            marketNews.map((item) => (
+              <Card key={item.id} className="p-4 hover:bg-secondary/30 transition-colors">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {item.ticker && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-bold cursor-pointer hover:bg-secondary"
+                        onClick={() => navigate(`/invest/${item.ticker}`)}
+                      >
+                        {item.ticker}
+                      </Badge>
+                    )}
+                    <span className="text-[11px] text-muted-foreground">
+                      {item.published_at ? formatTime(item.published_at) : formatTime(item.created_at)}
+                    </span>
+                  </div>
+                  {item.url ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold hover:underline flex items-center gap-1.5"
+                    >
+                      <span className="line-clamp-2">{item.headline}</span>
+                      <ExternalLink size={12} className="shrink-0 text-muted-foreground/40" />
+                    </a>
+                  ) : (
+                    <p className="text-sm font-semibold line-clamp-2">{item.headline}</p>
+                  )}
+                  {item.summary && (
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                      {item.summary}
+                    </p>
+                  )}
+                  {item.source && (
+                    <p className="text-[11px] text-muted-foreground">{item.source}</p>
+                  )}
+                </div>
+              </Card>
+            ))
+          )}
+        </TabsContent>
 
         {/* NEWS TAB */}
         <TabsContent value="news" className="space-y-3">
