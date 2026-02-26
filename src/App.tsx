@@ -35,6 +35,7 @@ import CapitalAllocation from "./pages/CapitalAllocation";
 import BehavioralRisk from "./pages/BehavioralRisk";
 import HeatEngine from "./pages/HeatEngine";
 import Heatmap from "./pages/Heatmap";
+import News from "./pages/News";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/behavioral-risk" element={<BehavioralRisk />} />
               <Route path="/heat-engine" element={<HeatEngine />} />
               <Route path="/heatmap" element={<Heatmap />} />
+              <Route path="/news" element={<News />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
