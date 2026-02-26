@@ -384,21 +384,20 @@ const Invest = () => {
                     </div>
                     <div className="mt-2 space-y-2">
                       {suggestedForYou.map((s) => (
-                        <div key={s.symbol} className="glass-card flex w-full items-center justify-between p-3 transition-shadow hover:shadow-md">
+                        <div key={s.symbol} className="glass-card flex w-full flex-col p-3 transition-shadow hover:shadow-md">
                           <button onClick={() => navigate(`/invest/${s.symbol}`)} className="flex-1 text-left">
                             <p className="text-sm font-semibold">{s.symbol} <span className="font-normal text-muted-foreground">· {s.name}</span></p>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">{s.reason}</p>
                           </button>
-                          <div className="flex items-center gap-1.5 ml-3">
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
                             <button
-                              onClick={(e) => { e.stopPropagation(); navigate(`/chat?q=Tell me about ${s.symbol} (${s.name}) and why it might be a good addition to my portfolio. ${s.reason}`); }}
-                              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                              title="Ask Maven"
+                              onClick={(e) => { e.stopPropagation(); navigate("/chat", { state: { prefill: `Teach me about ${s.symbol} (${s.name}). Why is it relevant for my portfolio? ${s.reason}. Explain it like I'm a beginner investor.` } }); }}
+                              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
                             >
-                              <MessageCircle size={12} />
-                              <span className="hidden sm:inline">Ask Maven</span>
+                              <Sparkles size={11} />
+                              Learn more from Maven
                             </button>
-                            <button onClick={() => navigate(`/invest/${s.symbol}`)} className="text-muted-foreground hover:text-foreground transition-colors">
+                            <button onClick={() => navigate(`/invest/${s.symbol}`)} className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
                               <ArrowUpRight size={14} />
                             </button>
                           </div>
