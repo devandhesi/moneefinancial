@@ -174,14 +174,34 @@
   }
 }
 
-/* Recharts Brush slider — liquid glass style */
+/* Custom scrollbar — thin, rounded, translucent */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Recharts Brush slider — circular travellers, clean track */
 .recharts-brush {
   .recharts-brush-slide {
     fill: hsl(var(--primary) / 0.08);
     stroke: hsl(var(--primary) / 0.15);
     stroke-width: 1;
-    rx: 4;
-    ry: 4;
+    rx: 12;
+    ry: 12;
   }
 
   .recharts-brush-traveller {
@@ -189,23 +209,24 @@
       fill: hsl(var(--card));
       stroke: hsl(var(--border));
       stroke-width: 1.5;
-      rx: 4;
-      ry: 4;
-      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.1));
+      rx: 999;
+      ry: 999;
+      width: 14px !important;
+      height: 14px !important;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12));
+      cursor: ew-resize;
     }
 
     line {
-      stroke: hsl(var(--muted-foreground));
-      stroke-width: 1;
-      opacity: 0.5;
+      display: none;
     }
   }
 
   /* Background track */
   > rect:first-of-type {
     fill: hsl(var(--secondary));
-    rx: 6;
-    ry: 6;
+    rx: 12;
+    ry: 12;
   }
 
   .recharts-brush-texts {
