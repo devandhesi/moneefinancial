@@ -8,11 +8,10 @@ import {
 import { getStockQuote, type StockQuote } from "@/lib/market-api";
 import { toast } from "sonner";
 
-const chartModes = ["Simple", "Advanced", "Candle"] as const;
+const chartModes = ["Simple", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
 
 const simpleIndicators = ["Volume"] as const;
-const advancedIndicators = ["SMA20", "EMA12", "BB", "RSI", "MACD", "Volume"] as const;
 const candleIndicators = ["SMA20", "EMA12", "Volume"] as const;
 
 type AnyIndicator = "SMA20" | "EMA12" | "Volume" | "BB" | "RSI" | "MACD";
@@ -103,7 +102,6 @@ const StockDetail = () => {
 
   const availableIndicators = useMemo(() => {
     if (chartMode === "Simple") return simpleIndicators;
-    if (chartMode === "Advanced") return advancedIndicators;
     return candleIndicators;
   }, [chartMode]);
 
@@ -529,36 +527,6 @@ const StockDetail = () => {
             </ComposedChart>
           </ResponsiveContainer>
 
-          {/* RSI Sub-chart */}
-          {activeIndicators.has("RSI") && chartMode === "Advanced" && (
-            <div className="mt-3 border-t border-border/40 pt-2">
-              <p className="text-[10px] text-muted-foreground font-medium mb-1">RSI (14)</p>
-              <ResponsiveContainer width="100%" height={80}>
-                <ComposedChart data={visibleData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                  <YAxis domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fontSize: 8, fill: "hsl(220, 8%, 50%)" }} axisLine={false} tickLine={false} width={65} />
-                  <XAxis dataKey="date" hide />
-                  <ReferenceArea y1={30} y2={70} fill="hsl(var(--secondary))" fillOpacity={0.5} />
-                  <Line type="monotone" dataKey="rsi" stroke="hsl(280, 60%, 55%)" strokeWidth={1.2} dot={false} animationDuration={300} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* MACD Sub-chart */}
-          {activeIndicators.has("MACD") && chartMode === "Advanced" && (
-            <div className="mt-3 border-t border-border/40 pt-2">
-              <p className="text-[10px] text-muted-foreground font-medium mb-1">MACD (12, 26, 9)</p>
-              <ResponsiveContainer width="100%" height={80}>
-                <ComposedChart data={visibleData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                  <YAxis tick={{ fontSize: 8, fill: "hsl(220, 8%, 50%)" }} axisLine={false} tickLine={false} width={65} tickCount={3} />
-                  <XAxis dataKey="date" hide />
-                  <Bar dataKey="macdHist" fill="hsl(220, 8%, 70%)" opacity={0.5} />
-                  <Line type="monotone" dataKey="macd" stroke="hsl(215, 60%, 55%)" strokeWidth={1} dot={false} animationDuration={300} />
-                  <Line type="monotone" dataKey="macdSignal" stroke="hsl(0, 50%, 55%)" strokeWidth={1} dot={false} strokeDasharray="3 2" animationDuration={300} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          )}
         </>
         ) : (
           <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">No chart data available</div>

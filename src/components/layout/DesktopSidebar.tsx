@@ -6,19 +6,16 @@ import {
   TrendingUp,
   BookOpen,
   User,
-  Receipt,
-  ClipboardList,
   FlaskConical,
   Settings,
-  Users,
   Moon,
   Sun,
   Star,
-  Globe,
   ChevronDown,
   Bell,
   Hash,
   LogOut,
+  Newspaper,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
@@ -26,8 +23,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
-  LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
-  ClipboardList, FlaskConical, Settings, Users, Star, Globe, Bell, Hash,
+  LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
+  FlaskConical, Settings, Star, Bell, Hash, Newspaper,
 };
 
 interface NavGroup {
@@ -42,7 +39,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { path: "/", icon: "LayoutDashboard", label: "Dashboard" },
-      { path: "/chat", icon: "MessageCircle", label: "Maven" },
+      { path: "/chat", icon: "MessageCircle", label: "Maven AI" },
     ],
   },
   {
@@ -51,8 +48,8 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/community", icon: "Hash", label: "Rooms" },
       { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
+      { path: "/social", icon: "Newspaper", label: "Finance For You" },
       { path: "/notifications", icon: "Bell", label: "Notifications" },
-      { path: "/social", icon: "Users", label: "Social" },
     ],
   },
   {
@@ -61,14 +58,6 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
-      { path: "/markets", icon: "Globe", label: "Markets" },
-    ],
-  },
-  {
-    label: "Activity",
-    items: [
-      { path: "/transactions", icon: "Receipt", label: "Transactions" },
-      { path: "/orders", icon: "ClipboardList", label: "Orders" },
     ],
   },
   {
@@ -189,7 +178,7 @@ const DesktopSidebar = () => {
           />
         </div>
         <p className="px-3 text-[9px] text-muted-foreground/60">
-          📄 Paper Trading · Educational only
+          Paper Trading · Educational only
         </p>
       </div>
     </aside>

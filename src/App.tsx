@@ -21,7 +21,6 @@ import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
 import SimulationLab from "./pages/SimulationLab";
 import Watchlist from "./pages/Watchlist";
-import Markets from "./pages/Markets";
 import Auth from "./pages/Auth";
 import CommunityFeed from "./pages/CommunityFeed";
 import CommunityRoom from "./pages/CommunityRoom";
@@ -57,7 +56,6 @@ const App = () => (
               <Route path="/orders" element={<Orders />} />
               <Route path="/simulation" element={<SimulationLab />} />
               <Route path="/watchlist" element={<Watchlist />} />
-              <Route path="/markets" element={<Markets />} />
               <Route path="/community" element={<CommunityFeed />} />
               <Route path="/community/room/:slug" element={<CommunityRoom />} />
               <Route path="/community/dms" element={<DirectMessages />} />
