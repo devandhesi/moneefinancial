@@ -6,6 +6,7 @@ import {
   ComposedChart, Area, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Brush, ReferenceArea, ReferenceLine,
 } from "recharts";
 import { getStockQuote, type StockQuote } from "@/lib/market-api";
+import HeatBadgeInline from "@/components/widgets/HeatBadgeInline";
 import { toast } from "sonner";
 
 const chartModes = ["Simple", "Candle"] as const;
@@ -435,7 +436,10 @@ const StockDetail = () => {
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold">{symbol}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{symbol}</h1>
+            {symbol && <HeatBadgeInline symbol={symbol} />}
+          </div>
           <p className="text-sm text-muted-foreground">{quote?.name || "Stock Detail"}</p>
         </div>
         <button onClick={handleShare} className="rounded-xl p-2 hover:bg-secondary" title="Share">

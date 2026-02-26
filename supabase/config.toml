@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.behavioral-risk]
 verify_jwt = false
+
+[functions.heat-engine]
+verify_jwt = false

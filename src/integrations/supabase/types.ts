@@ -365,6 +365,57 @@ export type Database = {
           },
         ]
       }
+      heat_engine_snapshots: {
+        Row: {
+          attention_subscore: number
+          computed_at: string
+          confidence_level: number
+          detail: Json | null
+          drivers: Json | null
+          heat_score: number
+          id: string
+          liquidity_subscore: number
+          momentum_subscore: number
+          options_subscore: number
+          stage: string
+          symbol: string
+          volatility_subscore: number
+          volume_subscore: number
+        }
+        Insert: {
+          attention_subscore?: number
+          computed_at?: string
+          confidence_level?: number
+          detail?: Json | null
+          drivers?: Json | null
+          heat_score?: number
+          id?: string
+          liquidity_subscore?: number
+          momentum_subscore?: number
+          options_subscore?: number
+          stage?: string
+          symbol: string
+          volatility_subscore?: number
+          volume_subscore?: number
+        }
+        Update: {
+          attention_subscore?: number
+          computed_at?: string
+          confidence_level?: number
+          detail?: Json | null
+          drivers?: Json | null
+          heat_score?: number
+          id?: string
+          liquidity_subscore?: number
+          momentum_subscore?: number
+          options_subscore?: number
+          stage?: string
+          symbol?: string
+          volatility_subscore?: number
+          volume_subscore?: number
+        }
+        Relationships: []
+      }
       message_reactions: {
         Row: {
           created_at: string
