@@ -16,6 +16,43 @@ interface NewsArticle {
   category?: string;
 }
 
+const SOURCE_MAP: Record<string, string> = {
+  "finance.yahoo.com": "Yahoo Finance",
+  "www.fool.com": "Motley Fool",
+  "247wallst.com": "24/7 Wall St",
+  "www.cnbc.com": "CNBC",
+  "www.reuters.com": "Reuters",
+  "www.bloomberg.com": "Bloomberg",
+  "www.barrons.com": "Barron's",
+  "www.wsj.com": "Wall Street Journal",
+  "www.investopedia.com": "Investopedia",
+  "seekingalpha.com": "Seeking Alpha",
+  "www.marketwatch.com": "MarketWatch",
+  "www.benzinga.com": "Benzinga",
+  "thestreet.com": "TheStreet",
+  "www.thestreet.com": "TheStreet",
+};
+
+function cleanUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete(".tsrc");
+    u.searchParams.delete("tsrc");
+    return u.toString();
+  } catch { return url; }
+}
+
+function extractSource(url: string, rssSource: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    if (SOURCE_MAP[hostname]) return SOURCE_MAP[hostname];
+    // Extract readable name from domain
+    const parts = hostname.replace("www.", "").split(".");
+    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  } catch {}
+  return rssSource || "Yahoo Finance";
+}
+
 function parseRssItems(xml: string, defaultSource: string, symbols: string[]): NewsArticle[] {
   const articles: NewsArticle[] = [];
   const items = xml.split("<item>").slice(1);
@@ -36,14 +73,16 @@ function parseRssItems(xml: string, defaultSource: string, symbols: string[]): N
     }
     const description = getTag("description");
     const pubDate = getTag("pubDate");
-    const source = getTag("source") || defaultSource;
+    const rssSource = getTag("source") || defaultSource;
     const author = getTag("dc:creator") || getTag("author") || getTag("media:credit") || "";
 
     if (title && link && link.startsWith("http")) {
+      const cleanedUrl = cleanUrl(link);
+      const source = extractSource(cleanedUrl, rssSource);
       articles.push({
         title,
         summary: description.replace(/<[^>]*>/g, "").slice(0, 200),
-        url: link,
+        url: cleanedUrl,
         source,
         author,
         publishedAt: pubDate || new Date().toISOString(),
