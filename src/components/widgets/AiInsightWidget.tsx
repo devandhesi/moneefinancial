@@ -1,7 +1,12 @@
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 
-const AiInsightWidget = () => (
+interface Props {
+  insight?: string;
+  isLoading?: boolean;
+}
+
+const AiInsightWidget = ({ insight, isLoading }: Props) => (
   <motion.div
     className="glass-card p-4"
     initial={{ opacity: 0, y: 8 }}
@@ -12,10 +17,16 @@ const AiInsightWidget = () => (
       <Sparkles size={14} className="text-muted-foreground" />
       <span>Maven Insight</span>
     </div>
-    <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-      Your tech exposure is 68% of total portfolio. Consider diversifying into
-      healthcare or consumer staples to reduce correlation risk.
-    </p>
+    {isLoading ? (
+      <div className="mt-3 flex items-center gap-2 text-muted-foreground">
+        <Loader2 size={14} className="animate-spin" />
+        <span className="text-xs">Analyzing your portfolio…</span>
+      </div>
+    ) : (
+      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+        {insight || "Review your portfolio allocation and consider whether your current holdings align with your investment goals."}
+      </p>
+    )}
   </motion.div>
 );
 
