@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Newspaper,
   FileText,
-  Eye,
   ExternalLink,
   TrendingUp,
   TrendingDown,
@@ -38,18 +37,6 @@ interface InsiderReport {
   url: string;
 }
 
-interface StockWatchItem {
-  symbol: string;
-  company: string;
-  activity: string;
-  actor: string;
-  details: string;
-  volume: number;
-  priceChange: number;
-  date: string;
-  significance: string;
-  source: string;
-}
 
 interface NewsItem {
   title: string;
@@ -79,7 +66,7 @@ const Reports = () => {
   const [tab, setTab] = useState("market-news");
   const [news, setNews] = useState<NewsItem[]>([]);
   const [sedi, setSedi] = useState<InsiderReport[]>([]);
-  const [stockWatch, setStockWatch] = useState<StockWatchItem[]>([]);
+  
   const [marketNews, setMarketNews] = useState<MarketNewsItem[]>([]);
   const [marketNewsTicker, setMarketNewsTicker] = useState("");
   const [marketNewsLoading, setMarketNewsLoading] = useState(false);
@@ -98,7 +85,7 @@ const Reports = () => {
       if (error) throw error;
       setNews(data?.news || []);
       setSedi(data?.insiderReports || []);
-      setStockWatch(data?.stockWatch || []);
+      
       setLastUpdated(new Date());
     } catch (e) {
       console.error("Reports fetch error:", e);
@@ -175,11 +162,6 @@ const Reports = () => {
     return "bg-muted text-muted-foreground";
   };
 
-  const sigBadge = (sig: string) => {
-    if (sig === "high") return "bg-red-500/15 text-red-400 border-red-500/20";
-    if (sig === "medium") return "bg-amber-500/15 text-amber-400 border-amber-500/20";
-    return "bg-muted text-muted-foreground";
-  };
 
   return (
     <div className="min-h-screen p-4 md:p-6 max-w-6xl mx-auto space-y-4">
@@ -212,7 +194,7 @@ const Reports = () => {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="market-news" className="gap-1.5">
             <Rss size={14} />
             Market News
@@ -224,10 +206,6 @@ const Reports = () => {
           <TabsTrigger value="sedi" className="gap-1.5">
             <FileText size={14} />
             SEDI / Insider
-          </TabsTrigger>
-          <TabsTrigger value="stockwatch" className="gap-1.5">
-            <Eye size={14} />
-            StockWatch
           </TabsTrigger>
         </TabsList>
 
@@ -479,67 +457,6 @@ const Reports = () => {
           )}
         </TabsContent>
 
-        {/* STOCKWATCH TAB */}
-        <TabsContent value="stockwatch" className="space-y-3">
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i} className="p-4 space-y-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-1/2" />
-              </Card>
-            ))
-          ) : stockWatch.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">
-              <Eye size={32} className="mx-auto mb-2 opacity-40" />
-              <p>No notable activity detected.</p>
-            </Card>
-          ) : (
-            stockWatch.map((item, i) => {
-              const isPositive = item.priceChange >= 0;
-              return (
-                <Card
-                  key={i}
-                  className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/stock/${item.symbol}`)}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">{item.symbol}</span>
-                        <span className="text-xs text-muted-foreground">{item.company}</span>
-                        <ExternalLink size={11} className="text-muted-foreground/40" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={`text-[10px] ${sigBadge(item.significance)}`}>
-                          {item.significance}
-                        </Badge>
-                        {item.priceChange !== 0 && (
-                          <span className={`text-xs font-semibold flex items-center ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
-                            {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                            {isPositive ? "+" : ""}{item.priceChange?.toFixed(2)}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">
-                      {item.activity}
-                    </Badge>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Building2 size={12} className="text-muted-foreground" />
-                      <span className="font-medium">{item.actor}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.details}</p>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>Vol: {formatNumber(item.volume)}</span>
-                      <span>{item.date} · {item.source}</span>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );
