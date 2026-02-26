@@ -17,6 +17,7 @@ import {
   Sun,
   Star,
   Globe,
+  Newspaper,
   ChevronDown,
   type LucideIcon,
 } from "lucide-react";
@@ -25,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
-  ClipboardList, CalendarDays, FlaskConical, Shield, Settings, Users, Star, Globe,
+  ClipboardList, CalendarDays, FlaskConical, Shield, Settings, Users, Star, Globe, Newspaper,
 };
 
 interface NavGroup {
@@ -50,6 +51,7 @@ const navGroups: NavGroup[] = [
       { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
       { path: "/markets", icon: "Globe", label: "Markets" },
+      { path: "/news", icon: "Newspaper", label: "News" },
       { path: "/risk", icon: "Shield", label: "Risk Map" },
     ],
   },

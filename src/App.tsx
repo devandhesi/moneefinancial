@@ -23,6 +23,7 @@ import SimulationLab from "./pages/SimulationLab";
 import RiskMap from "./pages/RiskMap";
 import Watchlist from "./pages/Watchlist";
 import Markets from "./pages/Markets";
+import News from "./pages/News";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/risk" element={<RiskMap />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/markets" element={<Markets />} />
+              <Route path="/news" element={<News />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
