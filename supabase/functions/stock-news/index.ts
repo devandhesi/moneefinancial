@@ -49,13 +49,22 @@ async function fetchYahooNews(symbol?: string): Promise<NewsArticle[]> {
           };
 
           const title = getTag("title");
-          const link = getTag("link");
+          // <link> in RSS can be tricky — try tag content first, then standalone URL after closing tags
+          let link = getTag("link");
+          if (!link) {
+            const linkMatch = item.match(/<link\s*\/?>([^<\s]+)/);
+            if (linkMatch) link = linkMatch[1];
+          }
+          if (!link) {
+            const guidMatch = item.match(/<guid[^>]*>(?:<!\[CDATA\[)?(https?:\/\/[^\s<\]]+)/);
+            if (guidMatch) link = guidMatch[1];
+          }
           const description = getTag("description");
           const pubDate = getTag("pubDate");
           const source = getTag("source") || "Yahoo Finance";
           const author = getTag("dc:creator") || getTag("author") || getTag("media:credit") || "";
 
-          if (title && link && !seenTitles.has(title)) {
+          if (title && link && link.startsWith("http") && !seenTitles.has(title)) {
             seenTitles.add(title);
             allArticles.push({
               title,

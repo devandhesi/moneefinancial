@@ -202,36 +202,42 @@ const Reports = () => {
           ) : (
             news.map((item, i) => (
               <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="text-[10px]">
-                        {item.category}
-                      </Badge>
-                      <span className="text-[11px] text-muted-foreground">
-                        {formatTime(item.publishedAt)}
-                      </span>
-                    </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px]">
+                      {item.category}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatTime(item.publishedAt)}
+                    </span>
+                  </div>
+                  {item.url?.startsWith("http") ? (
                     <a
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm font-semibold hover:underline flex items-center gap-1"
+                      className="text-sm font-semibold hover:underline flex items-center gap-1.5"
                     >
-                      {item.title}
-                      <ExternalLink size={12} className="shrink-0 text-muted-foreground" />
+                      <span className="line-clamp-2">{item.title}</span>
+                      <ExternalLink size={12} className="shrink-0 text-muted-foreground/40" />
                     </a>
-                    {item.summary && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {item.summary}
-                      </p>
+                  ) : (
+                    <p className="text-sm font-semibold line-clamp-2">{item.title}</p>
+                  )}
+                  {item.summary && (
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                      {item.summary}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <User size={11} />
+                    <span>{item.author}</span>
+                    {item.author !== item.source && (
+                      <>
+                        <span className="opacity-40">·</span>
+                        <span>{item.source}</span>
+                      </>
                     )}
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <User size={11} />
-                      <span>{item.author}</span>
-                      <span>·</span>
-                      <span>{item.source}</span>
-                    </div>
                   </div>
                 </div>
               </Card>

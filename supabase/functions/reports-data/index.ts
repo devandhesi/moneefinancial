@@ -143,13 +143,21 @@ async function fetchMarketNews(): Promise<NewsItem[]> {
           };
 
           const title = getTag("title");
-          const link = getTag("link");
+          let link = getTag("link");
+          if (!link) {
+            const linkMatch = item.match(/<link\s*\/?>([^<\s]+)/);
+            if (linkMatch) link = linkMatch[1];
+          }
+          if (!link) {
+            const guidMatch = item.match(/<guid[^>]*>(?:<!\[CDATA\[)?(https?:\/\/[^\s<\]]+)/);
+            if (guidMatch) link = guidMatch[1];
+          }
           const desc = getTag("description").replace(/<[^>]*>/g, "").slice(0, 250);
           const pubDate = getTag("pubDate");
           const source = getTag("source") || "Google News";
           const author = getTag("dc:creator") || getTag("author") || "";
 
-          if (title && link && !seenTitles.has(title)) {
+          if (title && link && link.startsWith("http") && !seenTitles.has(title)) {
             seenTitles.add(title);
             parsed.push({
               title,
