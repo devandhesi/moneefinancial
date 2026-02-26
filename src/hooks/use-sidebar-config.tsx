@@ -21,7 +21,7 @@ const DEFAULT_LINKS: SidebarLink[] = [
   { id: "orders", path: "/orders", label: "Orders", icon: "ClipboardList", section: "secondary", visible: true, order: 7 },
   { id: "calendar", path: "/calendar", label: "Calendar", icon: "CalendarDays", section: "secondary", visible: true, order: 8 },
   { id: "simlab", path: "/simulation", label: "Sim Lab", icon: "FlaskConical", section: "secondary", visible: true, order: 9 },
-  { id: "riskmap", path: "/risk", label: "Risk Map", icon: "Shield", section: "secondary", visible: true, order: 10 },
+  
   { id: "social", path: "/social", label: "Social", icon: "Users", section: "secondary", visible: true, order: 11 },
   { id: "profile", path: "/profile", label: "Profile", icon: "User", section: "secondary", visible: true, order: 12 },
   { id: "settings", path: "/settings", label: "Settings", icon: "Settings", section: "secondary", visible: true, order: 13 },

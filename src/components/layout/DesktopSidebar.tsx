@@ -52,7 +52,7 @@ const navGroups: NavGroup[] = [
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
       { path: "/markets", icon: "Globe", label: "Markets" },
       { path: "/news", icon: "Newspaper", label: "News" },
-      { path: "/risk", icon: "Shield", label: "Risk Map" },
+      
     ],
   },
   {
@@ -74,7 +74,6 @@ const navGroups: NavGroup[] = [
     label: "Community",
     items: [
       { path: "/social", icon: "Users", label: "Social" },
-      { path: "/profile", icon: "User", label: "Profile" },
     ],
   },
 ];
@@ -162,6 +161,10 @@ const DesktopSidebar = () => {
       </nav>
 
       <div className="border-t border-border/30 px-3 py-3 space-y-2">
+        <NavLink to="/profile" className={linkClass("/profile")}>
+          <User size={16} />
+          <span>Profile</span>
+        </NavLink>
         <NavLink to="/settings" className={linkClass("/settings")}>
           <Settings size={16} />
           <span>Settings</span>
