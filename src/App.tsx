@@ -18,12 +18,12 @@ import Settings from "./pages/Settings";
 import Social from "./pages/Social";
 import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
-import Calendar from "./pages/Calendar";
+
 import SimulationLab from "./pages/SimulationLab";
 
 import Watchlist from "./pages/Watchlist";
 import Markets from "./pages/Markets";
-import News from "./pages/News";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,12 +50,9 @@ const App = () => (
               <Route path="/social" element={<Social />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/orders" element={<Orders />} />
-              <Route path="/calendar" element={<Calendar />} />
               <Route path="/simulation" element={<SimulationLab />} />
-              
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/markets" element={<Markets />} />
-              <Route path="/news" element={<News />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
