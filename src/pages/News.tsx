@@ -9,6 +9,7 @@ interface NewsArticle {
   summary: string;
   url: string;
   source: string;
+  author: string;
   publishedAt: string;
   relatedSymbols: string[];
 }
@@ -70,6 +71,12 @@ const NewsCard = ({ article }: { article: NewsArticle }) => (
         )}
         <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
           <span className="font-medium">{article.source}</span>
+          {article.author && (
+            <>
+              <span className="text-muted-foreground/40">·</span>
+              <span>by {article.author}</span>
+            </>
+          )}
           {article.publishedAt && (
             <>
               <span className="text-muted-foreground/40">·</span>
