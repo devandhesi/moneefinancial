@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useWatchlist } from "@/hooks/use-watchlist";
 import {
   Newspaper, ExternalLink, Loader2, Sparkles, TrendingUp,
   AlertTriangle, RefreshCw, Briefcase, Flame, BarChart3,
@@ -44,16 +45,14 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-function useStockNews() {
+function useStockNews(watchlistSymbols: string[]) {
   return useQuery({
-    queryKey: ["stock-news-v2"],
+    queryKey: ["stock-news-v2", watchlistSymbols],
     queryFn: async (): Promise<NewsData> => {
-      // Get user watchlist for "My Stocks" tab
-      const watchlist: string[] = JSON.parse(localStorage.getItem("monee-watchlist") || "[]");
       const { data, error } = await supabase.functions.invoke("stock-news", {
         body: {
           holdings: ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"],
-          watchlist: watchlist.length > 0 ? watchlist : ["NVDA", "META", "AMD", "PLTR", "COIN"],
+          watchlist: watchlistSymbols.length > 0 ? watchlistSymbols : ["NVDA", "META", "AMD", "PLTR", "COIN"],
           trending: ["NVDA", "TSLA", "SMCI", "PLTR", "GME", "RIVN", "SOFI", "ARM"],
         },
       });
@@ -134,7 +133,8 @@ function getArticlesForTab(data: NewsData | undefined, tab: TabKey): NewsArticle
 }
 
 const News = () => {
-  const { data, isLoading, refetch, isFetching } = useStockNews();
+  const { symbols: watchlistSymbols } = useWatchlist();
+  const { data, isLoading, refetch, isFetching } = useStockNews(watchlistSymbols);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
   const articles = getArticlesForTab(data, activeTab);

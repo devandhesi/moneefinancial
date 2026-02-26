@@ -499,6 +499,36 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_progress: {
+        Row: {
+          completed_lessons: string[]
+          created_at: string
+          id: string
+          passed_module_quizzes: string[]
+          passed_unit_tests: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_lessons?: string[]
+          created_at?: string
+          id?: string
+          passed_module_quizzes?: string[]
+          passed_unit_tests?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_lessons?: string[]
+          created_at?: string
+          id?: string
+          passed_module_quizzes?: string[]
+          passed_unit_tests?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       market_news: {
         Row: {
           created_at: string
@@ -908,6 +938,63 @@ export type Database = {
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          dashboard_widgets: Json
+          id: string
+          sidebar_config: Json
+          theme: string
+          timezone: string
+          trading_mode: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dashboard_widgets?: Json
+          id?: string
+          sidebar_config?: Json
+          theme?: string
+          timezone?: string
+          trading_mode?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dashboard_widgets?: Json
+          id?: string
+          sidebar_config?: Json
+          theme?: string
+          timezone?: string
+          trading_mode?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      watchlist: {
+        Row: {
+          added_at: string
+          id: string
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          symbol?: string
           user_id?: string
         }
         Relationships: []

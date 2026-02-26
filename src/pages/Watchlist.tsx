@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import MicroSparkline from "@/components/widgets/MicroSparkline";
 import AskMavenButton from "@/components/AskMavenButton";
 import StockAlertButton from "@/components/StockAlertButton";
+import { useWatchlist } from "@/hooks/use-watchlist";
 
 interface WatchlistItem {
   symbol: string;
@@ -32,40 +33,37 @@ const Watchlist = () => {
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
+  const { symbols: watchlistSymbols, removeSymbol, loading: watchlistLoading } = useWatchlist();
 
-  // Load watchlist and fetch prices + chart data
+  // Load prices when watchlist symbols change
   useEffect(() => {
+    if (watchlistLoading) return;
     const load = async () => {
-      try {
-        const symbols: string[] = JSON.parse(localStorage.getItem("monee-watchlist") || "[]");
-        if (symbols.length === 0) { setItems([]); return; }
-        
-        setItems(symbols.map(s => ({ symbol: s, loading: true })));
+      const symbols = watchlistSymbols;
+      if (symbols.length === 0) { setItems([]); return; }
+      
+      setItems(symbols.map(s => ({ symbol: s, loading: true })));
 
-        const results = await Promise.allSettled(
-          symbols.map(async (symbol) => {
-            const quote = await getStockQuote(symbol, "1D");
-            const sparkData = quote.chart?.map((p) => p.close).filter(Boolean) || [];
-            return { symbol, price: quote.price, change: quote.change, changePct: quote.changePercent, sparkData };
-          })
-        );
+      const results = await Promise.allSettled(
+        symbols.map(async (symbol) => {
+          const quote = await getStockQuote(symbol, "1D");
+          const sparkData = quote.chart?.map((p) => p.close).filter(Boolean) || [];
+          return { symbol, price: quote.price, change: quote.change, changePct: quote.changePercent, sparkData };
+        })
+      );
 
-        setItems(symbols.map((symbol, i) => {
-          const result = results[i];
-          if (result.status === "fulfilled") {
-            return { ...result.value, loading: false };
-          }
-          return { symbol, loading: false };
-        }));
-      } catch {
-        const symbols: string[] = JSON.parse(localStorage.getItem("monee-watchlist") || "[]");
-        setItems(symbols.map(s => ({ symbol: s, loading: false })));
-      }
+      setItems(symbols.map((symbol, i) => {
+        const result = results[i];
+        if (result.status === "fulfilled") {
+          return { ...result.value, loading: false };
+        }
+        return { symbol, loading: false };
+      }));
     };
     load();
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [watchlistSymbols, watchlistLoading]);
 
   // Fetch AI signals
   const fetchSuggestions = async () => {
@@ -107,10 +105,8 @@ Format each as: SYMBOL: Buy|Sell|Hold - Reason`
     }
   };
 
-  const removeFromWatchlist = (symbol: string) => {
-    const watchlist: string[] = JSON.parse(localStorage.getItem("monee-watchlist") || "[]");
-    const updated = watchlist.filter((s) => s !== symbol);
-    localStorage.setItem("monee-watchlist", JSON.stringify(updated));
+  const removeFromWatchlist = async (symbol: string) => {
+    await removeSymbol(symbol);
     setItems(prev => prev.filter(i => i.symbol !== symbol));
     toast.success(`${symbol} removed from watchlist`);
   };
