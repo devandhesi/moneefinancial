@@ -227,6 +227,51 @@ export type Database = {
         }
         Relationships: []
       }
+      capital_allocation_snapshots: {
+        Row: {
+          cash_percent: number
+          created_at: string
+          deployment_guidance: Json | null
+          id: string
+          largest_position_percent: number
+          largest_sector_percent: number
+          portfolio_value: number
+          sector_breakdown: Json | null
+          suggested_cash_target: number
+          suggested_max_position: number
+          user_id: string
+          volatility_score: string
+        }
+        Insert: {
+          cash_percent?: number
+          created_at?: string
+          deployment_guidance?: Json | null
+          id?: string
+          largest_position_percent?: number
+          largest_sector_percent?: number
+          portfolio_value?: number
+          sector_breakdown?: Json | null
+          suggested_cash_target?: number
+          suggested_max_position?: number
+          user_id: string
+          volatility_score?: string
+        }
+        Update: {
+          cash_percent?: number
+          created_at?: string
+          deployment_guidance?: Json | null
+          id?: string
+          largest_position_percent?: number
+          largest_sector_percent?: number
+          portfolio_value?: number
+          sector_breakdown?: Json | null
+          suggested_cash_target?: number
+          suggested_max_position?: number
+          user_id?: string
+          volatility_score?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
