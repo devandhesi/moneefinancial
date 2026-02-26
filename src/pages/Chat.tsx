@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare, ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -98,12 +98,19 @@ const ChatPage = () => {
     setConversations(prev => prev.map(c => c.id === convId ? { ...c, title } : c));
   };
 
-  // Handle ?q= query param
+  const location = useLocation();
+
+  // Handle ?q= query param or state.prefill
   useEffect(() => {
     const q = searchParams.get("q");
+    const prefill = (location.state as any)?.prefill;
     if (q) {
       setSearchParams({}, { replace: true });
       setTimeout(() => handleSend(q), 100);
+    } else if (prefill) {
+      // Clear state so it doesn't re-trigger
+      window.history.replaceState({}, document.title);
+      setTimeout(() => handleSend(prefill), 100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

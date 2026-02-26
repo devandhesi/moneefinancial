@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { searchStocks, getTrendingStocks, type TrendingStock, type StockSearchResult } from "@/lib/market-api";
+import AskMavenButton from "@/components/AskMavenButton";
 import { toast } from "sonner";
 import { useTimezone } from "@/hooks/use-timezone";
 
@@ -200,6 +201,7 @@ function AssetRow({ item, index, onClick }: { item: AssetItem; index: number; on
             {item.extra && <span className="text-[9px] text-muted-foreground">· {item.extra}</span>}
           </div>
         </div>
+        <AskMavenButton symbol={item.symbol} compact />
       </div>
     </motion.div>
   );
@@ -355,7 +357,10 @@ const Invest = () => {
                     <p className="text-xs text-muted-foreground">{result.name}</p>
                   </div>
                 </div>
-                <span className="text-[10px] text-muted-foreground">{result.type} · {result.exchange}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">{result.type} · {result.exchange}</span>
+                  <AskMavenButton symbol={result.symbol} compact />
+                </div>
               </button>
             ))}
           </motion.div>

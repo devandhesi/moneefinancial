@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { getStockQuote } from "@/lib/market-api";
 import { supabase } from "@/integrations/supabase/client";
 import MicroSparkline from "@/components/widgets/MicroSparkline";
+import AskMavenButton from "@/components/AskMavenButton";
 
 interface WatchlistItem {
   symbol: string;
@@ -262,11 +263,12 @@ Format each as: SYMBOL: Buy|Sell|Hold - Reason`
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {/* Micro sparkline */}
                   {item.sparkData && item.sparkData.length > 2 && (
                     <MicroSparkline data={item.sparkData} positive={isPositive} width={72} height={28} />
                   )}
+                  <AskMavenButton symbol={item.symbol} compact />
                   <ArrowUpRight
                     size={16}
                     className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
