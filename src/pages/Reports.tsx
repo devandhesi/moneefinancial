@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ interface NewsItem {
 const AUTO_REFRESH_MS = 60_000; // 1 min
 
 const Reports = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState("news");
   const [news, setNews] = useState<NewsItem[]>([]);
   const [sedi, setSedi] = useState<InsiderReport[]>([]);
@@ -304,12 +306,13 @@ const Reports = () => {
               {sedi.map((item, i) => {
                 const isBuy = item.transactionType.toLowerCase().includes("purchase") || item.transactionType.toLowerCase().includes("buy");
                 return (
-                  <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors">
+                  <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/stock/${item.symbol}`)}>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold">{item.symbol}</span>
                           <span className="text-xs text-muted-foreground">{item.company}</span>
+                          <ExternalLink size={11} className="text-muted-foreground/40" />
                         </div>
                         <Badge className={`text-[10px] ${txBadgeColor(item.transactionType)}`}>
                           {isBuy ? <ArrowUpRight size={10} className="mr-0.5" /> : <ArrowDownRight size={10} className="mr-0.5" />}
@@ -367,12 +370,17 @@ const Reports = () => {
             stockWatch.map((item, i) => {
               const isPositive = item.priceChange >= 0;
               return (
-                <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors">
+                <Card
+                  key={i}
+                  className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/stock/${item.symbol}`)}
+                >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold">{item.symbol}</span>
                         <span className="text-xs text-muted-foreground">{item.company}</span>
+                        <ExternalLink size={11} className="text-muted-foreground/40" />
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={`text-[10px] ${sigBadge(item.significance)}`}>
