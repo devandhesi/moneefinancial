@@ -15,6 +15,7 @@ import Invest from "./pages/Invest";
 import StockDetail from "./pages/StockDetail";
 import Learn from "./pages/Learn";
 import LearnCourse from "./pages/LearnCourse";
+import LearnCharts from "./pages/LearnCharts";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Social from "./pages/Social";
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/invest" element={<Invest />} />
               <Route path="/invest/:symbol" element={<StockDetail />} />
               <Route path="/learn" element={<Learn />} />
+              <Route path="/learn/charts" element={<LearnCharts />} />
               <Route path="/learn/:courseId" element={<LearnCourse />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
