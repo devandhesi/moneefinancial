@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { TimezoneProvider } from "@/hooks/use-timezone";
 import { SidebarConfigProvider } from "@/hooks/use-sidebar-config";
+import { AuthProvider } from "@/hooks/use-auth";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -18,12 +19,14 @@ import Settings from "./pages/Settings";
 import Social from "./pages/Social";
 import Transactions from "./pages/Transactions";
 import Orders from "./pages/Orders";
-
 import SimulationLab from "./pages/SimulationLab";
-
 import Watchlist from "./pages/Watchlist";
 import Markets from "./pages/Markets";
-
+import Auth from "./pages/Auth";
+import CommunityFeed from "./pages/CommunityFeed";
+import CommunityRoom from "./pages/CommunityRoom";
+import DirectMessages from "./pages/DirectMessages";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +36,7 @@ const App = () => (
     <ThemeProvider>
       <TimezoneProvider>
       <SidebarConfigProvider>
+      <AuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -40,6 +44,7 @@ const App = () => (
           <AppLayout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/auth" element={<Auth />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/invest" element={<Invest />} />
               <Route path="/invest/:symbol" element={<StockDetail />} />
@@ -53,11 +58,16 @@ const App = () => (
               <Route path="/simulation" element={<SimulationLab />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/markets" element={<Markets />} />
+              <Route path="/community" element={<CommunityFeed />} />
+              <Route path="/community/room/:slug" element={<CommunityRoom />} />
+              <Route path="/community/dms" element={<DirectMessages />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
         </BrowserRouter>
       </TooltipProvider>
+      </AuthProvider>
       </SidebarConfigProvider>
       </TimezoneProvider>
     </ThemeProvider>

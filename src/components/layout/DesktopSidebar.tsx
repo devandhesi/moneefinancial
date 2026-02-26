@@ -8,25 +8,26 @@ import {
   User,
   Receipt,
   ClipboardList,
-  CalendarDays,
   FlaskConical,
-  Shield,
   Settings,
   Users,
   Moon,
   Sun,
   Star,
   Globe,
-  Newspaper,
   ChevronDown,
+  Bell,
+  Hash,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
+import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
-  ClipboardList, CalendarDays, FlaskConical, Shield, Settings, Users, Star, Globe, Newspaper,
+  ClipboardList, FlaskConical, Settings, Users, Star, Globe, Bell, Hash,
 };
 
 interface NavGroup {
@@ -45,14 +46,22 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Community",
+    defaultOpen: true,
+    items: [
+      { path: "/community", icon: "Hash", label: "Rooms" },
+      { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
+      { path: "/notifications", icon: "Bell", label: "Notifications" },
+      { path: "/social", icon: "Users", label: "Social" },
+    ],
+  },
+  {
     label: "Investing",
     defaultOpen: true,
     items: [
       { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
       { path: "/markets", icon: "Globe", label: "Markets" },
-      
-      
     ],
   },
   {
@@ -60,7 +69,6 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/transactions", icon: "Receipt", label: "Transactions" },
       { path: "/orders", icon: "ClipboardList", label: "Orders" },
-      
     ],
   },
   {
@@ -70,23 +78,17 @@ const navGroups: NavGroup[] = [
       { path: "/simulation", icon: "FlaskConical", label: "Sim Lab" },
     ],
   },
-  {
-    label: "Community",
-    items: [
-      { path: "/social", icon: "Users", label: "Social" },
-    ],
-  },
 ];
 
 const DesktopSidebar = () => {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { user, profile, signOut } = useAuth();
 
-  // Track which groups are open; default open if group has active route or defaultOpen
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const open = new Set<string>();
     navGroups.forEach((g) => {
-      if (g.defaultOpen || g.items.some((i) => location.pathname === i.path)) {
+      if (g.defaultOpen || g.items.some((i) => location.pathname === i.path || location.pathname.startsWith(i.path + "/"))) {
         open.add(g.label);
       }
     });
@@ -103,7 +105,7 @@ const DesktopSidebar = () => {
   };
 
   const linkClass = (path: string) => {
-    const active = location.pathname === path;
+    const active = location.pathname === path || (path !== "/" && location.pathname.startsWith(path + "/"));
     return `flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
       active
         ? "bg-foreground text-primary-foreground"
@@ -125,7 +127,6 @@ const DesktopSidebar = () => {
 
           return (
             <div key={group.label || "top"}>
-              {/* Group header */}
               {!isUngrouped && (
                 <button
                   onClick={() => toggleGroup(group.label)}
@@ -141,7 +142,6 @@ const DesktopSidebar = () => {
                 </button>
               )}
 
-              {/* Links */}
               {(isUngrouped || isOpen) && (
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
@@ -163,12 +163,21 @@ const DesktopSidebar = () => {
       <div className="border-t border-border/30 px-3 py-3 space-y-2">
         <NavLink to="/profile" className={linkClass("/profile")}>
           <User size={16} />
-          <span>Profile</span>
+          <span>{profile?.display_name || "Profile"}</span>
         </NavLink>
         <NavLink to="/settings" className={linkClass("/settings")}>
           <Settings size={16} />
           <span>Settings</span>
         </NavLink>
+        {user && (
+          <button
+            onClick={() => signOut()}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+          >
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
+        )}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2 text-muted-foreground">
             {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
