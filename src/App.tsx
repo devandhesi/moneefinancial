@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { TimezoneProvider } from "@/hooks/use-timezone";
 import { SidebarConfigProvider } from "@/hooks/use-sidebar-config";
 import { AuthProvider } from "@/hooks/use-auth";
+import { TradingModeProvider } from "@/hooks/use-trading-mode";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -37,6 +38,7 @@ const App = () => (
       <TimezoneProvider>
       <SidebarConfigProvider>
       <AuthProvider>
+      <TradingModeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -67,6 +69,7 @@ const App = () => (
           </AppLayout>
         </BrowserRouter>
       </TooltipProvider>
+      </TradingModeProvider>
       </AuthProvider>
       </SidebarConfigProvider>
       </TimezoneProvider>
