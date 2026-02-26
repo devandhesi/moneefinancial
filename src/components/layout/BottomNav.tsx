@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Hash, TrendingUp, Bell, MoreHorizontal, Star, Globe, Receipt, ClipboardList, FlaskConical, Users, User, Settings, BookOpen, MessageCircle, X } from "lucide-react";
+import { LayoutDashboard, Hash, TrendingUp, Bell, MoreHorizontal, Star, MessageCircle, BookOpen, FlaskConical, User, Settings, Newspaper, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const primaryTabs = [
@@ -16,7 +16,7 @@ const extraGroups = [
     pages: [
       { path: "/community", icon: Hash, label: "Rooms" },
       { path: "/community/dms", icon: MessageCircle, label: "Messages" },
-      { path: "/social", icon: Users, label: "Social" },
+      { path: "/social", icon: Newspaper, label: "Finance For You" },
       { path: "/chat", icon: MessageCircle, label: "Maven AI" },
     ],
   },
@@ -25,14 +25,6 @@ const extraGroups = [
     pages: [
       { path: "/invest", icon: TrendingUp, label: "Invest" },
       { path: "/watchlist", icon: Star, label: "Watchlist" },
-      { path: "/markets", icon: Globe, label: "Markets" },
-    ],
-  },
-  {
-    label: "Activity",
-    pages: [
-      { path: "/transactions", icon: Receipt, label: "Transactions" },
-      { path: "/orders", icon: ClipboardList, label: "Orders" },
     ],
   },
   {
