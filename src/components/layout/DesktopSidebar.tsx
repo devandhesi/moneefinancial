@@ -47,7 +47,7 @@ const navGroups: NavGroup[] = [
     label: "Investing",
     defaultOpen: true,
     items: [
-      { path: "/invest", icon: "TrendingUp", label: "Holdings" },
+      { path: "/invest", icon: "TrendingUp", label: "Invest" },
       { path: "/watchlist", icon: "Star", label: "Watchlist" },
       { path: "/markets", icon: "Globe", label: "Markets" },
       { path: "/risk", icon: "Shield", label: "Risk Map" },

@@ -21,7 +21,7 @@ const extraGroups = [
   {
     label: "Portfolio & Risk",
     pages: [
-      { path: "/invest", icon: TrendingUp, label: "Holdings" },
+      { path: "/invest", icon: TrendingUp, label: "Invest" },
       { path: "/risk", icon: Shield, label: "Risk Map" },
     ],
   },
