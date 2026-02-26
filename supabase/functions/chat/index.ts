@@ -5,7 +5,93 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are Maven, an elite AI portfolio intelligence assistant inside a stock trading education app.
+// ── helpers ──────────────────────────────────────────────
+
+function extractTickers(text: string): string[] {
+  // Match $AAPL or standalone uppercase 1-5 letter words that look like tickers
+  const explicit = [...text.matchAll(/\$([A-Z]{1,5})\b/g)].map(m => m[1]);
+  // Common tickers people mention without $
+  const known = [
+    "AAPL","MSFT","GOOGL","GOOG","AMZN","TSLA","META","NVDA","NFLX","AMD",
+    "INTC","CRM","ORCL","ADBE","PYPL","SQ","SHOP","ROKU","SNAP","UBER",
+    "LYFT","COIN","HOOD","PLTR","SOFI","NIO","RIVN","LCID","F","GM",
+    "DIS","BA","JPM","GS","V","MA","WMT","TGT","COST","HD",
+    "XOM","CVX","PFE","JNJ","UNH","ABBV","MRK","LLY","BMY","AMGN",
+    "SPY","QQQ","VTI","VOO","IWM","DIA","XLK","XLV","XLE","XLF",
+    "BND","GLD","SLV","BTC","ETH","DOGE","SOL","VIX","VXX",
+  ];
+  const upper = text.toUpperCase();
+  const contextual = known.filter(t => {
+    const regex = new RegExp(`\\b${t}\\b`);
+    return regex.test(upper);
+  });
+  const all = [...new Set([...explicit, ...contextual])];
+  return all.slice(0, 5); // cap at 5
+}
+
+function fmt(n: number | null | undefined): string {
+  if (n == null) return "N/A";
+  return n.toFixed(2);
+}
+
+function fmtLarge(n: number): string {
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + "T";
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return n.toString();
+}
+
+async function fetchQuote(symbol: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d&includePrePost=false`,
+      { headers: { "User-Agent": "Mozilla/5.0" } }
+    );
+    if (!res.ok) { await res.text(); return null; }
+    const data = await res.json();
+    const chart = data?.chart?.result?.[0];
+    if (!chart) return null;
+
+    const meta = chart.meta || {};
+    const closes = chart.indicators?.quote?.[0]?.close || [];
+    const volumes = chart.indicators?.quote?.[0]?.volume || [];
+    const timestamps = chart.timestamp || [];
+
+    const price = meta.regularMarketPrice ?? closes[closes.length - 1] ?? 0;
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+    const change = price - prevClose;
+    const changePct = prevClose ? (change / prevClose) * 100 : 0;
+
+    // 5-day trend
+    const validCloses = closes.filter((c: number | null) => c != null);
+    const fiveDayStart = validCloses.length > 0 ? validCloses[0] : price;
+    const fiveDayChange = fiveDayStart ? ((price - fiveDayStart) / fiveDayStart * 100) : 0;
+
+    const avgVol = volumes.length ? volumes.reduce((s: number, v: number | null) => s + (v || 0), 0) / volumes.length : 0;
+
+    return [
+      `${meta.symbol || symbol} (${meta.shortName || meta.longName || symbol})`,
+      `  Price: $${fmt(price)} | Change: ${change >= 0 ? '+' : ''}${fmt(change)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`,
+      `  5-Day Trend: ${fiveDayChange >= 0 ? '+' : ''}${fiveDayChange.toFixed(2)}%`,
+      `  Prev Close: $${fmt(prevClose)} | Day Range: $${fmt(meta.regularMarketDayLow)}–$${fmt(meta.regularMarketDayHigh)}`,
+      `  52W Range: $${fmt(meta.fiftyTwoWeekLow)}–$${fmt(meta.fiftyTwoWeekHigh)}`,
+      `  Avg Volume: ${fmtLarge(Math.round(avgVol))}`,
+      `  Market Cap: ${meta.marketCap ? fmtLarge(meta.marketCap) : 'N/A'}`,
+      `  Exchange: ${meta.exchangeName || 'N/A'} | Currency: ${meta.currency || 'USD'}`,
+    ].join("\n");
+  } catch (e) {
+    console.error(`Failed to fetch quote for ${symbol}:`, e);
+    return null;
+  }
+}
+
+// ── system prompt ────────────────────────────────────────
+
+const BASE_SYSTEM_PROMPT = `You are Maven, an elite AI portfolio intelligence assistant inside a stock trading education app.
+
+## CRITICAL: USE THE LIVE MARKET DATA PROVIDED
+You will receive REAL-TIME stock data below. ALWAYS use these exact numbers in your responses — never guess or use outdated prices. If live data is provided for a ticker, cite the exact price, change %, and trends from it.
 
 ## RESPONSE STYLE
 - Use SHORT paragraphs (2-3 sentences max each)
@@ -21,7 +107,7 @@ Structure your response EXACTLY like this:
 ## {TICKER} — {Company Name}
 
 **Price & Trend**
-Current price context, recent movement, and short-term direction.
+Current price (USE THE EXACT PRICE FROM LIVE DATA), today's change, and 5-day trend direction.
 
 **What's Moving It**
 1-2 key catalysts or news items driving the stock right now.
@@ -39,7 +125,7 @@ Your direct recommendation: Buy / Hold / Trim / Avoid, with a one-line rationale
 - Financial concepts: Explain simply with a real example, then connect it to their portfolio
 - Portfolio questions: Reference their context (heavy tech ~68%, short holds ~3 weeks, moderate risk)
 - Strategy questions: Give a concrete, numbered action plan
-- Comparisons: Use a quick side-by-side format
+- Comparisons: Use a quick side-by-side format with the REAL prices from live data
 
 ## PERSONALITY
 - Smart friend who works at a hedge fund — sharp, direct, no fluff
@@ -48,9 +134,12 @@ Your direct recommendation: Buy / Hold / Trim / Avoid, with a one-line rationale
 - Occasionally drops a relevant insight they didn't ask for
 
 ## RULES
+- ALWAYS use the exact live market data provided — never make up prices
 - Always clarify this is educational/simulated analysis, not financial advice
 - If you don't know something, say so — never fabricate data
 - Reference their portfolio context naturally, don't force it`;
+
+// ── main ─────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -59,6 +148,26 @@ serve(async (req) => {
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // Extract tickers from the latest user message + recent context
+    const recentText = messages
+      .slice(-3)
+      .filter((m: any) => m.role === "user")
+      .map((m: any) => m.content)
+      .join(" ");
+    const tickers = extractTickers(recentText);
+
+    // Fetch live quotes in parallel
+    let marketDataBlock = "";
+    if (tickers.length > 0) {
+      const quotes = await Promise.all(tickers.map(fetchQuote));
+      const validQuotes = quotes.filter(Boolean);
+      if (validQuotes.length > 0) {
+        marketDataBlock = `\n\n## 📊 LIVE MARKET DATA (as of ${new Date().toLocaleString("en-US", { timeZone: "America/New_York" })} ET)\n\n${validQuotes.join("\n\n")}`;
+      }
+    }
+
+    const systemPrompt = BASE_SYSTEM_PROMPT + marketDataBlock;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -69,7 +178,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         stream: true,
