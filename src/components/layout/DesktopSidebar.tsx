@@ -45,16 +45,6 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Community",
-    defaultOpen: true,
-    items: [
-      { path: "/community", icon: "Hash", label: "Rooms" },
-      { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
-      { path: "/social", icon: "Newspaper", label: "Finance For You" },
-      { path: "/notifications", icon: "Bell", label: "Notifications" },
-    ],
-  },
-  {
     label: "Investing",
     defaultOpen: true,
     items: [
@@ -69,6 +59,16 @@ const navGroups: NavGroup[] = [
       { path: "/learn", icon: "BookOpen", label: "Learn" },
       { path: "/simulation", icon: "FlaskConical", label: "Sim Lab" },
       { path: "/tools", icon: "Wrench", label: "Tools" },
+    ],
+  },
+  {
+    label: "Community",
+    defaultOpen: true,
+    items: [
+      { path: "/community", icon: "Hash", label: "Rooms" },
+      { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
+      { path: "/social", icon: "Newspaper", label: "Finance For You" },
+      { path: "/notifications", icon: "Bell", label: "Notifications" },
     ],
   },
 ];
