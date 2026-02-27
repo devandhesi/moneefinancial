@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare, ChevronLeft } from "lucide-react";
+import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "@/lib/chat-stream";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import MavenIcon from "@/components/MavenIcon";
 
 const suggestions = [
   "How do I start budgeting?",
@@ -22,6 +23,7 @@ const suggestions = [
 interface Message {
   role: "user" | "assistant";
   content: string;
+  isStreaming?: boolean;
 }
 
 interface Conversation {
@@ -52,6 +54,97 @@ const renderTextWithTickers = (text: string) => {
   });
 };
 
+/* ── Typing dots animation ─────────────────────────────── */
+const TypingIndicator = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 6 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -4 }}
+    className="flex items-start gap-3 max-w-[85%]"
+  >
+    <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
+      <MavenIcon size={13} />
+    </div>
+    <div className="rounded-2xl rounded-tl-md bg-secondary/60 px-4 py-3">
+      <div className="flex items-center gap-1">
+        <motion.span
+          className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+        />
+        <motion.span
+          className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+        />
+        <motion.span
+          className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+        />
+      </div>
+    </div>
+  </motion.div>
+);
+
+/* ── Message bubble ────────────────────────────────────── */
+const AssistantMessage = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.35, ease: "easeOut" }}
+    className="flex items-start gap-3 max-w-[88%]"
+  >
+    <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
+      <MavenIcon size={13} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <div className={`
+        prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-[1.75]
+        [&>p]:mb-3 [&>p:last-child]:mb-0
+        [&>ul]:mb-3 [&>ul]:mt-1 [&>ol]:mb-3 [&>ol]:mt-1
+        [&_li]:my-1 [&_li]:leading-relaxed
+        [&>h1]:text-base [&>h1]:font-bold [&>h1]:mt-5 [&>h1]:mb-2 [&>h1]:tracking-tight
+        [&>h2]:text-[14px] [&>h2]:font-semibold [&>h2]:mt-5 [&>h2]:mb-2 [&>h2]:tracking-tight
+        [&>h3]:text-[13.5px] [&>h3]:font-semibold [&>h3]:mt-4 [&>h3]:mb-1.5
+        [&>hr]:my-4 [&>hr]:border-border/30
+        [&>blockquote]:border-l-2 [&>blockquote]:border-primary/30 [&>blockquote]:pl-3 [&>blockquote]:my-3 [&>blockquote]:text-muted-foreground [&>blockquote]:italic [&>blockquote]:text-[13px]
+        [&_em]:text-muted-foreground
+        [&_strong]:text-foreground [&_strong]:font-semibold
+        [&_code]:text-xs [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded
+        ${isStreaming ? "streaming-cursor" : ""}
+      `}>
+        <ReactMarkdown
+          components={{
+            p: ({ children }) => <p>{typeof children === "string" ? renderTextWithTickers(children) : children}</p>,
+            li: ({ children }) => <li>{typeof children === "string" ? renderTextWithTickers(children) : children}</li>,
+            strong: ({ children }) => {
+              const text = String(children);
+              const tickerMatch = text.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
+              if (tickerMatch) return <TickerLink symbol={tickerMatch[1]} />;
+              return <strong>{children}</strong>;
+            },
+          }}
+        >{content}</ReactMarkdown>
+      </div>
+    </div>
+  </motion.div>
+);
+
+const UserMessage = ({ content }: { content: string }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 6 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.25 }}
+    className="flex justify-end"
+  >
+    <div className="max-w-[75%] rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-[13.5px] leading-relaxed text-primary-foreground">
+      {content}
+    </div>
+  </motion.div>
+);
+
+/* ── Main page ─────────────────────────────────────────── */
 const ChatPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
@@ -84,7 +177,6 @@ const ChatPage = () => {
     load();
   }, [user]);
 
-  // Load messages for a conversation
   const loadConversation = useCallback(async (convId: string) => {
     setActiveConversationId(convId);
     const { data } = await supabase
@@ -98,14 +190,12 @@ const ChatPage = () => {
     setShowSidebar(false);
   }, []);
 
-  // Create new conversation
   const startNewChat = useCallback(() => {
     setActiveConversationId(null);
     setMessages([]);
     setShowSidebar(false);
   }, []);
 
-  // Delete conversation
   const deleteConversation = async (convId: string) => {
     await supabase.from("chat_conversations").delete().eq("id", convId);
     setConversations(prev => prev.filter(c => c.id !== convId));
@@ -113,7 +203,6 @@ const ChatPage = () => {
     toast.success("Conversation deleted");
   };
 
-  // Auto-title conversation using first user message
   const autoTitle = async (convId: string, firstMsg: string) => {
     const title = firstMsg.slice(0, 60) + (firstMsg.length > 60 ? "…" : "");
     await supabase.from("chat_conversations").update({ title }).eq("id", convId);
@@ -122,7 +211,6 @@ const ChatPage = () => {
 
   const location = useLocation();
 
-  // Handle ?q= query param or state.prefill
   useEffect(() => {
     const q = searchParams.get("q");
     const prefill = (location.state as any)?.prefill;
@@ -130,7 +218,6 @@ const ChatPage = () => {
       setSearchParams({}, { replace: true });
       setTimeout(() => handleSend(q), 100);
     } else if (prefill) {
-      // Clear state so it doesn't re-trigger
       window.history.replaceState({}, document.title);
       setTimeout(() => handleSend(prefill), 100);
     }
@@ -146,7 +233,6 @@ const ChatPage = () => {
     setQuery("");
     setIsLoading(true);
 
-    // Persist to DB if logged in
     let convId = activeConversationId;
     if (user) {
       if (!convId) {
@@ -174,10 +260,10 @@ const ChatPage = () => {
       assistantSoFar += chunk;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && prev.length > 1 && prev[prev.length - 2]?.content === userMsg.content) {
+        if (last?.role === "assistant" && last.isStreaming) {
           return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
         }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
+        return [...prev, { role: "assistant", content: assistantSoFar, isStreaming: true }];
       });
     };
 
@@ -187,7 +273,8 @@ const ChatPage = () => {
         onDelta: (chunk) => upsertAssistant(chunk),
         onDone: async () => {
           setIsLoading(false);
-          // Save assistant response
+          // Mark streaming complete
+          setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.role === "assistant" ? { ...m, isStreaming: false } : m));
           if (user && convId && assistantSoFar) {
             await supabase.from("chat_messages").insert({ conversation_id: convId, role: "assistant", content: assistantSoFar });
             await supabase.from("chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
@@ -204,6 +291,8 @@ const ChatPage = () => {
       setIsLoading(false);
     }
   };
+
+  const showTypingIndicator = isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === "user");
 
   return (
     <div className="flex h-[calc(100vh-5rem)] flex-col px-5 pt-14 lg:pt-8">
@@ -267,7 +356,7 @@ const ChatPage = () => {
 
         {/* Chat area */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Suggestions - show when no messages */}
+          {/* Suggestions */}
           {messages.length === 0 && (
             <motion.div className="flex flex-wrap gap-2 mb-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
               {suggestions.map((s) => (
@@ -279,7 +368,7 @@ const ChatPage = () => {
           )}
 
           {/* Messages */}
-          <div className="flex-1 space-y-3 overflow-y-auto">
+          <div className="flex-1 space-y-5 overflow-y-auto pb-2">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-4">
@@ -289,38 +378,19 @@ const ChatPage = () => {
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">Ask me anything about money — stocks, budgeting, saving, investing, debt, or just how to be smarter with your cash.</p>
               </div>
             )}
-            {messages.map((msg, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${msg.role === "user" ? "bg-foreground text-primary-foreground" : "glass-card"}`}>
-                  {msg.role === "assistant" && <Sparkles size={12} className="mb-1 text-muted-foreground" />}
-                  {msg.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>p+p]:mt-2.5 [&>ul]:mt-1.5 [&>ol]:mt-1.5 [&>h2]:text-sm [&>h2]:font-semibold [&>h2]:mt-4 [&>h2]:mb-1.5 [&>h2]:tracking-tight [&>hr]:my-3 [&>hr]:border-border/20 [&>blockquote]:border-l-primary/30 [&>blockquote]:text-muted-foreground [&_em]:text-muted-foreground [&_li]:my-0.5">
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => <p>{typeof children === "string" ? renderTextWithTickers(children) : children}</p>,
-                          li: ({ children }) => <li>{typeof children === "string" ? renderTextWithTickers(children) : children}</li>,
-                          strong: ({ children }) => {
-                            const text = String(children);
-                            const tickerMatch = text.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
-                            if (tickerMatch) return <TickerLink symbol={tickerMatch[1]} />;
-                            return <strong>{children}</strong>;
-                          },
-                        }}
-                      >{msg.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-              </motion.div>
-            ))}
-            {isLoading && messages[messages.length - 1]?.role === "user" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                <div className="glass-card rounded-2xl px-4 py-3">
-                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
-                </div>
-              </motion.div>
+
+            {messages.map((msg, i) =>
+              msg.role === "user" ? (
+                <UserMessage key={i} content={msg.content} />
+              ) : (
+                <AssistantMessage key={i} content={msg.content} isStreaming={msg.isStreaming} />
+              )
             )}
+
+            <AnimatePresence>
+              {showTypingIndicator && <TypingIndicator />}
+            </AnimatePresence>
+
             <div ref={messagesEndRef} />
           </div>
 
