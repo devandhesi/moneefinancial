@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import MavenIcon from "@/components/MavenIcon";
+import { useMavenChat } from "@/hooks/use-maven-chat";
 
 /* ── Word-by-word reveal hook ──────────────────────────── */
 function useWordReveal() {
@@ -220,8 +221,11 @@ const UserMessage = ({ content }: { content: string }) => (
 const ChatPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const mavenChat = useMavenChat();
+  const messages = mavenChat.messages as Message[];
+  const setMessages = mavenChat.setMessages as React.Dispatch<React.SetStateAction<Message[]>>;
+  const isLoading = mavenChat.loading;
+  const setIsLoading = mavenChat.setLoading;
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
