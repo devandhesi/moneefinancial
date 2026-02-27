@@ -33,13 +33,15 @@ export default function ChatAttachmentMenu({ onSendContent, disabled }: ChatAtta
     if (q.length < 1) { setTickerResults([]); return; }
     setSearchingTicker(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stock-search?q=${encodeURIComponent(q)}`, {
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      const { data, error } = await supabase.functions.invoke("stock-search", {
+        body: { query: q },
       });
-      const data = await res.json();
-      setTickerResults((data.results || data || []).slice(0, 8));
-    } catch {
+      if (error) throw error;
+      setTickerResults((data?.results || []).slice(0, 8));
+    } catch (e) {
+      console.error("Ticker search failed:", e);
       setTickerResults([]);
+      toast.error("Search failed. Please try again.");
     }
     setSearchingTicker(false);
   };
