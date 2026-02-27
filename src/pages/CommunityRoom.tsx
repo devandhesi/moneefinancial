@@ -16,6 +16,12 @@ import ReactMarkdown from "react-markdown";
 import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import RichMessageContent from "@/components/chat/RichMessageContent";
 
+interface Reaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -27,10 +33,11 @@ interface Message {
   reply_to: string | null;
   created_at: string;
   profile?: { username: string; display_name: string | null; avatar_url: string | null; is_verified: boolean };
-  reactions?: { emoji: string; count: number; reacted: boolean }[];
+  reactions?: Reaction[];
 }
 
 const QUICK_EMOJIS = ["🚀", "🔥", "💎", "🐻", "🐂", "📈", "📉", "💰"];
+const ALL_EMOJIS = ["🚀", "🔥", "💎", "🐻", "🐂", "📈", "📉", "💰", "👍", "👎", "❤️", "😂", "😮", "😢", "🎉", "🤔", "👀", "💪", "🙏", "⚡", "🎯", "💯", "🤝", "🫡", "😤", "🥳", "😎", "🤑", "📊", "🏦"];
 
 const CommunityRoom = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -102,7 +109,29 @@ const CommunityRoom = () => {
           .eq("room_id", room.id)
           .order("created_at", { ascending: true })
           .limit(100);
-        if (data) setMessages(data as Message[]);
+
+        if (data) {
+          // Fetch reactions for all messages
+          const msgIds = data.map((m: any) => m.id);
+          const { data: allReactions } = await supabase
+            .from("message_reactions")
+            .select("message_id, emoji, user_id")
+            .in("message_id", msgIds);
+
+          const msgs = (data as Message[]).map((msg) => {
+            const msgReactions = (allReactions || []).filter((r: any) => r.message_id === msg.id);
+            const emojiMap = new Map<string, { count: number; reacted: boolean }>();
+            msgReactions.forEach((r: any) => {
+              const existing = emojiMap.get(r.emoji) || { count: 0, reacted: false };
+              existing.count++;
+              if (r.user_id === user?.id) existing.reacted = true;
+              emojiMap.set(r.emoji, existing);
+            });
+            msg.reactions = Array.from(emojiMap.entries()).map(([emoji, data]) => ({ emoji, ...data }));
+            return msg;
+          });
+          setMessages(msgs);
+        }
       }
       setLoading(false);
       return room?.id || null;
@@ -269,12 +298,50 @@ const CommunityRoom = () => {
 
   const addReaction = async (messageId: string, emoji: string) => {
     if (!user) return;
-    await supabase.from("message_reactions").insert({
-      message_id: messageId,
-      user_id: user.id,
-      emoji,
-    });
-    toast.success(`Reacted ${emoji}`);
+    // Check if already reacted with this emoji
+    const msg = messages.find((m) => m.id === messageId);
+    const existing = msg?.reactions?.find((r) => r.emoji === emoji && r.reacted);
+
+    if (existing) {
+      // Remove reaction
+      await supabase
+        .from("message_reactions")
+        .delete()
+        .eq("message_id", messageId)
+        .eq("user_id", user.id)
+        .eq("emoji", emoji);
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          return {
+            ...m,
+            reactions: (m.reactions || [])
+              .map((r) => r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r)
+              .filter((r) => r.count > 0),
+          };
+        })
+      );
+    } else {
+      // Add reaction
+      await supabase.from("message_reactions").insert({
+        message_id: messageId,
+        user_id: user.id,
+        emoji,
+      });
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          const reactions = [...(m.reactions || [])];
+          const idx = reactions.findIndex((r) => r.emoji === emoji);
+          if (idx >= 0) {
+            reactions[idx] = { ...reactions[idx], count: reactions[idx].count + 1, reacted: true };
+          } else {
+            reactions.push({ emoji, count: 1, reacted: true });
+          }
+          return { ...m, reactions };
+        })
+      );
+    }
   };
 
   // Search users to add
@@ -444,6 +511,26 @@ const CommunityRoom = () => {
                     </div>
                   )}
 
+                  {/* Persistent reactions */}
+                  {msg.reactions && msg.reactions.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                      {msg.reactions.map((r) => (
+                        <button
+                          key={r.emoji}
+                          onClick={() => addReaction(msg.id, r.emoji)}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] transition-colors ${
+                            r.reacted
+                              ? "bg-accent/20 ring-1 ring-accent/40 text-accent-foreground"
+                              : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          <span>{r.emoji}</span>
+                          <span className="font-medium">{r.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Quick actions on hover */}
                   <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                     {QUICK_EMOJIS.slice(0, 4).map((e) => (
@@ -455,6 +542,27 @@ const CommunityRoom = () => {
                         {e}
                       </button>
                     ))}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                          <Smile size={12} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="start" className="w-[240px] p-2">
+                        <p className="text-[10px] text-muted-foreground mb-1.5 font-medium">Pick an emoji</p>
+                        <div className="grid grid-cols-6 gap-1">
+                          {ALL_EMOJIS.map((e) => (
+                            <button
+                              key={e}
+                              onClick={() => addReaction(msg.id, e)}
+                              className="rounded-lg p-1.5 text-sm hover:bg-secondary transition-colors"
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <button
                       onClick={() => setReplyTo(msg)}
                       className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
