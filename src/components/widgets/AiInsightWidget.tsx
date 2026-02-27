@@ -45,7 +45,6 @@ const AiInsightWidget = ({ insight, isLoading }: Props) => {
             onClick={handleLearnMore}
             className="mt-3 flex items-center gap-1.5 text-xs font-medium text-foreground/70 hover:text-foreground transition-colors group"
           >
-            <MavenIcon size={11} />
             Learn more from Maven
             <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5" />
           </button>
