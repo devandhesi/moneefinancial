@@ -592,66 +592,65 @@ const CommunityRoom = () => {
                     </div>
                   )}
 
-                  {/* Quick actions on hover */}
-                  <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    {QUICK_EMOJIS.slice(0, 4).map((e) => (
-                      <button
-                        key={e}
-                        onClick={() => addReaction(msg.id, e)}
-                        className="rounded px-1 py-0.5 text-xs hover:bg-secondary"
-                      >
-                        {e}
-                      </button>
-                    ))}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
-                          <Smile size={12} />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent side="top" align="start" className="w-[240px] p-2">
-                        <p className="text-[10px] text-muted-foreground mb-1.5 font-medium">Pick an emoji</p>
-                        <div className="grid grid-cols-6 gap-1">
-                          {ALL_EMOJIS.map((e) => (
-                            <button
-                              key={e}
-                              onClick={() => addReaction(msg.id, e)}
-                              className="rounded-lg p-1.5 text-sm hover:bg-secondary transition-colors"
-                            >
-                              {e}
-                            </button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <button
-                      onClick={() => setReplyTo(msg)}
-                      className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    >
-                      <Reply size={12} />
-                    </button>
-                    {msg.user_id === user?.id && !msg.is_deleted && (
-                      <>
-                        <button
-                          onClick={() => handleStartEdit(msg)}
-                          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          title="Edit"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="rounded p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </>
-                    )}
-                    <button className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
-                      <Flag size={12} />
-                    </button>
-                  </div>
+                  {/* 3-dot action menu */}
+                  {!msg.is_deleted && (
+                    <div className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align="start" className="w-44 p-1">
+                          <button
+                            onClick={() => { setReplyTo(msg); }}
+                            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors"
+                          >
+                            <Reply size={13} /> Reply
+                          </button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors">
+                                <Smile size={13} /> React
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent side="right" align="start" className="w-[220px] p-2">
+                              <div className="grid grid-cols-6 gap-1">
+                                {ALL_EMOJIS.map((e) => (
+                                  <button
+                                    key={e}
+                                    onClick={() => addReaction(msg.id, e)}
+                                    className="rounded-lg p-1.5 text-sm hover:bg-secondary transition-colors"
+                                  >
+                                    {e}
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          {msg.user_id === user?.id && (
+                            <>
+                              <button
+                                onClick={() => handleStartEdit(msg)}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors"
+                              >
+                                <Pencil size={13} /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </>
+                          )}
+                          <button className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors">
+                            <Flag size={13} /> Report
+                          </button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))
