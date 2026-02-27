@@ -125,6 +125,79 @@ const TrendChart = ({ data, dataKey, label, color }: {
   );
 };
 
+/* ── Analysis steps ──────────────────────────────── */
+
+const ANALYSIS_STEPS = [
+  { label: "Fetching trade history", icon: BarChart3, duration: 1800 },
+  { label: "Mapping position timelines", icon: Clock, duration: 1400 },
+  { label: "Scanning for revenge patterns", icon: AlertTriangle, duration: 2000 },
+  { label: "Detecting size escalation", icon: Scale, duration: 1600 },
+  { label: "Evaluating overtrading signals", icon: Activity, duration: 1200 },
+  { label: "Computing discipline score", icon: Shield, duration: 1000 },
+];
+
+const AnalyzingState = ({ step }: { step: number }) => {
+  const progress = Math.min(((step + 1) / ANALYSIS_STEPS.length) * 100, 100);
+
+  return (
+    <motion.div
+      className="flex flex-col items-center justify-center py-16 text-center"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div className="relative h-20 w-20 mb-6">
+        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+          <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
+          <circle
+            cx="60" cy="60" r="54" fill="none"
+            stroke="hsl(var(--primary))" strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={2 * Math.PI * 54}
+            strokeDashoffset={2 * Math.PI * 54 - (progress / 100) * 2 * Math.PI * 54}
+            className="transition-all duration-700 ease-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 size={20} className="animate-spin text-primary" />
+        </div>
+      </div>
+
+      <h2 className="text-lg font-semibold mb-1">Analyzing Patterns</h2>
+      <p className="text-xs text-muted-foreground mb-6">This may take a moment</p>
+
+      <div className="w-full max-w-xs space-y-2">
+        {ANALYSIS_STEPS.map((s, i) => {
+          const StepIcon = s.icon;
+          const isDone = i < step;
+          const isActive = i === step;
+          return (
+            <motion.div
+              key={s.label}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                isDone ? "text-foreground" : isActive ? "text-foreground bg-secondary" : "text-muted-foreground/40"
+              }`}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 * i }}
+            >
+              {isDone ? (
+                <div className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                </div>
+              ) : isActive ? (
+                <Loader2 size={14} className="animate-spin text-primary shrink-0" />
+              ) : (
+                <StepIcon size={14} className="shrink-0" />
+              )}
+              <span className={isDone ? "line-through opacity-60" : ""}>{s.label}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
 /* ── Empty state ─────────────────────────────────── */
 
 const EmptyState = ({ onAnalyze, isPending }: { onAnalyze: () => void; isPending: boolean }) => (
@@ -155,9 +228,42 @@ const BehavioralRisk = () => {
   const { user } = useAuth();
   const analysis = useBehavioralAnalysis();
   const [result, setResult] = useState<any>(null);
+  const [analysisStep, setAnalysisStep] = useState(-1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleAnalyze = () => {
-    analysis.mutate(undefined, { onSuccess: (data) => setResult(data) });
+    setIsAnalyzing(true);
+    setAnalysisStep(0);
+
+    // Step through analysis phases with realistic timing
+    let currentStep = 0;
+    const advanceStep = () => {
+      currentStep++;
+      if (currentStep < ANALYSIS_STEPS.length) {
+        setAnalysisStep(currentStep);
+        setTimeout(advanceStep, ANALYSIS_STEPS[currentStep].duration);
+      }
+    };
+    setTimeout(advanceStep, ANALYSIS_STEPS[0].duration);
+
+    // Fire the actual API call in parallel
+    analysis.mutate(undefined, {
+      onSuccess: (data) => {
+        // Wait for steps to finish, then show results
+        const totalDuration = ANALYSIS_STEPS.reduce((s, step) => s + step.duration, 0);
+        const elapsed = ANALYSIS_STEPS.slice(0, currentStep + 1).reduce((s, step) => s + step.duration, 0);
+        const remaining = Math.max(totalDuration - elapsed, 500);
+        setTimeout(() => {
+          setResult(data);
+          setIsAnalyzing(false);
+          setAnalysisStep(-1);
+        }, remaining);
+      },
+      onError: () => {
+        setIsAnalyzing(false);
+        setAnalysisStep(-1);
+      },
+    });
   };
 
   if (!user) {
@@ -192,16 +298,18 @@ const BehavioralRisk = () => {
             <p className="mt-0.5 text-sm text-muted-foreground">Trading discipline analysis</p>
           </div>
         </div>
-        {d && (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleAnalyze} disabled={analysis.isPending}>
-            {analysis.isPending ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+        {d && !isAnalyzing && (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleAnalyze} disabled={isAnalyzing}>
+            {isAnalyzing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
             Refresh
           </Button>
         )}
       </motion.div>
 
-      {!d ? (
-        <EmptyState onAnalyze={handleAnalyze} isPending={analysis.isPending} />
+      {isAnalyzing ? (
+        <AnalyzingState step={analysisStep} />
+      ) : !d ? (
+        <EmptyState onAnalyze={handleAnalyze} isPending={isAnalyzing} />
       ) : (
         <div className="mt-6 space-y-6">
           {/* Section 1: Discipline Score */}
