@@ -31,6 +31,7 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
+import MavenIcon from "@/components/MavenIcon";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
@@ -160,9 +161,10 @@ const DesktopSidebar = () => {
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const Icon = iconMap[item.icon] || LayoutDashboard;
+                    const isMaven = item.path === "/chat";
                     return (
                       <NavLink key={item.path} to={item.path} className={linkClass(item.path)}>
-                        <Icon size={16} />
+                        {isMaven ? <MavenIcon size={16} /> : <Icon size={16} />}
                         <span>{item.label}</span>
                       </NavLink>
                     );
