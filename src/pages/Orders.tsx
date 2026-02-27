@@ -1,28 +1,34 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
+import { useSimAccount, useSimOrders } from "@/hooks/use-sim-portfolio";
 
-const tabs = ["Pending", "Filled", "Cancelled", "Scheduled"] as const;
+const tabs = ["All", "Filled", "Pending", "Cancelled"] as const;
 type Tab = typeof tabs[number];
 
-const orders = [
-  { id: 1, symbol: "AMZN", type: "Limit Buy", price: 185.0, shares: 10, status: "Pending" as Tab, impact: "Tech exposure +3%" },
-  { id: 2, symbol: "MSFT", type: "Limit Sell", price: 460.0, shares: 3, status: "Pending" as Tab, impact: "Tech exposure -2%" },
-  { id: 3, symbol: "AAPL", type: "Market Buy", price: 232.1, shares: 5, status: "Filled" as Tab, impact: "Tech exposure +2%" },
-  { id: 4, symbol: "TSLA", type: "Market Sell", price: 280.5, shares: 3, status: "Filled" as Tab, impact: "Tech exposure -4%" },
-  { id: 5, symbol: "GOOGL", type: "Limit Buy", price: 165.0, shares: 8, status: "Cancelled" as Tab, impact: "N/A" },
-  { id: 6, symbol: "VTI", type: "Market Buy", price: 260.0, shares: 5, status: "Scheduled" as Tab, impact: "Diversification +5%" },
-];
-
-const statusColor: Record<Tab, string> = {
-  Pending: "bg-secondary text-muted-foreground",
-  Filled: "bg-gain-subtle text-gain",
-  Cancelled: "bg-loss-subtle text-loss",
-  Scheduled: "bg-secondary text-foreground",
+const statusColor: Record<string, string> = {
+  filled: "bg-gain-subtle text-gain",
+  pending: "bg-secondary text-muted-foreground",
+  cancelled: "bg-loss-subtle text-loss",
+  rejected: "bg-loss-subtle text-loss",
 };
 
 const Orders = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("Pending");
-  const filtered = orders.filter((o) => o.status === activeTab);
+  const [activeTab, setActiveTab] = useState<Tab>("All");
+  const { data: simAccount } = useSimAccount();
+  const { data: orders, isLoading } = useSimOrders(simAccount?.id);
+
+  const filtered = (orders || []).filter((o) => {
+    if (activeTab === "All") return true;
+    return o.status.toLowerCase() === activeTab.toLowerCase();
+  });
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+      " · " +
+      d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  };
 
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8">
@@ -40,17 +46,50 @@ const Orders = () => {
       </div>
 
       <div className="mt-4 space-y-2">
-        {filtered.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No {activeTab.toLowerCase()} orders</p>}
-        {filtered.map((o, i) => (
-          <motion.div key={o.id} className="glass-card flex items-center justify-between p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}>
-            <div>
-              <p className="text-sm font-semibold">{o.type} · {o.symbol}</p>
-              <p className="text-xs text-muted-foreground">{o.shares} shares @ ${o.price.toFixed(2)}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">Impact: {o.impact}</p>
-            </div>
-            <span className={`rounded-lg px-2.5 py-1 text-[11px] font-medium ${statusColor[o.status]}`}>{o.status}</span>
-          </motion.div>
-        ))}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={20} className="animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {!isLoading && filtered.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No {activeTab === "All" ? "" : activeTab.toLowerCase() + " "}orders
+          </p>
+        )}
+        {!isLoading && filtered.map((o, i) => {
+          const sideLabel = o.side === "buy" ? "Buy" : "Sell";
+          const typeLabel = o.order_type === "limit" ? "Limit" : "Market";
+          const total = o.limit_price ? o.limit_price * o.quantity : null;
+
+          return (
+            <motion.div
+              key={o.id}
+              className="glass-card flex items-center justify-between p-4"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.03 * i }}
+            >
+              <div>
+                <p className="text-sm font-semibold">
+                  {typeLabel} {sideLabel} · {o.ticker}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {o.quantity} share{o.quantity !== 1 ? "s" : ""}
+                  {o.limit_price ? ` @ $${o.limit_price.toFixed(2)}` : ""}
+                  {total ? ` · $${total.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : ""}
+                </p>
+                {o.placed_at && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {formatDate(o.placed_at)}
+                  </p>
+                )}
+              </div>
+              <span className={`rounded-lg px-2.5 py-1 text-[11px] font-medium capitalize ${statusColor[o.status] || "bg-secondary text-muted-foreground"}`}>
+                {o.status}
+              </span>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
