@@ -1,18 +1,23 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
-
+import { useSimAccount, useSimCash, useDepositFunds } from "@/hooks/use-sim-portfolio";
+import { toast } from "sonner";
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { links, toggleVisibility, reorder, resetToDefaults } = useSidebarConfig();
   const { timezone, setTimezone } = useTimezone();
+  const { data: simAccount } = useSimAccount();
+  const { data: simCash } = useSimCash(simAccount?.id);
+  const depositMutation = useDepositFunds();
+  const [depositAmount, setDepositAmount] = useState("");
   const [dragState, setDragState] = useState<{ section: "main" | "secondary"; index: number } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -72,6 +77,69 @@ const Settings = () => {
               <option key={tz.value} value={tz.value}>{tz.label}</option>
             ))}
           </select>
+        </div>
+      </motion.div>
+
+      {/* Paper Trading Funds */}
+      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.087 }}>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Paper Trading</h2>
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+              <Wallet size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Paper Money Balance</p>
+              <p className="text-lg font-semibold tabular-nums">
+                ${(simCash?.available ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="Enter amount to add..."
+                className="w-full rounded-xl border border-border/50 bg-secondary px-3 py-2.5 text-sm font-medium outline-none transition-colors focus:border-foreground/20"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                const amt = parseFloat(depositAmount);
+                if (!amt || amt <= 0) { toast.error("Enter a valid amount"); return; }
+                try {
+                  await depositMutation.mutateAsync({ amount: amt });
+                  toast.success(`$${amt.toLocaleString()} added to your paper account`);
+                  setDepositAmount("");
+                } catch (e: any) {
+                  toast.error(e.message || "Failed to deposit");
+                }
+              }}
+              disabled={depositMutation.isPending}
+              className="flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {depositMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Add
+            </button>
+          </div>
+          <div className="mt-3 flex gap-2">
+            {[1000, 5000, 10000, 25000].map((amt) => (
+              <button
+                key={amt}
+                onClick={() => setDepositAmount(String(amt))}
+                className="rounded-lg bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                ${(amt / 1000).toFixed(0)}K
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            This is simulated money for paper trading. Not real currency.
+          </p>
         </div>
       </motion.div>
 
