@@ -133,7 +133,7 @@ const Dashboard = () => {
 
         {/* Chart */}
         {isWidgetVisible("chart") && (
-          <motion.div className="glass-card mt-5 p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+          <motion.div className="glass-card glass-shimmer mt-5 p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
             {chartLoading ? (
               <div className="flex h-[180px] items-center justify-center">
                 <Loader2 size={20} className="animate-spin text-muted-foreground" />
@@ -174,7 +174,7 @@ const Dashboard = () => {
             { icon: Users, label: "Social", route: "/social", color: "text-blue-400" },
             { icon: BookOpen, label: "Learn", route: "/learn", color: "text-amber-400" },
           ].map(({ icon: Icon, label, route, color }) => (
-            <button key={label} onClick={() => navigate(route)} className="glass-card flex flex-col items-center gap-2 p-4 transition-all hover:shadow-md active:scale-[0.98]">
+            <button key={label} onClick={() => navigate(route)} className="glass-card glass-shimmer flex flex-col items-center gap-2 p-4 transition-all hover:shadow-md active:scale-[0.98]">
               <Icon size={20} className={color} />
               <span className="text-xs font-medium">{label}</span>
             </button>
@@ -200,11 +200,11 @@ const Dashboard = () => {
           <motion.div className="mt-5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }}>
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">Accounts</h2>
             <div className="grid grid-cols-2 gap-2">
-              <div className="glass-card p-4">
+               <div className="glass-card glass-shimmer p-4">
                 <p className="text-xs text-muted-foreground">Cash</p>
                 <p className="mt-1 text-sm font-semibold">{balanceVisible ? `$${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
               </div>
-              <div className="glass-card p-4">
+              <div className="glass-card glass-shimmer p-4">
                 <p className="text-xs text-muted-foreground">Investment</p>
                 <p className="mt-1 text-sm font-semibold">{balanceVisible ? `$${investmentBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
               </div>
