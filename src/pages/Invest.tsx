@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2,
   Sun, Moon, Bitcoin, Flame, MessageCircle, Receipt, ClipboardList,
-  Gauge, Activity, Percent, DollarSign, Shield, Zap, PieChart, BarChart3,
+  Gauge, Activity, Percent, DollarSign, Shield, Zap, PieChart, BarChart3, ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import MicroSparkline from "@/components/widgets/MicroSparkline";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
@@ -208,6 +209,7 @@ const Invest = () => {
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
   const [mavenPicks, setMavenPicks] = useState<MavenPick[]>(DEFAULT_PICKS);
   const [picksLoading, setPicksLoading] = useState(false);
+  const [picksOpen, setPicksOpen] = useState(true);
   const navigate = useNavigate();
 
   // Fetch personalized Maven picks
@@ -415,12 +417,16 @@ const Invest = () => {
               {/* ── STOCKS ─────────────────────────────────────────── */}
               {activeTab === "stocks" && (
                 <motion.div key="stocks" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Sparkles size={14} className="text-muted-foreground" />
-                      <span>Maven's Picks for You</span>
-                    </div>
-                    <div className="mt-2 space-y-2">
+                  <Collapsible open={picksOpen} onOpenChange={setPicksOpen}>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm font-medium transition-colors hover:bg-accent/30">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-muted-foreground" />
+                        <span>Maven's Picks for You</span>
+                        {!picksOpen && !picksLoading && <span className="text-[10px] text-muted-foreground">{mavenPicks.length} picks</span>}
+                      </div>
+                      <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${picksOpen ? "rotate-180" : ""}`} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 space-y-2">
                       {picksLoading ? (
                         <div className="flex items-center justify-center py-6">
                           <Loader2 size={16} className="animate-spin text-muted-foreground" />
@@ -440,8 +446,8 @@ const Invest = () => {
                           </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
 
                   <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
                     {sectors.map((s) => (
