@@ -10,6 +10,7 @@ import { usePortfolioChart } from "@/hooks/use-dashboard-data";
 import { useDailyDigest } from "@/hooks/use-daily-digest";
 import { useAuth } from "@/hooks/use-auth";
 import { usePortfolioValue } from "@/hooks/use-portfolio-value";
+import MyHoldingsWidget from "@/components/widgets/MyHoldingsWidget";
 
 /* ── Market status hook ───────────────────────────────────────── */
 function useMarketStatus(userTimezone: string) {
@@ -39,6 +40,7 @@ const timeframes = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
 // Default widget config
 const DEFAULT_WIDGETS = [
   { id: "chart", label: "Portfolio Chart", visible: true },
+  { id: "holdings", label: "My Holdings", visible: true },
   { id: "accounts", label: "Accounts", visible: true },
   { id: "heatmap", label: "Market Heatmap", visible: true },
   { id: "insight", label: "Maven Insight", visible: true },
@@ -176,6 +178,13 @@ const Dashboard = () => {
             </button>
           ))}
         </motion.div>
+
+        {/* My Holdings */}
+        {isWidgetVisible("holdings") && (
+          <motion.div className="mt-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.18 }}>
+            <MyHoldingsWidget />
+          </motion.div>
+        )}
 
         {/* Maven AI Insight */}
         {isWidgetVisible("insight") && (
