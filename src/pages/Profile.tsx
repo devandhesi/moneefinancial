@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings } from "lucide-react";
+import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -89,7 +89,7 @@ const Profile = () => {
   const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [riskExpanded, setRiskExpanded] = useState(false);
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
   const displayName = profile?.display_name || profile?.username || "User";
 
@@ -302,8 +302,21 @@ const Profile = () => {
         </div>
       </motion.div>
 
+      {/* Sign Out */}
+      {user && (
+        <motion.div className="mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
+          <button
+            onClick={() => signOut()}
+            className="glass-card flex w-full items-center justify-center gap-2 p-4 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+          >
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
+        </motion.div>
+      )}
+
       {/* Disclaimer */}
-      <motion.div className="mt-6 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
+      <motion.div className="mt-4 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
         <p className="text-[11px] text-muted-foreground">All data is from paper trading. Behavioral analysis is educational only.</p>
       </motion.div>
     </div>
