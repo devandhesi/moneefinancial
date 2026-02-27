@@ -469,7 +469,7 @@ const CommunityRoom = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] flex-col lg:flex-row px-0 pt-0 lg:pt-0">
+    <div className="flex h-[calc(100vh-7rem)] lg:h-[calc(100vh-2rem)] flex-col lg:flex-row px-0 pt-0 lg:pt-0">
       {/* Chat Column */}
       <div className="flex flex-1 flex-col">
         {/* Room Header */}

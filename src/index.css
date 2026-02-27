@@ -127,11 +127,17 @@
     @apply border-border;
   }
 
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'DM Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
   }
 }
 
@@ -364,4 +370,20 @@
   0% { transform: translateX(-100%) rotate(0deg); }
   50% { transform: translateX(100%) rotate(0deg); }
   100% { transform: translateX(100%) rotate(0deg); }
+}
+
+/* ── Hide scrollbars for horizontal scrollers ── */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Mobile touch improvements ─────────────── */
+@media (max-width: 640px) {
+  .glass-card, button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

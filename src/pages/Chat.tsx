@@ -384,7 +384,7 @@ const ChatPage = () => {
   const showTypingIndicator = isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === "user");
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] flex-col px-5 pt-14 lg:pt-8">
+    <div className="flex h-[calc(100vh-5rem)] lg:h-[calc(100vh-2rem)] flex-col px-5 pt-14 pb-20 lg:pb-0 lg:pt-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-center justify-between">
         <div>
