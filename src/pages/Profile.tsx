@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut, Eye, EyeOff, ArrowRight, Loader2, Pencil, Camera, Check, X, KeyRound, AtSign } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useSimAccount, useSimCash, useSimPositions } from "@/hooks/use-sim-portfolio";
 
 const behaviorStats = [
   { icon: Clock, label: "Avg Hold Time", value: "3.2 weeks" },
@@ -30,44 +31,44 @@ timelineData.forEach((d) => {
   if (d.volatility > 25) d.trades = Math.min(d.trades + 3, 10);
 });
 
-const snapshots = [
-  { label: "Now", tech: 68, consumer: 12, finance: 10, health: 6, other: 4, value: "$12,438" },
-  { label: "1 Month Ago", tech: 65, consumer: 14, finance: 11, health: 6, other: 4, value: "$11,600" },
-  { label: "6 Months Ago", tech: 55, consumer: 18, finance: 15, health: 8, other: 4, value: "$10,180" },
-  { label: "1 Year Ago", tech: 45, consumer: 22, finance: 18, health: 10, other: 5, value: "$8,200" },
-];
+// Sector colors for the portfolio breakdown
+const SECTOR_COLORS: Record<string, string> = {
+  Technology: "hsl(215, 60%, 55%)",
+  Consumer: "hsl(30, 70%, 50%)",
+  Finance: "hsl(152, 28%, 40%)",
+  Healthcare: "hsl(280, 40%, 55%)",
+  Energy: "hsl(45, 75%, 50%)",
+  Industrials: "hsl(190, 40%, 45%)",
+  "Real Estate": "hsl(340, 45%, 50%)",
+  Utilities: "hsl(160, 35%, 50%)",
+  Materials: "hsl(25, 50%, 45%)",
+  Cash: "hsl(220, 8%, 70%)",
+  Other: "hsl(220, 8%, 60%)",
+};
 
-const sectorData = [
-  { label: "Technology", pct: 68, color: "hsl(215, 60%, 55%)" },
-  { label: "Consumer", pct: 12, color: "hsl(30, 70%, 50%)" },
-  { label: "Finance", pct: 10, color: "hsl(152, 28%, 40%)" },
-  { label: "Healthcare", pct: 6, color: "hsl(280, 40%, 55%)" },
-  { label: "Other", pct: 4, color: "hsl(220, 8%, 70%)" },
-];
-
-const assetTypes = [
-  { label: "US Equities", pct: 85 },
-  { label: "ETFs", pct: 10 },
-  { label: "Cash", pct: 5 },
-];
-
-const marketCap = [
-  { label: "Large Cap", pct: 78 },
-  { label: "Mid Cap", pct: 15 },
-  { label: "Small Cap", pct: 7 },
-];
-
-const volatility = [
-  { label: "High β", pct: 42 },
-  { label: "Medium β", pct: 38 },
-  { label: "Low β", pct: 20 },
-];
-
-const flows = [
-  { from: "Technology", to: "Healthcare", pct: 3, direction: "out" },
-  { from: "Cash", to: "Technology", pct: 2, direction: "in" },
-  { from: "Consumer", to: "Finance", pct: 1, direction: "neutral" },
-];
+// Simple ticker-to-sector mapping
+const TICKER_SECTOR: Record<string, string> = {
+  AAPL: "Technology", MSFT: "Technology", GOOG: "Technology", GOOGL: "Technology", AMZN: "Technology",
+  META: "Technology", NVDA: "Technology", TSLA: "Technology", AMD: "Technology", INTC: "Technology",
+  CRM: "Technology", ORCL: "Technology", ADBE: "Technology", NFLX: "Technology", AVGO: "Technology",
+  QCOM: "Technology", MU: "Technology", UBER: "Technology", SHOP: "Technology", SQ: "Technology",
+  PYPL: "Technology", PLTR: "Technology", SNAP: "Technology", COIN: "Technology", RBLX: "Technology",
+  JPM: "Finance", BAC: "Finance", GS: "Finance", MS: "Finance", WFC: "Finance", C: "Finance",
+  V: "Finance", MA: "Finance", AXP: "Finance", BLK: "Finance", SCHW: "Finance",
+  JNJ: "Healthcare", PFE: "Healthcare", UNH: "Healthcare", MRK: "Healthcare", ABBV: "Healthcare",
+  LLY: "Healthcare", TMO: "Healthcare", ABT: "Healthcare", MDT: "Healthcare", BMY: "Healthcare",
+  XOM: "Energy", CVX: "Energy", COP: "Energy", SLB: "Energy", EOG: "Energy", OXY: "Energy",
+  PG: "Consumer", KO: "Consumer", PEP: "Consumer", WMT: "Consumer", COST: "Consumer",
+  NKE: "Consumer", MCD: "Consumer", SBUX: "Consumer", TGT: "Consumer", HD: "Consumer",
+  DIS: "Consumer", CMCSA: "Consumer", T: "Consumer", VZ: "Consumer",
+  CAT: "Industrials", BA: "Industrials", HON: "Industrials", UPS: "Industrials", DE: "Industrials",
+  GE: "Industrials", RTX: "Industrials", LMT: "Industrials",
+  SPY: "Other", QQQ: "Other", DIA: "Other", IWM: "Other", VTI: "Other", VOO: "Other",
+  VT: "Other", BND: "Other", XLV: "Healthcare", XLF: "Finance", XLE: "Energy", XLK: "Technology",
+  GME: "Consumer", AMC: "Consumer", RIVN: "Consumer", LCID: "Consumer",
+  BTC: "Other", ETH: "Other", SOL: "Other", DOGE: "Other",
+  GLD: "Other", SLV: "Other", USO: "Other",
+};
 
 const RiskBar = ({ title, items }: { title: string; items: { label: string; pct: number }[] }) => (
   <div>
@@ -252,6 +253,9 @@ const AuthForm = () => {
 };
 
 const Profile = () => {
+  const { data: simAccount } = useSimAccount();
+  const { data: cash } = useSimCash(simAccount?.id);
+  const { data: positions } = useSimPositions(simAccount?.id);
   const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [riskExpanded, setRiskExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -272,6 +276,44 @@ const Profile = () => {
 
   if (loading) return null;
   if (!user) return <AuthForm />;
+
+  // ── Compute portfolio data from real holdings ──
+  const cashBalance = cash?.available ?? 0;
+  const investedValue = (positions || []).reduce((sum, p) => sum + (p.market_value ?? (p.avg_cost ?? 0) * p.quantity), 0);
+  const totalPortfolioValue = cashBalance + investedValue;
+
+  // Sector breakdown from positions
+  const sectorMap: Record<string, number> = {};
+  (positions || []).forEach((p) => {
+    const sector = TICKER_SECTOR[p.ticker] || "Other";
+    sectorMap[sector] = (sectorMap[sector] || 0) + (p.market_value ?? (p.avg_cost ?? 0) * p.quantity);
+  });
+  if (cashBalance > 0) sectorMap["Cash"] = cashBalance;
+
+  const sectorData = Object.entries(sectorMap)
+    .map(([label, val]) => ({
+      label,
+      pct: totalPortfolioValue > 0 ? Math.round((val / totalPortfolioValue) * 100) : 0,
+      color: SECTOR_COLORS[label] || SECTOR_COLORS["Other"],
+    }))
+    .sort((a, b) => b.pct - a.pct);
+
+  // Ensure pcts add up to 100
+  if (sectorData.length > 0) {
+    const sum = sectorData.reduce((s, d) => s + d.pct, 0);
+    if (sum !== 100 && sum > 0) sectorData[0].pct += 100 - sum;
+  }
+
+  const cashPct = totalPortfolioValue > 0 ? Math.round((cashBalance / totalPortfolioValue) * 100) : 0;
+  const equityPct = 100 - cashPct;
+
+  const assetTypes = [
+    { label: "Equities", pct: equityPct },
+    { label: "Cash", pct: cashPct },
+  ];
+
+  const holdingsCount = (positions || []).length;
+  const hasPortfolio = totalPortfolioValue > 0 || holdingsCount > 0;
 
   const displayName = profile?.display_name || profile?.username || "User";
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -510,103 +552,104 @@ const Profile = () => {
         </div>
       </motion.div>
 
-      {/* Portfolio Timeline Snapshots */}
+      {/* Portfolio Overview - Real Data */}
       <motion.div className="glass-card mt-4 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <h3 className="mb-3 text-xs font-medium text-muted-foreground">Portfolio Timeline</h3>
-        <div className="flex gap-1.5 mb-3">
-          {snapshots.map((s, i) => (
-            <button
-              key={s.label}
-              onClick={() => setSnapshotIdx(i)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                snapshotIdx === i ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex h-6 overflow-hidden rounded-lg mb-2">
-          {[
-            { key: "tech", color: "hsl(215, 60%, 55%)", pct: snapshots[snapshotIdx].tech },
-            { key: "consumer", color: "hsl(30, 70%, 50%)", pct: snapshots[snapshotIdx].consumer },
-            { key: "finance", color: "hsl(152, 28%, 40%)", pct: snapshots[snapshotIdx].finance },
-            { key: "health", color: "hsl(280, 40%, 55%)", pct: snapshots[snapshotIdx].health },
-            { key: "other", color: "hsl(220, 8%, 70%)", pct: snapshots[snapshotIdx].other },
-          ].map((s) => (
-            <motion.div key={s.key} style={{ background: s.color }} className="flex items-center justify-center text-[9px] font-medium text-primary-foreground" initial={false} animate={{ width: `${s.pct}%` }} transition={{ duration: 0.5 }}>
-              {s.pct > 8 && `${s.pct}%`}
-            </motion.div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">{snapshots[snapshotIdx].label}</span>
-          <span className="font-semibold">{snapshots[snapshotIdx].value}</span>
-        </div>
+        <h3 className="mb-3 text-xs font-medium text-muted-foreground">Portfolio Overview</h3>
+        {!hasPortfolio ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">No holdings yet. Start paper trading to see your portfolio here.</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-muted-foreground">Total Value</span>
+              <span className="text-lg font-semibold">${totalPortfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="rounded-xl bg-secondary/50 p-3">
+                <p className="text-[10px] text-muted-foreground">Invested</p>
+                <p className="text-sm font-semibold">${investedValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+              <div className="rounded-xl bg-secondary/50 p-3">
+                <p className="text-[10px] text-muted-foreground">Cash</p>
+                <p className="text-sm font-semibold">${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">{holdingsCount} position{holdingsCount !== 1 ? "s" : ""} held</div>
+          </>
+        )}
       </motion.div>
 
-      {/* Risk Exposure */}
+      {/* Holdings List */}
+      {(positions || []).length > 0 && (
+        <motion.div className="glass-card mt-3 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.21 }}>
+          <h3 className="mb-3 text-xs font-medium text-muted-foreground">Holdings</h3>
+          <div className="space-y-2">
+            {(positions || []).map((p) => {
+              const value = p.market_value ?? (p.avg_cost ?? 0) * p.quantity;
+              const pnl = p.unrealized_pnl ?? 0;
+              const pnlPct = p.avg_cost && p.avg_cost > 0 ? ((value - p.avg_cost * p.quantity) / (p.avg_cost * p.quantity)) * 100 : 0;
+              return (
+                <div key={p.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">{p.ticker}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.quantity} share{p.quantity !== 1 ? "s" : ""} · avg ${(p.avg_cost ?? 0).toFixed(2)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className={`text-[11px] font-medium ${pnl >= 0 ? "text-gain" : "text-loss"}`}>
+                      {pnl >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Sector Breakdown - Real Data */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
         <button onClick={() => setRiskExpanded(!riskExpanded)} className="flex w-full items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-muted-foreground">Risk Exposure</h2>
+          <h2 className="text-sm font-medium text-muted-foreground">Portfolio Breakdown</h2>
           <span className="text-[10px] text-muted-foreground">{riskExpanded ? "Collapse" : "Expand"}</span>
         </button>
 
-        <div className="glass-card p-4">
-          <h3 className="mb-3 text-xs font-medium text-muted-foreground">Sector Breakdown</h3>
-          <div className="flex h-7 overflow-hidden rounded-lg">
-            {sectorData.map((s) => (
-              <motion.div
-                key={s.label}
-                style={{ background: s.color }}
-                className="flex items-center justify-center text-[9px] font-medium text-primary-foreground transition-all hover:opacity-80"
-                title={`${s.label}: ${s.pct}%`}
-                initial={{ width: 0 }}
-                animate={{ width: `${s.pct}%` }}
-                transition={{ duration: 0.8 }}
-              >
-                {s.pct > 8 && `${s.pct}%`}
-              </motion.div>
-            ))}
+        {sectorData.length > 0 ? (
+          <div className="glass-card p-4">
+            <h3 className="mb-3 text-xs font-medium text-muted-foreground">Sector Breakdown</h3>
+            <div className="flex h-7 overflow-hidden rounded-lg">
+              {sectorData.map((s) => (
+                <motion.div
+                  key={s.label}
+                  style={{ background: s.color }}
+                  className="flex items-center justify-center text-[9px] font-medium text-primary-foreground transition-all hover:opacity-80"
+                  title={`${s.label}: ${s.pct}%`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${s.pct}%` }}
+                  transition={{ duration: 0.8 }}
+                >
+                  {s.pct > 8 && `${s.pct}%`}
+                </motion.div>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-3 text-[10px]">
+              {sectorData.map((s) => (
+                <span key={s.label} className="flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
+                  {s.label} ({s.pct}%)
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap gap-3 text-[10px]">
-            {sectorData.map((s) => (
-              <span key={s.label} className="flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
-                {s.label}
-              </span>
-            ))}
+        ) : (
+          <div className="glass-card p-4">
+            <p className="text-sm text-muted-foreground text-center py-2">No positions to analyze</p>
           </div>
-        </div>
+        )}
 
-        {riskExpanded && (
+        {riskExpanded && sectorData.length > 0 && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-3 space-y-3">
             <div className="glass-card p-4">
-              <h3 className="mb-3 text-xs font-medium text-muted-foreground">Capital Flow</h3>
-              <div className="space-y-2">
-                {flows.map((f, i) => (
-                  <div key={i} className="flex items-center gap-3 text-xs">
-                    <span className="font-medium">{f.from}</span>
-                    <div className="flex-1 flex items-center gap-1">
-                      <div className="h-px flex-1 bg-border" />
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        f.direction === "out" ? "bg-loss/10 text-loss" : f.direction === "in" ? "bg-gain/10 text-gain" : "bg-secondary text-muted-foreground"
-                      }`}>
-                        {f.pct}%
-                      </span>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-                    <span className="font-medium">{f.to}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-[10px] text-muted-foreground">Capital movement between sectors over the last 30 days.</p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="glass-card p-4"><RiskBar title="Asset Type" items={assetTypes} /></div>
-              <div className="glass-card p-4"><RiskBar title="Market Cap" items={marketCap} /></div>
-              <div className="glass-card p-4"><RiskBar title="Volatility Class" items={volatility} /></div>
+              <RiskBar title="Asset Allocation" items={assetTypes} />
             </div>
           </motion.div>
         )}
