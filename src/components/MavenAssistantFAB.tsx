@@ -153,7 +153,7 @@ export default function MavenAssistantFAB() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setOpen(true)}
-            className="fixed bottom-28 right-5 lg:bottom-8 lg:right-8 z-50 h-10 w-10 rounded-xl bg-card/80 backdrop-blur-md border border-border/40 text-foreground shadow-sm flex items-center justify-center hover:bg-card transition-colors"
+            className="fixed bottom-28 right-5 lg:bottom-8 lg:right-8 z-50 h-10 w-10 rounded-xl glass-card-float text-foreground flex items-center justify-center hover:scale-105 transition-transform"
             aria-label="Ask Maven"
           >
             <MavenIcon size={18} />
@@ -169,10 +169,10 @@ export default function MavenAssistantFAB() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="fixed bottom-28 right-4 lg:bottom-8 lg:right-8 z-50 w-[340px] sm:w-[380px] max-h-[75vh] rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-28 right-4 lg:bottom-8 lg:right-8 z-50 w-[340px] sm:w-[380px] max-h-[75vh] glass-card-float flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--glass-border-subtle)]">
               <div className="flex items-center gap-2">
                 <MavenIcon size={16} className="text-foreground" />
                 <p className="text-sm font-semibold text-foreground tracking-tight leading-none">maven</p>
@@ -223,7 +223,7 @@ export default function MavenAssistantFAB() {
                 e.preventDefault();
                 if (input.trim()) sendMessage(input.trim());
               }}
-              className="flex items-center gap-2 px-3 py-2.5 border-t border-border"
+              className="flex items-center gap-2 px-3 py-2.5 border-t border-[var(--glass-border-subtle)]"
             >
               <input
                 value={input}

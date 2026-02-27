@@ -129,7 +129,7 @@ const DesktopSidebar = () => {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 border-r border-border/30 bg-background/80 backdrop-blur-2xl lg:flex lg:flex-col">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 glass-sidebar lg:flex lg:flex-col">
       <div className="flex h-14 items-center px-5">
         <span className="text-lg font-semibold tracking-tight">monee</span>
         <span className="ml-1.5 text-[10px] text-muted-foreground">beta</span>
@@ -176,7 +176,7 @@ const DesktopSidebar = () => {
         })}
       </nav>
 
-      <div className="border-t border-border/30 px-3 py-3 space-y-2">
+      <div className="border-t border-[var(--glass-border-subtle)] px-3 py-3 space-y-2">
         <NavLink to="/profile" className={linkClass("/profile")}>
           <User size={16} />
           <span>{profile?.display_name || "Profile"}</span>
