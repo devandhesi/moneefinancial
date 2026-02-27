@@ -5,9 +5,10 @@ import {
   ArrowLeft, Send, Hash, TrendingUp, Users, Pin, Info,
   MoreHorizontal, Smile, Reply, Flag, Loader2, Bot,
   ChevronRight, X, Plus, BarChart3, Image, ListChecks,
-  LinkIcon, Bookmark,
+  LinkIcon, Bookmark, UserPlus, Copy, Check, Search,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -42,12 +43,32 @@ const CommunityRoom = () => {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
-  const [roomInfo] = useState({
-    name: slug?.startsWith("#") ? slug : `$${slug?.toUpperCase()}`,
-    type: slug && /^[A-Za-z]{1,5}$/.test(slug) ? "stock" : "hashtag",
-    members: Math.floor(Math.random() * 5000) + 500,
-    description: `Discussion room for ${slug}`,
-  });
+  const [showAddUsers, setShowAddUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<{ user_id: string; username: string; display_name: string | null; avatar_url: string | null }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addedUsers, setAddedUsers] = useState<Set<string>>(new Set());
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [roomData, setRoomData] = useState<{
+    id: string;
+    name: string;
+    type: string;
+    slug: string;
+    join_code: string | null;
+    member_count: number;
+    description: string | null;
+    created_by: string | null;
+  } | null>(null);
+
+  const roomInfo = {
+    name: roomData?.name || (slug?.startsWith("#") ? slug : `$${slug?.toUpperCase()}`),
+    type: roomData?.type || (slug && /^[A-Za-z]{1,5}$/.test(slug) ? "stock" : "hashtag"),
+    members: roomData?.member_count || 0,
+    description: roomData?.description || `Discussion room for ${slug}`,
+  };
+
+  const inviteLink = roomData?.join_code ? `${window.location.origin}/join/${roomData.join_code}` : null;
+  const isOwner = user && roomData?.created_by === user.id;
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -60,9 +81,11 @@ const CommunityRoom = () => {
       // Try to find room by slug
       const { data: room } = await supabase
         .from("rooms")
-        .select("id")
+        .select("id, name, type, slug, join_code, member_count, description, created_by")
         .eq("slug", slug)
         .single();
+
+      if (room) setRoomData(room as any);
 
       if (room) {
         const { data } = await supabase
@@ -192,6 +215,47 @@ const CommunityRoom = () => {
     toast.success(`Reacted ${emoji}`);
   };
 
+  // Search users to add
+  const searchUsers = useCallback(async (query: string) => {
+    if (query.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    const { data } = await supabase
+      .from("profiles")
+      .select("user_id, username, display_name, avatar_url")
+      .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+      .limit(10);
+    setSearchResults((data || []) as any);
+    setSearching(false);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => searchUsers(userSearch), 300);
+    return () => clearTimeout(t);
+  }, [userSearch, searchUsers]);
+
+  const addUserToRoom = async (userId: string) => {
+    if (!roomData) return;
+    const { error } = await supabase.from("room_members").insert({
+      room_id: roomData.id,
+      user_id: userId,
+      role: "member",
+    });
+    if (error) {
+      if (error.code === "23505") toast.info("User is already a member");
+      else toast.error("Failed to add user");
+      return;
+    }
+    setAddedUsers((prev) => new Set(prev).add(userId));
+    toast.success("User added!");
+  };
+
+  const copyInviteLink = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   const formatTime = (ts: string) => {
     const d = new Date(ts);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -252,6 +316,9 @@ const CommunityRoom = () => {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => setShowAddUsers(true)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground" title="Add Users">
+              <UserPlus size={16} />
+            </button>
             <button onClick={() => setShowInfo(!showInfo)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground">
               <Info size={16} />
             </button>
@@ -466,6 +533,90 @@ const CommunityRoom = () => {
           )}
         </AnimatePresence>
       )}
+
+      {/* Add Users Dialog */}
+      <Dialog open={showAddUsers} onOpenChange={setShowAddUsers}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Add Users to {roomInfo.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Invite Link */}
+            {inviteLink && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Invite Link</p>
+                <div className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2.5">
+                  <LinkIcon size={14} className="text-muted-foreground shrink-0" />
+                  <p className="flex-1 text-xs text-muted-foreground truncate font-mono">{inviteLink}</p>
+                  <button
+                    onClick={copyInviteLink}
+                    className="rounded-lg px-2.5 py-1 text-xs font-medium bg-foreground text-primary-foreground hover:opacity-90 flex items-center gap-1"
+                  >
+                    {copiedLink ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                  </button>
+                </div>
+                {roomData?.join_code && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Join code: <span className="font-mono font-bold tracking-wider">{roomData.join_code}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Search Users */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Search by username</p>
+              <div className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2.5">
+                <Search size={14} className="text-muted-foreground shrink-0" />
+                <input
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search users…"
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                />
+                {searching && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {searchResults.length === 0 && userSearch.length >= 2 && !searching && (
+                <p className="text-xs text-muted-foreground text-center py-4">No users found</p>
+              )}
+              {searchResults.map((u) => {
+                const alreadyAdded = addedUsers.has(u.user_id);
+                const isCurrentUser = u.user_id === user?.id;
+                return (
+                  <div
+                    key={u.user_id}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-secondary/30 transition-colors"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-[10px] font-bold text-muted-foreground">
+                      {(u.display_name?.[0] || u.username[0]).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{u.display_name || u.username}</p>
+                      <p className="text-[11px] text-muted-foreground">@{u.username}</p>
+                    </div>
+                    {isCurrentUser ? (
+                      <span className="text-[10px] text-muted-foreground">You</span>
+                    ) : alreadyAdded ? (
+                      <span className="flex items-center gap-1 text-[10px] text-gain"><Check size={12} /> Added</span>
+                    ) : (
+                      <button
+                        onClick={() => addUserToRoom(u.user_id)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium bg-foreground text-primary-foreground hover:opacity-90 transition-opacity"
+                      >
+                        Add
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
