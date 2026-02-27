@@ -446,9 +446,27 @@ const DirectMessages = () => {
           <div className="glass-card flex items-center gap-2 px-3 py-2.5">
             <ChatAttachmentMenu
               disabled={sending}
-              onSendContent={(content) => {
+              onSendContent={async (content) => {
                 if (!user || !activePartner) return;
-                supabase.from("direct_messages").insert({ sender_id: user.id, receiver_id: activePartner.user_id, content });
+                // Optimistic add
+                const tempId = crypto.randomUUID();
+                setChatMessages(prev => [...prev, {
+                  id: tempId,
+                  sender_id: user.id,
+                  receiver_id: activePartner.user_id,
+                  content,
+                  is_read: false,
+                  is_edited: false,
+                  is_deleted: false,
+                  edited_at: null,
+                  created_at: new Date().toISOString(),
+                  reply_to: null,
+                }]);
+                const { error } = await supabase.from("direct_messages").insert({ sender_id: user.id, receiver_id: activePartner.user_id, content });
+                if (error) {
+                  toast.error("Failed to send attachment");
+                  setChatMessages(prev => prev.filter(m => m.id !== tempId));
+                }
               }}
             />
             <input
