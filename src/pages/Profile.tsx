@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut } from "lucide-react";
+import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -85,11 +85,122 @@ const RiskBar = ({ title, items }: { title: string; items: { label: string; pct:
   </div>
 );
 
+const AuthForm = () => {
+  const { signUp, signIn } = useAuth();
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
+    if (mode === "signup" && !username.trim()) return;
+    setLoading(true);
+    const result = mode === "signup"
+      ? await signUp(email, password, username)
+      : await signIn(email, password);
+    if (result.error) {
+      toast.error(result.error);
+    } else if (mode === "signup") {
+      toast.success("Check your email to confirm your account");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="px-5 pt-14 pb-6 lg:pt-8">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in to access your profile</p>
+      </motion.div>
+
+      <motion.div className="mt-8 mx-auto max-w-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <div className="glass-card p-6">
+          <div className="mb-6 flex items-center justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary">
+              <User size={28} className="text-muted-foreground" />
+            </div>
+          </div>
+          <h2 className="text-center text-lg font-semibold mb-1">
+            {mode === "login" ? "Welcome back" : "Create your account"}
+          </h2>
+          <p className="text-center text-xs text-muted-foreground mb-5">
+            {mode === "login" ? "Sign in to continue" : "Join monee today"}
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {mode === "signup" && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
+                  maxLength={30}
+                  required
+                />
+              </motion.div>
+            )}
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
+              required
+            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 pr-10 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
+                minLength={6}
+                required
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground py-3 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : (
+                <>
+                  {mode === "login" ? "Sign In" : "Create Account"}
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-xs text-muted-foreground">
+            {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button onClick={() => setMode(mode === "login" ? "signup" : "login")} className="font-medium text-foreground underline-offset-2 hover:underline">
+              {mode === "login" ? "Sign up" : "Sign in"}
+            </button>
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const Profile = () => {
   const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [riskExpanded, setRiskExpanded] = useState(false);
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
+
+  if (loading) return null;
+  if (!user) return <AuthForm />;
 
   const displayName = profile?.display_name || profile?.username || "User";
 
