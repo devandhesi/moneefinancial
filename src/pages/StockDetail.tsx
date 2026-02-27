@@ -397,38 +397,22 @@ const StockDetail = () => {
         {isChartLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
       </motion.div>
 
-      {/* Time range tabs */}
-      <div className="mt-3 flex items-center gap-1">
-        {timeRanges.map((r) => (
-          <button key={r} onClick={() => handleRangeChange(r)} className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${activeRange === r ? "bg-foreground text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{r}</button>
-        ))}
+      {/* Time range + Chart mode */}
+      <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center gap-0.5 rounded-xl bg-secondary/60 p-0.5">
+          {timeRanges.map((r) => (
+            <button key={r} onClick={() => handleRangeChange(r)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all ${activeRange === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{r}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-0.5 rounded-xl bg-secondary/60 p-0.5">
+          {chartModes.map(m => (
+            <button key={m} onClick={() => setChartMode(m)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all ${chartMode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{m}</button>
+          ))}
+        </div>
       </div>
 
       {/* Chart */}
-      <motion.div className="glass-card mt-3 p-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} ref={chartContainerRef} onWheel={handleWheel}>
-        {/* Zoom + Measure toolbar */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1">
-            {chartModes.map(m => (
-              <button key={m} onClick={() => setChartMode(m)} className={`rounded-md px-2 py-1 text-[10px] font-medium ${chartMode === m ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{m}</button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={zoomIn} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Zoom in"><ZoomIn size={13} /></button>
-            <button onClick={zoomOut} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Zoom out"><ZoomOut size={13} /></button>
-            {isZoomed && <button onClick={resetZoom} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Reset"><RotateCcw size={13} /></button>}
-            {measureResult && (
-              <div className="flex items-center gap-1 ml-2 rounded-md bg-secondary px-2 py-0.5">
-                <Ruler size={10} className="text-muted-foreground" />
-                <span className={`text-[10px] font-medium ${measureResult.toPrice >= measureResult.fromPrice ? "text-gain" : "text-loss"}`}>
-                  {measureResult.toPrice >= measureResult.fromPrice ? "+" : ""}{((measureResult.toPrice - measureResult.fromPrice) / measureResult.fromPrice * 100).toFixed(2)}%
-                </span>
-                <button onClick={clearMeasure} className="ml-1 text-muted-foreground hover:text-foreground"><span className="text-[10px]">×</span></button>
-              </div>
-            )}
-          </div>
-        </div>
-
+      <motion.div className="glass-card mt-2 p-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} ref={chartContainerRef} onWheel={handleWheel}>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={visibleData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} onMouseDown={handleChartMouseDown} onMouseMove={handleChartMouseMove} onMouseUp={handleChartMouseUp}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
@@ -448,11 +432,27 @@ const StockDetail = () => {
         </ResponsiveContainer>
         {activeIndicators.has("Volume") && <YAxis yAxisId="volume" hide />}
 
-        {/* Indicators */}
-        <div className="mt-2 flex flex-wrap gap-1">
-          {(allIndicators as readonly string[]).map((ind) => (
-            <button key={ind} onClick={() => toggleIndicator(ind as AnyIndicator)} className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-all ${activeIndicators.has(ind as AnyIndicator) ? "bg-foreground text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{ind}</button>
-          ))}
+        {/* Bottom bar: indicators + zoom tools */}
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            {(allIndicators as readonly string[]).map((ind) => (
+              <button key={ind} onClick={() => toggleIndicator(ind as AnyIndicator)} className={`rounded-lg px-2 py-1 text-[10px] font-medium transition-all ${activeIndicators.has(ind as AnyIndicator) ? "bg-foreground text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{ind}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5">
+            {measureResult && (
+              <div className="flex items-center gap-1 mr-1 rounded-lg bg-secondary px-2 py-1">
+                <Ruler size={10} className="text-muted-foreground" />
+                <span className={`text-[10px] font-medium ${measureResult.toPrice >= measureResult.fromPrice ? "text-gain" : "text-loss"}`}>
+                  {measureResult.toPrice >= measureResult.fromPrice ? "+" : ""}{((measureResult.toPrice - measureResult.fromPrice) / measureResult.fromPrice * 100).toFixed(2)}%
+                </span>
+                <button onClick={clearMeasure} className="ml-0.5 text-muted-foreground hover:text-foreground text-[10px]">×</button>
+              </div>
+            )}
+            <button onClick={zoomIn} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Zoom in"><ZoomIn size={13} /></button>
+            <button onClick={zoomOut} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Zoom out"><ZoomOut size={13} /></button>
+            {isZoomed && <button onClick={resetZoom} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary" title="Reset"><RotateCcw size={13} /></button>}
+          </div>
         </div>
       </motion.div>
 
