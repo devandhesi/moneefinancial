@@ -271,14 +271,38 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
 
-      // Get positions and accounts
-      const [{ data: positions }, { data: accounts }] = await Promise.all([
-        admin.from("broker_positions").select("*").eq("user_id", user.id),
-        admin.from("broker_accounts").select("*").eq("user_id", user.id),
+      // Get sim account
+      const { data: simAccount } = await admin
+        .from("sim_accounts")
+        .select("id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .single();
+
+      if (!simAccount) {
+        const result = generateAllocation(0, 0, []);
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get sim positions and cash
+      const [{ data: simPositions }, { data: simCash }] = await Promise.all([
+        admin.from("sim_positions").select("*").eq("sim_account_id", simAccount.id).gt("quantity", 0),
+        admin.from("sim_cash_balances").select("*").eq("sim_account_id", simAccount.id).eq("currency", "USD").limit(1).single(),
       ]);
 
-      const totalCash = (accounts || []).reduce((sum: number, a: any) => sum + (a.cash || 0), 0);
-      const totalInvested = (positions || []).reduce((sum: number, p: any) => {
+      // Map sim_positions to format expected by generateAllocation
+      const positions = (simPositions || []).map((p: any) => ({
+        symbol: p.ticker,
+        quantity: p.quantity,
+        average_price: p.avg_cost,
+        market_price: p.avg_cost, // Will be enriched with live data client-side
+        market_value: p.market_value || p.quantity * (p.avg_cost || 0),
+      }));
+
+      const totalCash = simCash?.available || 0;
+      const totalInvested = positions.reduce((sum: number, p: any) => {
         return sum + (p.market_value || p.quantity * (p.market_price || p.average_price || 0));
       }, 0);
 

@@ -9,8 +9,7 @@ import CompactHeatmapWidget from "@/components/widgets/CompactHeatmapWidget";
 import { usePortfolioChart } from "@/hooks/use-dashboard-data";
 import { useDailyDigest } from "@/hooks/use-daily-digest";
 import { useAuth } from "@/hooks/use-auth";
-import { useSimAccount, useSimCash, useSimPositions } from "@/hooks/use-sim-portfolio";
-import { useBatchQuotes } from "@/hooks/use-batch-quotes";
+import { usePortfolioValue } from "@/hooks/use-portfolio-value";
 
 /* ── Market status hook ───────────────────────────────────────── */
 function useMarketStatus(userTimezone: string) {
@@ -63,31 +62,10 @@ const Dashboard = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
-  const { data: simAccount } = useSimAccount();
-  const { data: simCash, isLoading: cashLoading } = useSimCash(simAccount?.id);
-  const { data: simPositions, isLoading: positionsLoading } = useSimPositions(simAccount?.id);
-
-  // Fetch live prices for positions
-  const positionSymbols = (simPositions || []).map(p => p.ticker);
-  const { data: positionQuotes } = useBatchQuotes(positionSymbols, { enabled: positionSymbols.length > 0 });
-  const quoteMap = new Map((positionQuotes || []).map(q => [q.symbol, q]));
-
-  // Calculate live position values
-  const positionsWithPrices = (simPositions || []).map(pos => {
-    const quote = quoteMap.get(pos.ticker);
-    const livePrice = quote?.price ?? pos.avg_cost ?? 0;
-    const value = livePrice * pos.quantity;
-    const costBasis = (pos.avg_cost ?? 0) * pos.quantity;
-    return { ...pos, livePrice, value, dayChange: quote?.change ?? 0, dayChangePct: quote?.changePercent ?? 0 };
-  });
-
-  const holdingsLoading = cashLoading || positionsLoading;
-  const investmentBalance = positionsWithPrices.reduce((sum, p) => sum + p.value, 0);
-  const cashBalance = simCash?.available ?? 0;
-  const totalValue = cashBalance + investmentBalance;
-  const totalDayChange = positionsWithPrices.reduce((sum, p) => sum + (p.dayChange * p.quantity), 0);
-  const totalDayChangePct = totalValue > 0 ? ((totalDayChange / (totalValue - totalDayChange)) * 100) : 0;
-  const isPositive = totalDayChange >= 0;
+  const {
+    cashBalance, investmentBalance, totalValue, totalDayChange,
+    totalDayChangePct, isPositive, isLoading: holdingsLoading,
+  } = usePortfolioValue();
 
   const { data: chartData, isLoading: chartLoading } = usePortfolioChart(activeTimeframe);
   const { data: digest, isLoading: digestLoading } = useDailyDigest();
