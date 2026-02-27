@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,18 +7,13 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
   RefreshCw,
-  Newspaper,
   FileText,
   ExternalLink,
-  TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
   Clock,
   User,
-  Building2,
   AlertTriangle,
-  Rss,
   Search,
   X,
 } from "lucide-react";
@@ -37,39 +31,11 @@ interface InsiderReport {
   url: string;
 }
 
-
-interface NewsItem {
-  title: string;
-  summary: string;
-  author: string;
-  source: string;
-  url: string;
-  publishedAt: string;
-  category: string;
-}
-
-interface MarketNewsItem {
-  id: string;
-  ticker: string | null;
-  headline: string;
-  source: string | null;
-  url: string | null;
-  summary: string | null;
-  published_at: string | null;
-  created_at: string;
-}
-
-const AUTO_REFRESH_MS = 60_000; // 1 min
+const AUTO_REFRESH_MS = 60_000;
 
 const Reports = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("market-news");
-  const [news, setNews] = useState<NewsItem[]>([]);
   const [sedi, setSedi] = useState<InsiderReport[]>([]);
-  
-  const [marketNews, setMarketNews] = useState<MarketNewsItem[]>([]);
-  const [marketNewsTicker, setMarketNewsTicker] = useState("");
-  const [marketNewsLoading, setMarketNewsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,9 +50,7 @@ const Reports = () => {
         body: { section: "all" },
       });
       if (error) throw error;
-      setNews(data?.news || []);
       setSedi(data?.insiderReports || []);
-      
       setLastUpdated(new Date());
     } catch (e) {
       console.error("Reports fetch error:", e);
@@ -95,30 +59,6 @@ const Reports = () => {
       setRefreshing(false);
     }
   }, []);
-
-  const fetchMarketNews = useCallback(async () => {
-    setMarketNewsLoading(true);
-    try {
-      let query = supabase
-        .from("market_news")
-        .select("*")
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(50);
-      if (marketNewsTicker.trim()) {
-        query = query.ilike("ticker", `%${marketNewsTicker.trim()}%`);
-      }
-      const { data } = await query;
-      setMarketNews((data as MarketNewsItem[]) || []);
-    } catch (e) {
-      console.error("Market news fetch error:", e);
-    } finally {
-      setMarketNewsLoading(false);
-    }
-  }, [marketNewsTicker]);
-
-  useEffect(() => {
-    if (tab === "market-news") fetchMarketNews();
-  }, [tab, fetchMarketNews]);
 
   useEffect(() => {
     fetchData();
@@ -163,15 +103,20 @@ const Reports = () => {
     return "bg-muted text-muted-foreground";
   };
 
+  const filteredSedi = sedi.filter((item) => {
+    if (!sediSearch.trim()) return true;
+    const q = sediSearch.toLowerCase();
+    return item.symbol?.toLowerCase().includes(q) || item.insider?.toLowerCase().includes(q) || item.company?.toLowerCase().includes(q);
+  });
 
   return (
     <div className="min-h-screen p-4 md:p-6 max-w-6xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+          <h1 className="text-2xl font-bold tracking-tight">SEDI Reports</h1>
           <p className="text-sm text-muted-foreground">
-            Live market intelligence · SEDI filings · Insider activity
+            Insider filings · Executive trading activity
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -194,294 +139,127 @@ const Reports = () => {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="market-news" className="gap-1.5">
-            <Rss size={14} />
-            Market News
-          </TabsTrigger>
-          <TabsTrigger value="news" className="gap-1.5">
-            <Newspaper size={14} />
-            AI News
-          </TabsTrigger>
-          <TabsTrigger value="sedi" className="gap-1.5">
-            <FileText size={14} />
-            SEDI / Insider
-          </TabsTrigger>
-        </TabsList>
+      {/* Search */}
+      <div className="glass-card flex items-center gap-2 px-3 py-2.5">
+        <Search size={14} className="text-muted-foreground" />
+        <input
+          type="text"
+          value={sediSearch}
+          onChange={(e) => setSediSearch(e.target.value)}
+          placeholder="Search by ticker, insider name, or company..."
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+        />
+        {sediSearch && (
+          <button onClick={() => setSediSearch("")} className="text-muted-foreground hover:text-foreground">
+            <X size={14} />
+          </button>
+        )}
+      </div>
 
-        {/* MARKET NEWS TAB */}
-        <TabsContent value="market-news" className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="glass-card flex flex-1 items-center gap-2 px-3 py-2">
-              <Search size={14} className="text-muted-foreground" />
-              <input
-                type="text"
-                value={marketNewsTicker}
-                onChange={(e) => setMarketNewsTicker(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchMarketNews()}
-                placeholder="Filter by ticker (e.g. AAPL)..."
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
-              />
-              {marketNewsTicker && (
-                <button onClick={() => { setMarketNewsTicker(""); }} className="text-muted-foreground hover:text-foreground">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-            <Button variant="outline" size="sm" onClick={fetchMarketNews} disabled={marketNewsLoading} className="gap-1.5">
-              <RefreshCw size={14} className={marketNewsLoading ? "animate-spin" : ""} />
-              Refresh
-            </Button>
+      {/* Disclaimer */}
+      <Card className="p-3 bg-amber-500/5 border-amber-500/20">
+        <div className="flex items-center gap-2 text-xs text-amber-400">
+          <AlertTriangle size={14} />
+          <span>
+            SEDI & SEC insider filings sourced from public records. Verify with{" "}
+            <a href="https://www.sedi.ca" target="_blank" rel="noopener noreferrer" className="underline">
+              sedi.ca
+            </a>{" "}
+            or{" "}
+            <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=4" target="_blank" rel="noopener noreferrer" className="underline">
+              SEC EDGAR
+            </a>
+            .
+          </span>
+        </div>
+      </Card>
+
+      {/* Content */}
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i} className="p-4 space-y-2">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-2/3" />
+            </Card>
+          ))}
+        </div>
+      ) : filteredSedi.length === 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">
+          <FileText size={32} className="mx-auto mb-2 opacity-40" />
+          <p>No insider reports available{sediSearch ? ` matching "${sediSearch}"` : ""}.</p>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {/* Summary stats */}
+          <div className="grid grid-cols-3 gap-2">
+            <Card className="p-3 text-center">
+              <p className="text-lg font-bold text-emerald-400">
+                {filteredSedi.filter(s => s.transactionType.toLowerCase().includes("purchase") || s.transactionType.toLowerCase().includes("buy")).length}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Buys</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-lg font-bold text-red-400">
+                {filteredSedi.filter(s => s.transactionType.toLowerCase().includes("sale") || s.transactionType.toLowerCase().includes("sell")).length}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sales</p>
+            </Card>
+            <Card className="p-3 text-center">
+              <p className="text-lg font-bold text-foreground">
+                {formatCurrency(filteredSedi.reduce((sum, s) => sum + (s.value || 0), 0))}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Value</p>
+            </Card>
           </div>
 
-          {marketNewsLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i} className="p-4 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-1/3" />
-              </Card>
-            ))
-          ) : marketNews.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">
-              <Rss size={32} className="mx-auto mb-2 opacity-40" />
-              <p>No market news available{marketNewsTicker ? ` for "${marketNewsTicker}"` : ""}.</p>
-            </Card>
-          ) : (
-            marketNews.map((item) => (
-              <Card key={item.id} className="p-4 hover:bg-secondary/30 transition-colors">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {item.ticker && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-bold cursor-pointer hover:bg-secondary"
-                        onClick={() => navigate(`/invest/${item.ticker}`)}
-                      >
-                        {item.ticker}
-                      </Badge>
-                    )}
-                    <span className="text-[11px] text-muted-foreground">
-                      {item.published_at ? formatTime(item.published_at) : formatTime(item.created_at)}
-                    </span>
-                  </div>
-                  {item.url ? (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-semibold hover:underline flex items-center gap-1.5"
-                    >
-                      <span className="line-clamp-2">{item.headline}</span>
-                      <ExternalLink size={12} className="shrink-0 text-muted-foreground/40" />
-                    </a>
-                  ) : (
-                    <p className="text-sm font-semibold line-clamp-2">{item.headline}</p>
-                  )}
-                  {item.summary && (
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                      {item.summary}
-                    </p>
-                  )}
-                  {item.source && (
-                    <p className="text-[11px] text-muted-foreground">{item.source}</p>
-                  )}
-                </div>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        {/* NEWS TAB */}
-        <TabsContent value="news" className="space-y-3">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="p-4 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-1/3" />
-              </Card>
-            ))
-          ) : news.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">
-              <Newspaper size={32} className="mx-auto mb-2 opacity-40" />
-              <p>No news articles available right now.</p>
-            </Card>
-          ) : (
-            news.map((item, i) => (
-              <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px]">
-                      {item.category}
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatTime(item.publishedAt)}
-                    </span>
-                  </div>
-                  {item.url?.startsWith("http") ? (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-semibold hover:underline flex items-center gap-1.5"
-                    >
-                      <span className="line-clamp-2">{item.title}</span>
-                      <ExternalLink size={12} className="shrink-0 text-muted-foreground/40" />
-                    </a>
-                  ) : (
-                    <p className="text-sm font-semibold line-clamp-2">{item.title}</p>
-                  )}
-                  {item.summary && (
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                      {item.summary}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <User size={11} />
-                    <span>{item.author}</span>
-                    {item.author !== item.source && (
-                      <>
-                        <span className="opacity-40">·</span>
-                        <span>{item.source}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        {/* SEDI TAB */}
-        <TabsContent value="sedi" className="space-y-3">
-          {/* Search */}
-          <div className="glass-card flex items-center gap-2 px-3 py-2.5">
-            <Search size={14} className="text-muted-foreground" />
-            <input
-              type="text"
-              value={sediSearch}
-              onChange={(e) => setSediSearch(e.target.value)}
-              placeholder="Search by ticker or insider name..."
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
-            />
-            {sediSearch && (
-              <button onClick={() => setSediSearch("")} className="text-muted-foreground hover:text-foreground">
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          <Card className="p-3 bg-amber-500/5 border-amber-500/20">
-            <div className="flex items-center gap-2 text-xs text-amber-400">
-              <AlertTriangle size={14} />
-              <span>
-                SEDI & SEC insider filings sourced from public records. Verify with{" "}
-                <a href="https://www.sedi.ca" target="_blank" rel="noopener noreferrer" className="underline">
-                  sedi.ca
-                </a>{" "}
-                or{" "}
-                <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=4" target="_blank" rel="noopener noreferrer" className="underline">
-                  SEC EDGAR
-                </a>
-                .
-              </span>
-            </div>
-          </Card>
-
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i} className="p-4 space-y-2">
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-2/3" />
-              </Card>
-            ))
-          ) : sedi.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">
-              <FileText size={32} className="mx-auto mb-2 opacity-40" />
-              <p>No insider reports available.</p>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {/* Summary stats */}
-              <div className="grid grid-cols-3 gap-2">
-                <Card className="p-3 text-center">
-                  <p className="text-lg font-bold text-emerald-400">
-                    {sedi.filter(s => s.transactionType.toLowerCase().includes("purchase") || s.transactionType.toLowerCase().includes("buy")).length}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Buys</p>
-                </Card>
-                <Card className="p-3 text-center">
-                  <p className="text-lg font-bold text-red-400">
-                    {sedi.filter(s => s.transactionType.toLowerCase().includes("sale") || s.transactionType.toLowerCase().includes("sell")).length}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sales</p>
-                </Card>
-                <Card className="p-3 text-center">
-                  <p className="text-lg font-bold text-foreground">
-                    {formatCurrency(sedi.reduce((sum, s) => sum + (s.value || 0), 0))}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Value</p>
-                </Card>
-              </div>
-
-              {sedi
-                .filter((item) => {
-                  if (!sediSearch.trim()) return true;
-                  const q = sediSearch.toLowerCase();
-                  return item.symbol?.toLowerCase().includes(q) || item.insider?.toLowerCase().includes(q) || item.company?.toLowerCase().includes(q);
-                })
-                .map((item, i) => {
-                const isBuy = item.transactionType.toLowerCase().includes("purchase") || item.transactionType.toLowerCase().includes("buy");
-                return (
-                  <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/stock/${item.symbol}`)}>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold">{item.symbol}</span>
-                          <span className="text-xs text-muted-foreground">{item.company}</span>
-                          <ExternalLink size={11} className="text-muted-foreground/40" />
-                        </div>
-                        <Badge className={`text-[10px] ${txBadgeColor(item.transactionType)}`}>
-                          {isBuy ? <ArrowUpRight size={10} className="mr-0.5" /> : <ArrowDownRight size={10} className="mr-0.5" />}
-                          {item.transactionType}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <User size={12} className="text-muted-foreground" />
-                        <span className="font-medium">{item.insider}</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3 text-xs">
-                        <div>
-                          <p className="text-muted-foreground">Shares</p>
-                          <p className="font-semibold">{formatNumber(item.shares)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Price</p>
-                          <p className="font-semibold">${item.price?.toFixed(2)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Value</p>
-                          <p className={`font-semibold ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
-                            {formatCurrency(item.value)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>{item.date}</span>
-                        <span>{item.source}</span>
-                      </div>
+          {filteredSedi.map((item, i) => {
+            const isBuy = item.transactionType.toLowerCase().includes("purchase") || item.transactionType.toLowerCase().includes("buy");
+            return (
+              <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/invest/${item.symbol}`)}>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">{item.symbol}</span>
+                      <span className="text-xs text-muted-foreground">{item.company}</span>
+                      <ExternalLink size={11} className="text-muted-foreground/40" />
                     </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-      </Tabs>
+                    <Badge className={`text-[10px] ${txBadgeColor(item.transactionType)}`}>
+                      {isBuy ? <ArrowUpRight size={10} className="mr-0.5" /> : <ArrowDownRight size={10} className="mr-0.5" />}
+                      {item.transactionType}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <User size={12} className="text-muted-foreground" />
+                    <span className="font-medium">{item.insider}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Shares</p>
+                      <p className="font-semibold">{formatNumber(item.shares)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Price</p>
+                      <p className="font-semibold">${item.price?.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Value</p>
+                      <p className={`font-semibold ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
+                        {formatCurrency(item.value)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>{item.date}</span>
+                    <span>{item.source}</span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
