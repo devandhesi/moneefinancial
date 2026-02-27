@@ -183,15 +183,6 @@ const DesktopSidebar = () => {
           <Settings size={16} />
           <span>Settings</span>
         </NavLink>
-        {user && (
-          <button
-            onClick={() => signOut()}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
-          >
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
-        )}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2 text-muted-foreground">
             {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
