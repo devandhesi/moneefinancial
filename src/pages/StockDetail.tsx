@@ -509,12 +509,12 @@ const StockDetail = () => {
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <label className="text-[10px] text-muted-foreground">Shares</label>
-            <input type="number" min={1} value={shares} onChange={(e) => setShares(Math.max(1, +e.target.value))} className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm font-medium outline-none" />
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={shares} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setShares(v === '' ? '' as any : Number(v)); }} onBlur={() => setShares((prev: any) => Math.max(1, Number(prev) || 1))} className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm font-medium outline-none" />
           </div>
           <div>
             <label className="text-[10px] text-muted-foreground">{orderType === "limit" ? "Limit Price" : "Market Price"}</label>
             {orderType === "limit" ? (
-              <input type="number" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm font-medium outline-none" />
+              <input type="text" inputMode="decimal" pattern="[0-9.]*" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value.replace(/[^0-9.]/g, ''))} className="mt-1 w-full rounded-lg bg-secondary px-3 py-2 text-sm font-medium outline-none" />
             ) : (
               <p className="mt-1 rounded-lg bg-secondary px-3 py-2 text-sm font-medium">${formatPrice(currentPrice)}</p>
             )}
