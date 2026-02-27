@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Send, Hash, TrendingUp, Users, Pin, Info,
   MoreHorizontal, Smile, Reply, Flag, Loader2, Bot,
-  ChevronRight, X,
+  ChevronRight, X, Plus, BarChart3, Image, ListChecks,
+  LinkIcon, Bookmark,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -32,12 +34,14 @@ const CommunityRoom = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showAttach, setShowAttach] = useState(false);
   const [roomInfo] = useState({
     name: slug?.startsWith("#") ? slug : `$${slug?.toUpperCase()}`,
     type: slug && /^[A-Za-z]{1,5}$/.test(slug) ? "stock" : "hashtag",
@@ -174,6 +178,8 @@ const CommunityRoom = () => {
       setReplyTo(null);
     }
     setSending(false);
+    // Re-focus the input after sending
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const addReaction = async (messageId: string, emoji: string) => {
@@ -361,7 +367,38 @@ const CommunityRoom = () => {
         <div className="border-t border-border/30 px-4 py-3">
           {user ? (
             <div className="glass-card flex items-center gap-2 px-3 py-2.5">
+              <Popover open={showAttach} onOpenChange={setShowAttach}>
+                <PopoverTrigger asChild>
+                  <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                    <Plus size={16} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-52 p-1.5">
+                  <div className="flex flex-col gap-0.5">
+                    {[
+                      { icon: TrendingUp, label: "Share Stock", desc: "From watchlist", action: () => { toast.info("Stock picker coming soon"); setShowAttach(false); } },
+                      { icon: Image, label: "Photo", desc: "Upload image", action: () => { toast.info("Photo upload coming soon"); setShowAttach(false); } },
+                      { icon: ListChecks, label: "Poll", desc: "Create a poll", action: () => { toast.info("Polls coming soon"); setShowAttach(false); } },
+                      { icon: BarChart3, label: "Chart", desc: "Share a chart", action: () => { toast.info("Chart sharing coming soon"); setShowAttach(false); } },
+                      { icon: LinkIcon, label: "Link", desc: "Paste a URL", action: () => { toast.info("Link preview coming soon"); setShowAttach(false); } },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={item.action}
+                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-secondary transition-colors"
+                      >
+                        <item.icon size={14} className="text-muted-foreground" />
+                        <div>
+                          <p className="text-xs font-medium">{item.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <input
+                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
