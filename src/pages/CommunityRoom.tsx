@@ -516,7 +516,9 @@ const CommunityRoom = () => {
               </p>
             </div>
           ) : (
-            messages.map((msg) => (
+            messages.map((msg) => {
+              const isOwn = msg.user_id === user?.id && !msg.is_bot;
+              return (
               <motion.div
                 key={msg.id}
                 initial={{ opacity: 0, y: 8, scale: 0.97 }}
@@ -524,7 +526,7 @@ const CommunityRoom = () => {
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 className={`group flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-secondary/30 ${
                   msg.is_bot ? "bg-secondary/20" : ""
-                }`}
+                } ${isOwn ? "flex-row-reverse" : ""}`}
               >
                 {/* Avatar */}
                 <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold ${
@@ -537,8 +539,8 @@ const CommunityRoom = () => {
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                <div className={`flex-1 min-w-0 ${isOwn ? "text-right" : ""}`}>
+                  <div className={`flex items-center gap-2 ${isOwn ? "justify-end" : ""}`}>
                     <span className={`text-xs font-semibold ${msg.is_bot ? "text-accent-foreground" : ""}`}>
                       {msg.is_bot ? "🤖 Bot" : (msg.profile?.display_name || msg.profile?.username || "User")}
                     </span>
@@ -653,7 +655,8 @@ const CommunityRoom = () => {
                   )}
                 </div>
               </motion.div>
-            ))
+              );
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
