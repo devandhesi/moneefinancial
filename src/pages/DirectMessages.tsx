@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus, Pin } from "lucide-react";
+import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
+import RichMessageContent from "@/components/chat/RichMessageContent";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -272,7 +274,7 @@ const DirectMessages = () => {
                   ? "bg-foreground text-primary-foreground"
                   : "glass-card"
               }`}>
-                {msg.content}
+                <RichMessageContent content={msg.content} />
                 <span className={`block text-[9px] mt-0.5 ${
                   msg.sender_id === user.id ? "text-primary-foreground/50" : "text-muted-foreground"
                 }`}>
@@ -286,6 +288,13 @@ const DirectMessages = () => {
 
         {/* Input */}
         <div className="glass-card flex items-center gap-2 px-4 py-3">
+          <ChatAttachmentMenu
+            disabled={sending}
+            onSendContent={(content) => {
+              if (!user || !activePartner) return;
+              supabase.from("direct_messages").insert({ sender_id: user.id, receiver_id: activePartner.user_id, content });
+            }}
+          />
           <input
             type="text"
             value={chatInput}
