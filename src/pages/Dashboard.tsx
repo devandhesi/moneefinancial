@@ -89,7 +89,7 @@ const Dashboard = () => {
     return "Good evening";
   };
 
-  const displayName = profile?.display_name || profile?.username || "there";
+  const displayName = profile?.display_name?.split(" ")[0] || profile?.username || "there";
 
   return (
     <div className="px-5 pt-14 pb-24 lg:pb-8 lg:pt-8">
