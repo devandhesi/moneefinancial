@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import MavenIcon from "../MavenIcon";
 
 interface Props {
   insight?: string;
@@ -14,7 +15,7 @@ const AiInsightWidget = ({ insight, isLoading }: Props) => (
     transition={{ delay: 0.4 }}
   >
     <div className="flex items-center gap-2 text-sm font-medium">
-      <Sparkles size={14} className="text-muted-foreground" />
+      <MavenIcon size={14} className="text-muted-foreground" />
       <span>Maven Insight</span>
     </div>
     {isLoading ? (
