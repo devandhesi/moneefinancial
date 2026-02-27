@@ -39,6 +39,7 @@ import News from "./pages/News";
 import Markets from "./pages/Markets";
 import Calendar from "./pages/Calendar";
 import InsiderTracking from "./pages/InsiderTracking";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/invest" element={<Invest />} />
               <Route path="/invest/:symbol" element={<StockDetail />} />

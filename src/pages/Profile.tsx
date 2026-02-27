@@ -87,7 +87,7 @@ const RiskBar = ({ title, items }: { title: string; items: { label: string; pct:
 
 const AuthForm = () => {
   const { signUp, signIn } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -96,7 +96,25 @@ const AuthForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+    if (!email.trim()) return;
+
+    if (mode === "forgot") {
+      setLoading(true);
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Check your email for a password reset link");
+        setMode("login");
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (!password.trim()) return;
     if (mode === "signup" && !username.trim()) return;
     setLoading(true);
     const result = mode === "signup"
@@ -109,6 +127,9 @@ const AuthForm = () => {
     }
     setLoading(false);
   };
+
+  const title = mode === "login" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset password";
+  const subtitle = mode === "login" ? "Sign in to continue" : mode === "signup" ? "Join monee today" : "Enter your email to receive a reset link";
 
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8">
@@ -124,12 +145,8 @@ const AuthForm = () => {
               <User size={28} className="text-muted-foreground" />
             </div>
           </div>
-          <h2 className="text-center text-lg font-semibold mb-1">
-            {mode === "login" ? "Welcome back" : "Create your account"}
-          </h2>
-          <p className="text-center text-xs text-muted-foreground mb-5">
-            {mode === "login" ? "Sign in to continue" : "Join monee today"}
-          </p>
+          <h2 className="text-center text-lg font-semibold mb-1">{title}</h2>
+          <p className="text-center text-xs text-muted-foreground mb-5">{subtitle}</p>
 
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === "signup" && (
@@ -153,20 +170,29 @@ const AuthForm = () => {
               className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
               required
             />
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 pr-10 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
-                minLength={6}
-                required
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+            {mode !== "forgot" && (
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 pr-10 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
+                  minLength={6}
+                  required
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            )}
+            {mode === "login" && (
+              <div className="text-right">
+                <button type="button" onClick={() => setMode("forgot")} className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+                  Forgot password?
+                </button>
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -174,7 +200,7 @@ const AuthForm = () => {
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : (
                 <>
-                  {mode === "login" ? "Sign In" : "Create Account"}
+                  {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Link"}
                   <ArrowRight size={16} />
                 </>
               )}
@@ -182,10 +208,18 @@ const AuthForm = () => {
           </form>
 
           <p className="mt-5 text-center text-xs text-muted-foreground">
-            {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button onClick={() => setMode(mode === "login" ? "signup" : "login")} className="font-medium text-foreground underline-offset-2 hover:underline">
-              {mode === "login" ? "Sign up" : "Sign in"}
-            </button>
+            {mode === "forgot" ? (
+              <button onClick={() => setMode("login")} className="font-medium text-foreground underline-offset-2 hover:underline">
+                Back to sign in
+              </button>
+            ) : (
+              <>
+                {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+                <button onClick={() => setMode(mode === "login" ? "signup" : "login")} className="font-medium text-foreground underline-offset-2 hover:underline">
+                  {mode === "login" ? "Sign up" : "Sign in"}
+                </button>
+              </>
+            )}
           </p>
         </div>
       </motion.div>
