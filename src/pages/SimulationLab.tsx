@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { usePortfolioValue } from "@/hooks/use-portfolio-value";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FlaskConical, TrendingDown, TrendingUp, DollarSign, PieChart, Briefcase,
@@ -163,7 +164,8 @@ const SimulationLab = () => {
 
   // Crash state
   const [crashPercent, setCrashPercent] = useState(30);
-  const [portfolioValue] = useState(12438.5);
+  const { totalValue: livePortfolioValue } = usePortfolioValue();
+  const portfolioValue = livePortfolioValue > 0 ? livePortfolioValue : 12438.5;
 
   // Lump sum state
   const [lumpTotal, setLumpTotal] = useState(12000);
