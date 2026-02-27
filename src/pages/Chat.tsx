@@ -89,54 +89,69 @@ const TypingIndicator = () => (
 );
 
 /* ── Message bubble ────────────────────────────────────── */
-const AssistantMessage = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.35, ease: "easeOut" }}
-    className="flex items-start gap-3 max-w-[88%]"
-  >
-    <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary">
-      <MavenIcon size={13} />
-    </div>
-    <div className="min-w-0 flex-1">
-      <div className={`
-        prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-[1.75]
-        [&>p]:mb-3 [&>p:last-child]:mb-0
-        [&>ul]:mb-3 [&>ul]:mt-1 [&>ol]:mb-3 [&>ol]:mt-1
-        [&_li]:my-1 [&_li]:leading-relaxed
-        [&>h1]:text-base [&>h1]:font-bold [&>h1]:mt-5 [&>h1]:mb-2 [&>h1]:tracking-tight
-        [&>h2]:text-[14px] [&>h2]:font-semibold [&>h2]:mt-5 [&>h2]:mb-2 [&>h2]:tracking-tight
-        [&>h3]:text-[13.5px] [&>h3]:font-semibold [&>h3]:mt-4 [&>h3]:mb-1.5
-        [&>hr]:my-4 [&>hr]:border-border/30
-        [&>blockquote]:border-l-2 [&>blockquote]:border-primary/30 [&>blockquote]:pl-3 [&>blockquote]:my-3 [&>blockquote]:text-muted-foreground [&>blockquote]:italic [&>blockquote]:text-[13px]
-        [&_em]:text-muted-foreground
-        [&_strong]:text-foreground [&_strong]:font-semibold
-        [&_code]:text-xs [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded
-        ${isStreaming ? "streaming-cursor" : ""}
-      `}>
-        <ReactMarkdown
-          components={{
-            p: ({ children }) => <p>{typeof children === "string" ? renderTextWithTickers(children) : children}</p>,
-            li: ({ children }) => <li>{typeof children === "string" ? renderTextWithTickers(children) : children}</li>,
-            strong: ({ children }) => {
-              const text = String(children);
-              const tickerMatch = text.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
-              if (tickerMatch) return <TickerLink symbol={tickerMatch[1]} />;
-              return <strong>{children}</strong>;
-            },
-          }}
-        >{content}</ReactMarkdown>
+const AssistantMessage = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
+  const hasAnimated = useRef(false);
+  const shouldAnimate = !hasAnimated.current;
+  
+  useEffect(() => {
+    hasAnimated.current = true;
+  }, []);
+
+  return (
+    <motion.div
+      initial={shouldAnimate ? { opacity: 0, y: 12, scale: 0.98 } : false}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 300, damping: 28 }}
+      className="flex items-start gap-3 max-w-[88%]"
+    >
+      <motion.div
+        initial={shouldAnimate ? { scale: 0.5, opacity: 0 } : false}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.05 }}
+        className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary"
+      >
+        <MavenIcon size={13} />
+      </motion.div>
+      <div className="min-w-0 flex-1">
+        <div className={`
+          prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-[1.75]
+          [&>p]:mb-3 [&>p:last-child]:mb-0
+          [&>ul]:mb-3 [&>ul]:mt-1 [&>ol]:mb-3 [&>ol]:mt-1
+          [&_li]:my-1 [&_li]:leading-relaxed
+          [&>h1]:text-base [&>h1]:font-bold [&>h1]:mt-5 [&>h1]:mb-2 [&>h1]:tracking-tight
+          [&>h2]:text-[14px] [&>h2]:font-semibold [&>h2]:mt-5 [&>h2]:mb-2 [&>h2]:tracking-tight
+          [&>h3]:text-[13.5px] [&>h3]:font-semibold [&>h3]:mt-4 [&>h3]:mb-1.5
+          [&>hr]:my-4 [&>hr]:border-border/30
+          [&>blockquote]:border-l-2 [&>blockquote]:border-primary/30 [&>blockquote]:pl-3 [&>blockquote]:my-3 [&>blockquote]:text-muted-foreground [&>blockquote]:italic [&>blockquote]:text-[13px]
+          [&_em]:text-muted-foreground
+          [&_strong]:text-foreground [&_strong]:font-semibold
+          [&_code]:text-xs [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded
+          transition-all duration-150 ease-out
+          ${isStreaming ? "streaming-cursor" : ""}
+        `}>
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p>{typeof children === "string" ? renderTextWithTickers(children) : children}</p>,
+              li: ({ children }) => <li>{typeof children === "string" ? renderTextWithTickers(children) : children}</li>,
+              strong: ({ children }) => {
+                const text = String(children);
+                const tickerMatch = text.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
+                if (tickerMatch) return <TickerLink symbol={tickerMatch[1]} />;
+                return <strong>{children}</strong>;
+              },
+            }}
+          >{content}</ReactMarkdown>
+        </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 const UserMessage = ({ content }: { content: string }) => (
   <motion.div
-    initial={{ opacity: 0, y: 6 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.25 }}
+    initial={{ opacity: 0, y: 8, scale: 0.97 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    transition={{ type: "spring", stiffness: 400, damping: 28 }}
     className="flex justify-end"
   >
     <div className="max-w-[75%] rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-[13.5px] leading-relaxed text-primary-foreground">

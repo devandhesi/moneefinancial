@@ -336,17 +336,27 @@
 
 /* ── Streaming cursor for Maven chat ─────────────────── */
 .streaming-cursor > *:last-child::after {
-  content: "▊";
+  content: "▎";
   display: inline;
-  animation: blink-cursor 0.8s steps(2) infinite;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.85em;
+  animation: blink-cursor 1s ease-in-out infinite;
+  color: hsl(var(--muted-foreground) / 0.6);
+  font-size: 1em;
   margin-left: 1px;
+  vertical-align: baseline;
+}
+
+.streaming-cursor > * {
+  animation: content-fade-in 0.15s ease-out both;
 }
 
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes content-fade-in {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
 }
 
 /* ── Glass shimmer sweep ─────────────────── */
