@@ -324,11 +324,8 @@ const DirectMessages = () => {
             const repliedMsg = msg.reply_to ? chatMessages.find(m => m.id === msg.reply_to) : null;
 
             return (
-              <motion.div
+              <div
                 key={msg.id}
-                initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 className={`group flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-secondary/30 ${isOwn ? "flex-row-reverse" : ""}`}
               >
                 {/* Avatar */}
@@ -418,7 +415,7 @@ const DirectMessages = () => {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
           <div ref={messagesEndRef} />
