@@ -125,7 +125,7 @@ const Dashboard = () => {
           {!holdingsLoading && (
             <div className={`mt-1 flex items-center gap-1 text-sm ${isPositive ? "text-gain" : "text-loss"}`}>
               {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-              <span className="font-medium">${Math.abs(totalDayChange).toLocaleString("en-US", { minimumFractionDigits: 2 })} ({Math.abs(totalDayChangePct).toFixed(2)}%)</span>
+              <span className="font-medium">{balanceVisible ? `$${Math.abs(totalDayChange).toLocaleString("en-US", { minimumFractionDigits: 2 })} (${Math.abs(totalDayChangePct).toFixed(2)}%)` : `${Math.abs(totalDayChangePct).toFixed(2)}%`}</span>
               <span className="text-muted-foreground">today</span>
             </div>
           )}
@@ -151,7 +151,7 @@ const Dashboard = () => {
                   <YAxis hide domain={["dataMin - 200", "dataMax + 200"]} />
                   <Tooltip
                     contentStyle={{ background: "rgba(255,255,255,0.8)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, "Portfolio"]}
+                    formatter={(value: number) => [balanceVisible ? `$${value.toLocaleString()}` : "••••", "Portfolio"]}
                   />
                   <Area type="monotone" dataKey="value" stroke="hsl(152, 28%, 40%)" strokeWidth={1.5} fill="url(#chartGradient)" />
                 </AreaChart>
