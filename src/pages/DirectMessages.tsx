@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus, Pin, Pencil, Trash2, MoreHorizontal, Check } from "lucide-react";
+import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus, Pin, Pencil, Trash2, MoreHorizontal, Check, Reply, Smile, Flag } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import RichMessageContent from "@/components/chat/RichMessageContent";
@@ -27,7 +27,10 @@ interface DM {
   is_deleted: boolean;
   edited_at: string | null;
   created_at: string;
+  reply_to?: string | null;
 }
+
+const ALL_EMOJIS = ["🚀", "🔥", "💎", "🐻", "🐂", "📈", "📉", "💰", "👍", "👎", "❤️", "😂", "😮", "😢", "🎉", "🤔", "👀", "💪", "🙏", "⚡", "🎯", "💯", "🤝", "🫡", "😤", "🥳", "😎", "🤑", "📊", "🏦"];
 
 interface ConversationPreview {
   partner: Profile;
@@ -62,6 +65,7 @@ const DirectMessages = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [replyTo, setReplyTo] = useState<DM | null>(null);
 
   // New DM modal
   const [showNewDM, setShowNewDM] = useState(false);
@@ -224,16 +228,21 @@ const DirectMessages = () => {
     setChatInput("");
     setSending(true);
 
-    const { error } = await supabase.from("direct_messages").insert({
+    const insertData: any = {
       sender_id: user.id,
       receiver_id: activePartner.user_id,
       content,
-    });
+    };
+    if (replyTo) insertData.reply_to = replyTo.id;
+
+    const { error } = await supabase.from("direct_messages").insert(insertData);
 
     setSending(false);
     if (error) {
       toast.error("Failed to send message");
       setChatInput(content);
+    } else {
+      setReplyTo(null);
     }
   };
 
@@ -302,7 +311,7 @@ const DirectMessages = () => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-2">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
           {chatMessages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageCircle size={28} className="mb-3 text-muted-foreground" />
@@ -312,76 +321,102 @@ const DirectMessages = () => {
           {chatMessages.map((msg) => {
             const isOwn = msg.sender_id === user.id;
             const isEditing = editingMsgId === msg.id;
+            const repliedMsg = msg.reply_to ? chatMessages.find(m => m.id === msg.reply_to) : null;
 
             return (
               <motion.div
                 key={msg.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`group flex items-end gap-1.5 ${isOwn ? "justify-end" : "justify-start"}`}
+                initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className={`group flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-secondary/30 ${isOwn ? "flex-row-reverse" : ""}`}
               >
-                {/* Actions (show on left for own messages) */}
-                {isOwn && !msg.is_deleted && !isEditing && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="mb-2 rounded-full p-1 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground hover:bg-secondary">
-                        <MoreHorizontal size={14} />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent side="left" className="w-32 p-1" align="end">
-                      <button
-                        onClick={() => handleStartEditDM(msg)}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs hover:bg-secondary"
-                      >
-                        <Pencil size={12} /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDM(msg.id)}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-secondary"
-                      >
-                        <Trash2 size={12} /> Delete
-                      </button>
-                    </PopoverContent>
-                  </Popover>
-                )}
+                {/* Avatar */}
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold bg-secondary text-muted-foreground">
+                  {isOwn
+                    ? (user.user_metadata?.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U")
+                    : (activePartner.display_name?.[0]?.toUpperCase() || activePartner.username[0]?.toUpperCase() || "U")
+                  }
+                </div>
 
-                <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${
-                  msg.is_deleted
-                    ? "italic text-muted-foreground bg-secondary/50"
-                    : isOwn
-                      ? "bg-foreground text-primary-foreground"
-                      : "glass-card"
-                }`}>
-                  {isEditing ? (
-                    <div className="space-y-1.5">
+                <div className={`flex-1 min-w-0 ${isOwn ? "text-right" : ""}`}>
+                  <div className={`flex items-center gap-2 ${isOwn ? "justify-end" : ""}`}>
+                    <span className="text-xs font-semibold">
+                      {isOwn ? "You" : (activePartner.display_name || activePartner.username)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{timeAgo(msg.created_at)}</span>
+                    {msg.is_edited && !msg.is_deleted && <span className="text-[10px] text-muted-foreground italic">(edited)</span>}
+                  </div>
+
+                  {/* Reply reference */}
+                  {repliedMsg && (
+                    <div className={`mt-0.5 mb-1 flex items-center gap-1.5 text-[11px] text-muted-foreground ${isOwn ? "justify-end" : ""}`}>
+                      <Reply size={10} />
+                      <span className="truncate max-w-[200px]">{repliedMsg.content.slice(0, 60)}</span>
+                    </div>
+                  )}
+
+                  {msg.is_deleted ? (
+                    <p className="mt-0.5 text-xs italic text-muted-foreground">Message deleted</p>
+                  ) : isEditing ? (
+                    <div className="mt-1 space-y-1.5">
                       <input
-                        type="text"
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveEditDM();
-                          if (e.key === "Escape") handleCancelEditDM();
-                        }}
-                        className="w-full rounded-lg bg-primary-foreground/20 px-2 py-1 text-xs text-primary-foreground outline-none"
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSaveEditDM(); if (e.key === "Escape") handleCancelEditDM(); }}
+                        className="w-full rounded-lg bg-secondary px-3 py-1.5 text-sm outline-none"
                         autoFocus
                       />
-                      <div className="flex gap-1.5">
-                        <button onClick={handleSaveEditDM} className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30">
-                          <Check size={10} /> Save
-                        </button>
-                        <button onClick={handleCancelEditDM} className="rounded px-2 py-0.5 text-[10px] text-primary-foreground/60 hover:text-primary-foreground">
-                          Cancel
-                        </button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={handleSaveEditDM} className="rounded-md bg-foreground px-2.5 py-1 text-[11px] font-medium text-primary-foreground">Save</button>
+                        <button onClick={handleCancelEditDM} className="rounded-md px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
                       </div>
                     </div>
                   ) : (
-                    <RichMessageContent content={msg.content} />
+                    <div className="mt-0.5 text-[13px] leading-relaxed break-words">
+                      <RichMessageContent content={msg.content} />
+                    </div>
                   )}
-                  <span className={`block text-[9px] mt-0.5 ${
-                    isOwn ? "text-primary-foreground/50" : "text-muted-foreground"
-                  }`}>
-                    {timeAgo(msg.created_at)}{msg.is_edited && !msg.is_deleted ? " · edited" : ""}
-                  </span>
+
+                  {/* 3-dot action menu */}
+                  {!msg.is_deleted && !isEditing && (
+                    <div className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align={isOwn ? "end" : "start"} className="w-44 p-1">
+                          <button
+                            onClick={() => setReplyTo(msg)}
+                            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors"
+                          >
+                            <Reply size={13} /> Reply
+                          </button>
+                          {isOwn && (
+                            <>
+                              <button
+                                onClick={() => handleStartEditDM(msg)}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors"
+                              >
+                                <Pencil size={13} /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDM(msg.id)}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </>
+                          )}
+                          <button className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-secondary transition-colors">
+                            <Flag size={13} /> Report
+                          </button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );
@@ -389,27 +424,49 @@ const DirectMessages = () => {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Reply bar */}
+        <AnimatePresence>
+          {replyTo && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="border-t border-border/30 px-4 py-2 flex items-center gap-2"
+            >
+              <Reply size={12} className="text-muted-foreground" />
+              <span className="text-xs text-muted-foreground truncate flex-1">
+                Replying to {replyTo.sender_id === user.id ? "yourself" : activePartner.username}: {replyTo.content.slice(0, 60)}...
+              </span>
+              <button onClick={() => setReplyTo(null)}>
+                <X size={14} className="text-muted-foreground" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Input */}
-        <div className="glass-card flex items-center gap-2 px-4 py-3">
-          <ChatAttachmentMenu
-            disabled={sending}
-            onSendContent={(content) => {
-              if (!user || !activePartner) return;
-              supabase.from("direct_messages").insert({ sender_id: user.id, receiver_id: activePartner.user_id, content });
-            }}
-          />
-          <input
-            type="text"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Type a message..."
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            disabled={sending}
-          />
-          <button onClick={sendMessage} disabled={sending || !chatInput.trim()} className="rounded-lg bg-foreground p-1.5 text-primary-foreground transition-transform active:scale-95 disabled:opacity-50">
-            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-          </button>
+        <div className="border-t border-border/30 px-4 py-3">
+          <div className="glass-card flex items-center gap-2 px-3 py-2.5">
+            <ChatAttachmentMenu
+              disabled={sending}
+              onSendContent={(content) => {
+                if (!user || !activePartner) return;
+                supabase.from("direct_messages").insert({ sender_id: user.id, receiver_id: activePartner.user_id, content });
+              }}
+            />
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              placeholder={`Message @${activePartner.username}...`}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              disabled={sending}
+            />
+            <button onClick={sendMessage} disabled={sending || !chatInput.trim()} className="rounded-lg bg-foreground p-1.5 text-primary-foreground transition-transform active:scale-95 disabled:opacity-50">
+              {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            </button>
+          </div>
         </div>
       </div>
     );
