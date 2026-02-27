@@ -127,7 +127,7 @@ const DirectMessages = () => {
       .from("profiles")
       .select("user_id, username, display_name, avatar_url")
       .neq("user_id", user!.id)
-      .ilike("username", `%${q}%`)
+      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
       .limit(10);
     setSearchResults((data || []) as Profile[]);
     setSearching(false);
@@ -407,7 +407,7 @@ const DirectMessages = () => {
                   type="text"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Search by username..."
+                  placeholder="Search by name or username..."
                   className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                   autoFocus
                 />
@@ -429,12 +429,16 @@ const DirectMessages = () => {
                     onClick={() => openChat(p)}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-secondary/50"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary text-[10px] font-bold text-muted-foreground">
-                      {(p.display_name || p.username).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-                    </div>
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt="" className="h-9 w-9 rounded-xl object-cover" />
+                    ) : (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-[10px] font-bold text-muted-foreground">
+                        {(p.display_name || p.username).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold truncate">{p.display_name || p.username}</p>
-                      <p className="text-[11px] text-muted-foreground">@{p.username}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">@{p.username}</p>
                     </div>
                     <MessageCircle size={14} className="text-muted-foreground" />
                   </button>
