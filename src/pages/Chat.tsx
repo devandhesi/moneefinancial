@@ -10,6 +10,62 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import MavenIcon from "@/components/MavenIcon";
 
+/* ── Word-by-word reveal hook ──────────────────────────── */
+function useWordReveal() {
+  const queueRef = useRef<string[]>([]);
+  const revealedRef = useRef("");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onUpdateRef = useRef<((text: string) => void) | null>(null);
+  const doneRef = useRef(false);
+
+  const start = useCallback((onUpdate: (text: string) => void) => {
+    queueRef.current = [];
+    revealedRef.current = "";
+    doneRef.current = false;
+    onUpdateRef.current = onUpdate;
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      if (queueRef.current.length > 0) {
+        // Reveal multiple tokens per tick for speed (2-3 at a time)
+        const batch = queueRef.current.splice(0, 3).join("");
+        revealedRef.current += batch;
+        onUpdateRef.current?.(revealedRef.current);
+      } else if (doneRef.current && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }, 25);
+  }, []);
+
+  const push = useCallback((chunk: string) => {
+    // Split into small tokens (words + whitespace preserved)
+    const tokens = chunk.match(/\S+|\s+/g) || [chunk];
+    queueRef.current.push(...tokens);
+  }, []);
+
+  const finish = useCallback(() => {
+    doneRef.current = true;
+  }, []);
+
+  const getFullText = useCallback(() => {
+    // Flush everything remaining
+    if (queueRef.current.length > 0) {
+      revealedRef.current += queueRef.current.join("");
+      queueRef.current = [];
+    }
+    return revealedRef.current;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  return { start, push, finish, getFullText };
+}
+
 const suggestions = [
   "How do I start budgeting?",
   "Analyze $NVDA for me",
@@ -172,6 +228,7 @@ const ChatPage = () => {
   const [loadingConvos, setLoadingConvos] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const wordReveal = useWordReveal();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -269,30 +326,42 @@ const ChatPage = () => {
       }
     }
 
-    let assistantSoFar = "";
     const allMessages = [...messages, userMsg];
 
-    const upsertAssistant = (chunk: string) => {
-      assistantSoFar += chunk;
+    // Start word-by-word reveal
+    wordReveal.start((revealedText) => {
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant" && last.isStreaming) {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: revealedText } : m));
         }
-        return [...prev, { role: "assistant", content: assistantSoFar, isStreaming: true }];
+        return [...prev, { role: "assistant", content: revealedText, isStreaming: true }];
       });
-    };
+    });
 
     try {
       await streamChat({
         messages: allMessages,
-        onDelta: (chunk) => upsertAssistant(chunk),
+        onDelta: (chunk) => {
+          wordReveal.push(chunk);
+        },
         onDone: async () => {
+          wordReveal.finish();
+          // Wait a bit for the reveal queue to flush, then finalize
+          const waitForFlush = () => new Promise<void>((resolve) => {
+            const check = setInterval(() => {
+              const full = wordReveal.getFullText();
+              // Check if queue is drained
+              resolve();
+              clearInterval(check);
+            }, 50);
+          });
+          await waitForFlush();
+          const finalText = wordReveal.getFullText();
           setIsLoading(false);
-          // Mark streaming complete
-          setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.role === "assistant" ? { ...m, isStreaming: false } : m));
-          if (user && convId && assistantSoFar) {
-            await supabase.from("chat_messages").insert({ conversation_id: convId, role: "assistant", content: assistantSoFar });
+          setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.role === "assistant" ? { ...m, content: finalText, isStreaming: false } : m));
+          if (user && convId && finalText) {
+            await supabase.from("chat_messages").insert({ conversation_id: convId, role: "assistant", content: finalText });
             await supabase.from("chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
           }
         },
