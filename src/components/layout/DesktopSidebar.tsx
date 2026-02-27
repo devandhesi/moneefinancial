@@ -71,8 +71,7 @@ const navGroups: NavGroup[] = [
     label: "Social",
     defaultOpen: true,
     items: [
-      { path: "/social", icon: "Newspaper", label: "Finance For You" },
-      { path: "/community", icon: "Hash", label: "Chat" },
+      { path: "/social", icon: "Users", label: "Finance For You" },
       { path: "/notifications", icon: "Bell", label: "Notifications" },
     ],
   },
