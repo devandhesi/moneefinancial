@@ -4,7 +4,7 @@ import { Star, X, TrendingUp, ArrowUpRight, ArrowDownRight, Search, Loader2, Spa
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getStockQuote } from "@/lib/market-api";
-import { supabase } from "@/integrations/supabase/client";
+import { streamChat } from "@/lib/chat-stream";
 import MicroSparkline from "@/components/widgets/MicroSparkline";
 
 import StockAlertButton from "@/components/StockAlertButton";
@@ -72,34 +72,39 @@ const Watchlist = () => {
 
     setItems(prev => prev.map(i => ({ ...i, suggestionLoading: true })));
 
+    let fullText = "";
+
     try {
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: {
-          messages: [
-            {
-              role: "user",
-              content: `For each stock, give a recommendation (Buy, Sell, or Hold) and a concise 1-sentence reason. Consider current price action, momentum, and risk.
+      await streamChat({
+        messages: [
+          {
+            role: "user",
+            content: `For each stock, give a recommendation (Buy, Sell, or Hold) and a concise 1-sentence reason. Consider current price action, momentum, and risk.
 
 Stocks: ${symbolsWithPrices.map(i => `${i.symbol} at $${i.price?.toFixed(2)} (${i.changePct && i.changePct >= 0 ? "+" : ""}${i.changePct?.toFixed(2)}% today)`).join(", ")}
 
 Format each as: SYMBOL: Buy|Sell|Hold - Reason`
-            }
-          ]
-        }
-      });
-
-      if (data) {
-        const text = typeof data === "string" ? data : "";
-        setItems(prev => prev.map(i => {
-          const regex = new RegExp(`${i.symbol}:\\s*(Buy|Sell|Hold)\\s*[-–]\\s*(.+?)(?=\\n|$)`, "i");
-          const match = text.match(regex);
-          if (match) {
-            const signal = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() as "Buy" | "Sell" | "Hold";
-            return { ...i, signal, reason: match[2].trim(), suggestionLoading: false };
           }
-          return { ...i, suggestionLoading: false };
-        }));
-      }
+        ],
+        onDelta: (chunk) => {
+          fullText += chunk;
+        },
+        onDone: () => {
+          setItems(prev => prev.map(i => {
+            const regex = new RegExp(`${i.symbol}:\\s*(Buy|Sell|Hold)\\s*[-–]\\s*(.+?)(?=\\n|$)`, "i");
+            const match = fullText.match(regex);
+            if (match) {
+              const signal = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() as "Buy" | "Sell" | "Hold";
+              return { ...i, signal, reason: match[2].trim(), suggestionLoading: false };
+            }
+            return { ...i, suggestionLoading: false };
+          }));
+        },
+        onError: () => {
+          setItems(prev => prev.map(i => ({ ...i, suggestionLoading: false })));
+          toast.error("Failed to get AI signals");
+        },
+      });
     } catch {
       setItems(prev => prev.map(i => ({ ...i, suggestionLoading: false })));
     }
