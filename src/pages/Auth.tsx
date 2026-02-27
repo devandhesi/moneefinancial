@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 const Auth = () => {
   const { signUp, signIn } = useAuth();
@@ -112,6 +113,13 @@ const Auth = () => {
             )}
           </button>
         </form>
+
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/50" />
+          <span className="text-[11px] text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+        <GoogleSignInButton />
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}

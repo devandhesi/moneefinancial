@@ -5,6 +5,7 @@ import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, C
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 const behaviorStats = [
   { icon: Clock, label: "Avg Hold Time", value: "3.2 weeks" },
@@ -216,6 +217,17 @@ const AuthForm = () => {
               )}
             </button>
           </form>
+
+          {mode !== "forgot" && (
+            <>
+              <div className="my-4 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border/50" />
+                <span className="text-[11px] text-muted-foreground">or</span>
+                <div className="h-px flex-1 bg-border/50" />
+              </div>
+              <GoogleSignInButton />
+            </>
+          )}
 
           <p className="mt-5 text-center text-xs text-muted-foreground">
             {mode === "forgot" ? (
