@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWatchlist } from "@/hooks/use-watchlist";
 import {
-  Newspaper, ExternalLink, Loader2, Sparkles, TrendingUp,
-  AlertTriangle, RefreshCw, Briefcase, Flame, BarChart3,
+  Newspaper, ExternalLink, Loader2, TrendingUp, AlertTriangle,
+  RefreshCw, Briefcase, Flame, BarChart3,
   Globe, Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -138,7 +138,6 @@ const News = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
   const articles = getArticlesForTab(data, activeTab);
-  const showImpact = (activeTab === "all" || activeTab === "important") && data?.impactAnalysis?.length;
 
   return (
     <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8 max-w-4xl mx-auto">
@@ -177,27 +176,25 @@ const News = () => {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      <AnimatePresence mode="wait">
-        {showImpact && (
-          <motion.div key="impact" className="mt-4 rounded-xl border border-border/40 bg-card p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Sparkles size={14} className="text-muted-foreground" />
-              <span>Market Impact Analysis</span>
-            </div>
-            <div className="mt-3 space-y-2.5">
-              {data!.impactAnalysis.map((item, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <AlertTriangle size={12} className="mt-0.5 shrink-0 text-muted-foreground/60" />
-                  <div>
-                    <p className="text-xs font-medium leading-snug">{item.title}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{item.impact}</p>
-                  </div>
+      {data?.marketNews && data.marketNews.length > 0 && (activeTab === "all" || activeTab === "important") && (
+        <motion.div className="mt-4 rounded-xl border border-border/40 bg-card p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <TrendingUp size={14} className="text-muted-foreground" />
+            <span>Top Market News</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {data.marketNews.slice(0, 5).map((article, i) => (
+              <a key={i} href={isValidUrl(article.url) ? article.url : undefined} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 rounded-lg p-2 transition-colors hover:bg-secondary/40">
+                <Briefcase size={12} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium leading-snug line-clamp-1" dangerouslySetInnerHTML={{ __html: article.title }} />
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{article.source} · {timeAgo(article.publishedAt)}</p>
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </a>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <div className="mt-4 space-y-2 pb-8">
         {isLoading ? (
