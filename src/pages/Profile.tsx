@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut, Eye, EyeOff, ArrowRight, Loader2, Pencil, Camera, Check, X } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const behaviorStats = [
   { icon: Clock, label: "Avg Hold Time", value: "3.2 weeks" },
@@ -252,13 +254,69 @@ const AuthForm = () => {
 const Profile = () => {
   const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [riskExpanded, setRiskExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, signOut, loading, refreshProfile } = useAuth();
 
   if (loading) return null;
   if (!user) return <AuthForm />;
 
   const displayName = profile?.display_name || profile?.username || "User";
+  const initials = displayName.slice(0, 2).toUpperCase();
+
+  const startEditing = () => {
+    setEditName(profile?.display_name || "");
+    setEditBio(profile?.bio || "");
+    setEditing(true);
+  };
+
+  const saveProfile = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: editName.trim() || null, bio: editBio.trim() || null })
+      .eq("user_id", user.id);
+    if (error) {
+      toast.error("Failed to update profile");
+    } else {
+      toast.success("Profile updated");
+      await refreshProfile();
+      setEditing(false);
+    }
+    setSaving(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be under 2MB");
+      return;
+    }
+    setUploadingAvatar(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true });
+    if (uploadError) {
+      toast.error("Upload failed");
+      setUploadingAvatar(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
+    await refreshProfile();
+    toast.success("Avatar updated");
+    setUploadingAvatar(false);
+  };
 
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8">
@@ -268,14 +326,59 @@ const Profile = () => {
       </motion.div>
 
       {/* User Card */}
-      <motion.div className="glass-card mt-5 flex items-center gap-4 p-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
-          <User size={24} className="text-muted-foreground" />
+      <motion.div className="glass-card mt-5 p-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Avatar className="h-14 w-14 rounded-2xl">
+              {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={displayName} className="rounded-2xl object-cover" />}
+              <AvatarFallback className="rounded-2xl bg-secondary text-sm font-semibold">{initials}</AvatarFallback>
+            </Avatar>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-primary-foreground shadow-md transition-transform hover:scale-110"
+            >
+              {uploadingAvatar ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-lg font-semibold truncate">{displayName}</p>
+            {profile?.bio && !editing && <p className="text-xs text-muted-foreground truncate">{profile.bio}</p>}
+            {!profile?.bio && !editing && <p className="text-xs text-muted-foreground">Paper Trading · Since Jan 2025</p>}
+          </div>
+          {!editing && (
+            <button onClick={startEditing} className="rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+              <Pencil size={16} />
+            </button>
+          )}
         </div>
-        <div className="flex-1">
-          <p className="text-lg font-semibold">{displayName}</p>
-          <p className="text-xs text-muted-foreground">Paper Trading · Since Jan 2025</p>
-        </div>
+
+        <AnimatePresence>
+          {editing && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Display Name</label>
+                  <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your display name" maxLength={60} className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-2.5 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Bio</label>
+                  <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} placeholder="Tell us about yourself..." maxLength={200} rows={3} className="w-full resize-none rounded-xl border border-border/50 bg-secondary px-4 py-2.5 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground" />
+                  <p className="mt-1 text-right text-[10px] text-muted-foreground">{editBio.length}/200</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditing(false)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/50 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary">
+                    <X size={14} /> Cancel
+                  </button>
+                  <button onClick={saveProfile} disabled={saving} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground py-2.5 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-50">
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <><Check size={14} /> Save</>}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Pattern Summary */}
