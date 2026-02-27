@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut, Eye, EyeOff, ArrowRight, Loader2, Pencil, Camera, Check, X } from "lucide-react";
+import { User, Shield, MessageSquare, Clock, Activity, PieChart, Zap, ChevronRight, Settings, LogOut, Eye, EyeOff, ArrowRight, Loader2, Pencil, Camera, Check, X, KeyRound, AtSign } from "lucide-react";
 import { ComposedChart, Line, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -257,8 +257,15 @@ const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editBio, setEditBio] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { user, profile, signOut, loading, refreshProfile } = useAuth();
@@ -272,15 +279,35 @@ const Profile = () => {
   const startEditing = () => {
     setEditName(profile?.display_name || "");
     setEditBio(profile?.bio || "");
+    setEditUsername(profile?.username || "");
     setEditing(true);
+    setChangingPassword(false);
   };
 
   const saveProfile = async () => {
     if (!profile) return;
+    const trimmedUsername = editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!trimmedUsername || trimmedUsername.length < 3) {
+      toast.error("Username must be at least 3 characters (letters, numbers, underscores)");
+      return;
+    }
+    // Check username uniqueness if changed
+    if (trimmedUsername !== profile.username) {
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("username", trimmedUsername)
+        .neq("user_id", user.id)
+        .maybeSingle();
+      if (existing) {
+        toast.error("Username is already taken");
+        return;
+      }
+    }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: editName.trim() || null, bio: editBio.trim() || null })
+      .update({ display_name: editName.trim() || null, bio: editBio.trim() || null, username: trimmedUsername })
       .eq("user_id", user.id);
     if (error) {
       toast.error("Failed to update profile");
@@ -290,6 +317,28 @@ const Profile = () => {
       setEditing(false);
     }
     setSaving(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords don't match");
+      return;
+    }
+    setSavingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password updated");
+      setChangingPassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setSavingPassword(false);
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -344,10 +393,12 @@ const Profile = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-lg font-semibold truncate">{displayName}</p>
-            {profile?.bio && !editing && <p className="text-xs text-muted-foreground truncate">{profile.bio}</p>}
-            {!profile?.bio && !editing && <p className="text-xs text-muted-foreground">Paper Trading · Since Jan 2025</p>}
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+              <AtSign size={11} />{profile?.username || "username"}
+            </p>
+            {profile?.bio && !editing && <p className="mt-0.5 text-[11px] text-muted-foreground/70 truncate">{profile.bio}</p>}
           </div>
-          {!editing && (
+          {!editing && !changingPassword && (
             <button onClick={startEditing} className="rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
               <Pencil size={16} />
             </button>
@@ -358,6 +409,14 @@ const Profile = () => {
           {editing && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Username</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                    <input value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} placeholder="username" maxLength={30} className="w-full rounded-xl border border-border/50 bg-secondary pl-8 pr-4 py-2.5 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground" />
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Letters, numbers, underscores only. Min 3 chars.</p>
+                </div>
                 <div>
                   <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Display Name</label>
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your display name" maxLength={60} className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-2.5 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground" />
@@ -378,7 +437,45 @@ const Profile = () => {
               </div>
             </motion.div>
           )}
+          {changingPassword && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
+                <div className="relative">
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">New Password</label>
+                  <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 6 characters" minLength={6} className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-2.5 pr-10 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground" />
+                  <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-[calc(50%+8px)] -translate-y-1/2 text-muted-foreground">
+                    {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Confirm Password</label>
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password" className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-2.5 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setChangingPassword(false); setNewPassword(""); setConfirmPassword(""); }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/50 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary">
+                    <X size={14} /> Cancel
+                  </button>
+                  <button onClick={handleChangePassword} disabled={savingPassword} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground py-2.5 text-sm font-medium text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-50">
+                    {savingPassword ? <Loader2 size={14} className="animate-spin" /> : <><KeyRound size={14} /> Update</>}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
+
+        {/* Change Password button - below card content */}
+        {!editing && !changingPassword && (
+          <div className="mt-3 border-t border-border/30 pt-3">
+            <button
+              onClick={() => { setChangingPassword(true); setEditing(false); }}
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <KeyRound size={15} />
+              <span className="font-medium">Change Password</span>
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* Pattern Summary */}
