@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, X, Send, Loader2 } from "lucide-react";
+import { X, Send, Loader2 } from "lucide-react";
+import MavenIcon from "./MavenIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { streamChat } from "@/lib/chat-stream";
@@ -115,7 +116,7 @@ export default function MavenAssistantFAB() {
             className="fixed bottom-28 right-5 lg:bottom-8 lg:right-8 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center"
             aria-label="Ask Maven"
           >
-            <Sparkles className="h-6 w-6" />
+            <MavenIcon size={24} />
           </motion.button>
         )}
       </AnimatePresence>
@@ -134,7 +135,7 @@ export default function MavenAssistantFAB() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-primary-foreground" />
+                  <MavenIcon size={16} className="text-primary-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground leading-none">Maven</p>

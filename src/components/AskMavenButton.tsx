@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import MavenIcon from "./MavenIcon";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
@@ -30,7 +30,7 @@ const AskMavenButton = ({ symbol, context, compact = false, className = "" }: Pr
         className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary ${className}`}
         title={`Ask Maven about ${symbol}`}
       >
-        <Sparkles size={10} />
+        <MavenIcon size={12} />
         Maven
       </button>
     );
@@ -42,7 +42,7 @@ const AskMavenButton = ({ symbol, context, compact = false, className = "" }: Pr
       className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary ${className}`}
       title={`Ask Maven about ${symbol}`}
     >
-      <Sparkles size={12} />
+      <MavenIcon size={14} />
       Ask Maven
     </button>
   );
