@@ -5,7 +5,7 @@ import {
   ArrowLeft, Send, Hash, TrendingUp, Users, Pin, Info,
   MoreHorizontal, Smile, Reply, Flag, Loader2, Bot,
   ChevronRight, X, Plus, BarChart3, Image, ListChecks,
-  LinkIcon, Bookmark, UserPlus, Copy, Check, Search,
+  Bookmark, UserPlus, Copy, Check, Search,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
+import RichMessageContent from "@/components/chat/RichMessageContent";
 
 interface Message {
   id: string;
@@ -42,7 +44,6 @@ const CommunityRoom = () => {
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [showInfo, setShowInfo] = useState(false);
-  const [showAttach, setShowAttach] = useState(false);
   const [showAddUsers, setShowAddUsers] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<{ user_id: string; username: string; display_name: string | null; avatar_url: string | null }[]>([]);
@@ -393,9 +394,9 @@ const CommunityRoom = () => {
                   {msg.is_deleted ? (
                     <p className="mt-0.5 text-xs italic text-muted-foreground">Message deleted</p>
                   ) : (
-                    <p className="mt-0.5 text-[13px] leading-relaxed break-words">
-                      {renderContent(msg.content)}
-                    </p>
+                    <div className="mt-0.5 text-[13px] leading-relaxed break-words">
+                      <RichMessageContent content={msg.content} />
+                    </div>
                   )}
 
                   {/* Quick actions on hover */}
@@ -450,36 +451,23 @@ const CommunityRoom = () => {
         <div className="border-t border-border/30 px-4 py-3">
           {user ? (
             <div className="glass-card flex items-center gap-2 px-3 py-2.5">
-              <Popover open={showAttach} onOpenChange={setShowAttach}>
-                <PopoverTrigger asChild>
-                  <button className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                    <Plus size={16} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="w-52 p-1.5">
-                  <div className="flex flex-col gap-0.5">
-                    {[
-                      { icon: TrendingUp, label: "Share Stock", desc: "From watchlist", action: () => { toast.info("Stock picker coming soon"); setShowAttach(false); } },
-                      { icon: Image, label: "Photo", desc: "Upload image", action: () => { toast.info("Photo upload coming soon"); setShowAttach(false); } },
-                      { icon: ListChecks, label: "Poll", desc: "Create a poll", action: () => { toast.info("Polls coming soon"); setShowAttach(false); } },
-                      { icon: BarChart3, label: "Chart", desc: "Share a chart", action: () => { toast.info("Chart sharing coming soon"); setShowAttach(false); } },
-                      { icon: LinkIcon, label: "Link", desc: "Paste a URL", action: () => { toast.info("Link preview coming soon"); setShowAttach(false); } },
-                    ].map((item) => (
-                      <button
-                        key={item.label}
-                        onClick={item.action}
-                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-secondary transition-colors"
-                      >
-                        <item.icon size={14} className="text-muted-foreground" />
-                        <div>
-                          <p className="text-xs font-medium">{item.label}</p>
-                          <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <ChatAttachmentMenu
+                disabled={sending}
+                onSendContent={(content) => {
+                  // Send attachment content as a message directly
+                  if (!user) return;
+                  const sendAttachment = async () => {
+                    let roomId: string | null = roomData?.id || null;
+                    if (!roomId) {
+                      const { data: existingRoom } = await supabase.from("rooms").select("id").eq("slug", slug).single();
+                      roomId = existingRoom?.id || null;
+                    }
+                    if (!roomId) return;
+                    await supabase.from("messages").insert({ room_id: roomId, user_id: user.id, content });
+                  };
+                  sendAttachment();
+                }}
+              />
               <input
                 ref={inputRef}
                 type="text"
@@ -562,7 +550,7 @@ const CommunityRoom = () => {
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground">Invite Link</p>
                 <div className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2.5">
-                  <LinkIcon size={14} className="text-muted-foreground shrink-0" />
+                  <Copy size={14} className="text-muted-foreground shrink-0" />
                   <p className="flex-1 text-xs text-muted-foreground truncate font-mono">{inviteLink}</p>
                   <button
                     onClick={copyInviteLink}

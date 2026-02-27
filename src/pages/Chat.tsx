@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare } from "lucide-react";
+import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "@/lib/chat-stream";
 import { toast } from "sonner";
@@ -397,6 +398,10 @@ const ChatPage = () => {
           {/* Input */}
           <div className="mb-4 mt-3">
             <div className="glass-card flex items-center gap-2 px-4 py-3">
+              <ChatAttachmentMenu
+                disabled={isLoading}
+                onSendContent={(content) => handleSend(content)}
+              />
               <input
                 type="text"
                 value={query}
