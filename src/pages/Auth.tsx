@@ -9,6 +9,7 @@ const Auth = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -16,11 +17,11 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
-    if (mode === "signup" && !username.trim()) return;
+    if (mode === "signup" && (!username.trim() || !fullName.trim())) return;
 
     setLoading(true);
     const result = mode === "signup"
-      ? await signUp(email, password, username)
+      ? await signUp(email, password, username, fullName)
       : await signIn(email, password);
 
     if (result.error) {
@@ -48,7 +49,16 @@ const Auth = () => {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {mode === "signup" && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3">
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Full Name"
+                className="w-full rounded-xl border border-border/50 bg-secondary px-4 py-3 text-sm outline-none transition-colors focus:border-foreground/30 placeholder:text-muted-foreground"
+                maxLength={60}
+                required
+              />
               <input
                 type="text"
                 value={username}
