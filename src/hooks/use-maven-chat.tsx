@@ -47,7 +47,8 @@ function persistHistory(threads: ChatThread[]) {
 }
 
 export function MavenChatProvider({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(() => sessionStorage.getItem("maven-open") === "true");
+  const setOpen = (v: boolean) => { sessionStorage.setItem("maven-open", String(v)); setOpenState(v); };
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<ChatThread[]>(loadHistory);
