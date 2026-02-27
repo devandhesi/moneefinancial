@@ -1,5 +1,6 @@
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, PanelLeft, Globe, Star, ExternalLink, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -10,8 +11,10 @@ import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const { links, toggleVisibility, moveUp, moveDown, resetToDefaults } = useSidebarConfig();
+  const { links, toggleVisibility, reorder, resetToDefaults } = useSidebarConfig();
   const { timezone, setTimezone } = useTimezone();
+  const [dragState, setDragState] = useState<{ section: "main" | "secondary"; index: number } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
@@ -88,30 +91,44 @@ const Settings = () => {
         </div>
         <p className="text-xs text-muted-foreground mb-4">Choose which pages appear in the sidebar and reorder them.</p>
 
-        {(["main", "secondary"] as const).map((section) => (
-          <div key={section} className="mb-4">
-            <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              {section === "main" ? "Primary" : "Secondary"}
-            </p>
-            <div className="space-y-1.5">
-              {links.filter(l => l.section === section).map((link) => {
-                const Icon = iconMap[link.icon] || SettingsIcon;
-                const isProtected = link.id === "dashboard" || link.id === "settings";
-                return (
-                  <div key={link.id} className="glass-card flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Icon size={16} className={link.visible ? "text-foreground" : "text-muted-foreground/40"} />
-                      <span className={`text-sm font-medium ${link.visible ? "" : "text-muted-foreground/50 line-through"}`}>
-                        {link.label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => moveUp(link.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Move up">
-                        <ChevronUp size={14} />
-                      </button>
-                      <button onClick={() => moveDown(link.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Move down">
-                        <ChevronDown size={14} />
-                      </button>
+        {(["main", "secondary"] as const).map((section) => {
+          const sectionLinks = links.filter(l => l.section === section);
+          return (
+            <div key={section} className="mb-4">
+              <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {section === "main" ? "Primary" : "Secondary"}
+              </p>
+              <div className="space-y-1.5">
+                {sectionLinks.map((link, idx) => {
+                  const Icon = iconMap[link.icon] || SettingsIcon;
+                  const isProtected = link.id === "dashboard" || link.id === "settings";
+                  const isDragging = dragState?.section === section && dragState?.index === idx;
+                  const isDragOver = dragState?.section === section && dragOverIndex === idx;
+                  return (
+                    <div
+                      key={link.id}
+                      draggable
+                      onDragStart={() => setDragState({ section, index: idx })}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
+                      onDrop={() => {
+                        if (dragState && dragState.section === section) {
+                          reorder(section, dragState.index, idx);
+                        }
+                        setDragState(null);
+                        setDragOverIndex(null);
+                      }}
+                      onDragEnd={() => { setDragState(null); setDragOverIndex(null); }}
+                      className={`glass-card flex items-center justify-between px-4 py-3 cursor-grab active:cursor-grabbing transition-all ${
+                        isDragging ? "opacity-40 scale-95" : ""
+                      } ${isDragOver && !isDragging ? "ring-2 ring-primary/40 scale-[1.02]" : ""}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <GripVertical size={14} className="text-muted-foreground/50 shrink-0" />
+                        <Icon size={16} className={link.visible ? "text-foreground" : "text-muted-foreground/40"} />
+                        <span className={`text-sm font-medium ${link.visible ? "" : "text-muted-foreground/50 line-through"}`}>
+                          {link.label}
+                        </span>
+                      </div>
                       <button
                         onClick={() => toggleVisibility(link.id)}
                         disabled={isProtected}
@@ -125,12 +142,12 @@ const Settings = () => {
                         {link.visible ? <Eye size={14} /> : <EyeOff size={14} />}
                       </button>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </motion.div>
 
       {/* Security Note */}
