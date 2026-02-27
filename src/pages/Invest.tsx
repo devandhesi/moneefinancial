@@ -209,7 +209,7 @@ const Invest = () => {
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
   const [mavenPicks, setMavenPicks] = useState<MavenPick[]>(DEFAULT_PICKS);
   const [picksLoading, setPicksLoading] = useState(false);
-  const [picksOpen, setPicksOpen] = useState(true);
+  const [picksOpen, setPicksOpen] = useState(false);
   const navigate = useNavigate();
 
   // Fetch personalized Maven picks
