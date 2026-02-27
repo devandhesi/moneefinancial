@@ -142,11 +142,12 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
       {/* Persistent logo + hover trigger when collapsed */}
       {collapsed && !hovered && (
         <div
-          className="fixed inset-y-0 left-0 z-50 hidden w-14 lg:flex lg:flex-col items-center"
+          className="fixed inset-y-0 left-0 z-50 hidden w-56 lg:flex lg:flex-col"
           onMouseEnter={() => setHovered(true)}
         >
-          <div className="flex h-14 items-center justify-center w-full">
-            <span className="text-lg font-semibold tracking-tight">m</span>
+          <div className="flex h-14 items-center px-5">
+            <span className="text-lg font-semibold tracking-tight">monee</span>
+            <span className="ml-1.5 text-[10px] text-muted-foreground">beta</span>
           </div>
         </div>
       )}
