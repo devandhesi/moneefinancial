@@ -94,10 +94,7 @@ const JoinRoom = () => {
       return;
     }
 
-    // Increment member count (best effort)
-    try {
-      await supabase.from("rooms").update({ member_count: (room.member_count || 0) + 1 }).eq("id", room.id);
-    } catch {}
+    // member_count is now auto-synced via database trigger
 
     toast.success(`Joined ${room.name}!`);
     navigate(`/community/room/${room.slug}`);
