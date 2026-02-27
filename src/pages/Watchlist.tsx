@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { getStockQuote } from "@/lib/market-api";
 import { supabase } from "@/integrations/supabase/client";
 import MicroSparkline from "@/components/widgets/MicroSparkline";
-import AskMavenButton from "@/components/AskMavenButton";
+
 import StockAlertButton from "@/components/StockAlertButton";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
@@ -265,7 +265,7 @@ Format each as: SYMBOL: Buy|Sell|Hold - Reason`
                   {item.sparkData && item.sparkData.length > 2 && (
                     <MicroSparkline data={item.sparkData} positive={isPositive} width={72} height={28} />
                   )}
-                  <AskMavenButton symbol={item.symbol} compact />
+                  
                   <StockAlertButton symbol={item.symbol} currentPrice={item.price} compact />
                   <ArrowUpRight
                     size={16}
