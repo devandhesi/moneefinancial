@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useSimAccount, useSimCash, useSimPositions } from "@/hooks/use-sim-portfolio";
 import { useBatchQuotes } from "@/hooks/use-batch-quotes";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 export interface PortfolioSummary {
   cashBalance: number;
@@ -23,6 +25,7 @@ export interface PortfolioSummary {
 }
 
 export function usePortfolioValue(): PortfolioSummary {
+  const { user } = useAuth();
   const { data: simAccount } = useSimAccount();
   const { data: simCash, isLoading: cashLoading } = useSimCash(simAccount?.id);
   const { data: simPositions, isLoading: positionsLoading } = useSimPositions(simAccount?.id);
@@ -33,7 +36,7 @@ export function usePortfolioValue(): PortfolioSummary {
   });
   const quoteMap = new Map((positionQuotes || []).map((q) => [q.symbol, q]));
 
-  return useMemo(() => {
+  const result = useMemo(() => {
     const cashBalance = simCash?.available ?? 0;
     const isLoading = cashLoading || positionsLoading;
 
@@ -71,4 +74,22 @@ export function usePortfolioValue(): PortfolioSummary {
       isLoading,
     };
   }, [simCash, simPositions, quoteMap, cashLoading, positionsLoading]);
+
+  // Record a live snapshot every 5 minutes so the chart reflects real market prices
+  const lastSnapshotRef = useRef(0);
+  useEffect(() => {
+    if (!user || result.totalValue <= 0) return;
+    const now = Date.now();
+    if (now - lastSnapshotRef.current < 5 * 60 * 1000) return;
+    lastSnapshotRef.current = now;
+
+    supabase.from("portfolio_value_snapshots").insert({
+      user_id: user.id,
+      total_value: result.totalValue,
+      cash_balance: result.cashBalance,
+      investment_balance: result.investmentBalance,
+    }).then(() => {});
+  }, [user, result.totalValue]);
+
+  return result;
 }

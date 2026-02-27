@@ -1,60 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { getStockQuote } from "@/lib/market-api";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
-const HOLDING_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "TSLA"];
 const INDEX_SYMBOLS = [
   { symbol: "^GSPC", label: "S&P 500" },
   { symbol: "^IXIC", label: "NASDAQ" },
   { symbol: "^DJI", label: "DOW" },
 ];
 
-export interface LiveHolding {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  shares: number;
-  value: number;
-}
-
 export interface LiveIndex {
   label: string;
   value: string;
   change: number;
-}
-
-const SHARES_MAP: Record<string, number> = {
-  AAPL: 18,
-  MSFT: 7,
-  GOOGL: 16,
-  TSLA: 8,
-};
-
-export function useLiveHoldings() {
-  return useQuery({
-    queryKey: ["dashboard-holdings"],
-    queryFn: async (): Promise<LiveHolding[]> => {
-      const results = await Promise.all(
-        HOLDING_SYMBOLS.map(async (symbol) => {
-          const quote = await getStockQuote(symbol, "1D");
-          const shares = SHARES_MAP[symbol] || 1;
-          return {
-            symbol: quote.symbol,
-            name: quote.name,
-            price: quote.price,
-            change: quote.change,
-            changePercent: quote.changePercent,
-            shares,
-            value: +(quote.price * shares).toFixed(2),
-          };
-        })
-      );
-      return results;
-    },
-    refetchInterval: 60_000,
-    staleTime: 30_000,
-  });
 }
 
 export function useLiveIndices() {
@@ -79,39 +37,45 @@ export function useLiveIndices() {
 }
 
 export function usePortfolioChart(timeframe: string) {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ["dashboard-portfolio-chart", timeframe],
+    queryKey: ["dashboard-portfolio-chart", timeframe, user?.id],
     queryFn: async () => {
-      // Fetch chart data for all holdings and aggregate
-      const allCharts = await Promise.all(
-        HOLDING_SYMBOLS.map(async (symbol) => {
-          const quote = await getStockQuote(symbol, timeframe);
-          return { symbol, chart: quote.chart, shares: SHARES_MAP[symbol] || 1 };
-        })
-      );
+      if (!user) return [];
 
-      // Build a date-indexed portfolio value map
-      const dateMap = new Map<string, number>();
-
-      for (const { chart, shares } of allCharts) {
-        for (const point of chart) {
-          const existing = dateMap.get(point.date) || 0;
-          dateMap.set(point.date, existing + point.price * shares);
-        }
+      // Determine date cutoff based on timeframe
+      const now = new Date();
+      let cutoff: Date;
+      switch (timeframe) {
+        case "1D": cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+        case "1W": cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case "1M": cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+        case "3M": cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+        case "1Y": cutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break;
+        default: cutoff = new Date(0); // ALL
       }
 
-      // Use the first stock's chart order as the canonical date order
-      const canonicalDates = allCharts[0]?.chart.map((p) => p.date) || [];
-      const uniqueDates = [...new Set(canonicalDates)];
+      const { data } = await supabase
+        .from("portfolio_value_snapshots")
+        .select("total_value, recorded_at")
+        .eq("user_id", user.id)
+        .gte("recorded_at", cutoff.toISOString())
+        .order("recorded_at", { ascending: true })
+        .limit(500);
 
-      return uniqueDates
-        .filter((date) => dateMap.has(date))
-        .map((date) => ({
-          date,
-          value: +(dateMap.get(date)! || 0).toFixed(2),
-        }));
+      if (!data || data.length === 0) return [];
+
+      return data.map((row) => ({
+        date: new Date(row.recorded_at).toLocaleDateString("en-US", {
+          month: "short", day: "numeric",
+          ...(timeframe === "1D" ? { hour: "numeric", minute: "2-digit" } : {}),
+        }),
+        value: +Number(row.total_value).toFixed(2),
+      }));
     },
-    refetchInterval: 120_000,
-    staleTime: 60_000,
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
   });
 }

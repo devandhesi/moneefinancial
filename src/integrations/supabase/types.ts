@@ -1159,6 +1159,33 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_value_snapshots: {
+        Row: {
+          cash_balance: number
+          id: string
+          investment_balance: number
+          recorded_at: string
+          total_value: number
+          user_id: string
+        }
+        Insert: {
+          cash_balance?: number
+          id?: string
+          investment_balance?: number
+          recorded_at?: string
+          total_value?: number
+          user_id: string
+        }
+        Update: {
+          cash_balance?: number
+          id?: string
+          investment_balance?: number
+          recorded_at?: string
+          total_value?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
