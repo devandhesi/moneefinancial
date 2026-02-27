@@ -70,15 +70,8 @@ async function fetchQuote(rawSymbol: string): Promise<QuoteResult | null> {
     const changePercent = prevClose ? (change / prevClose) * 100 : 0;
     const totalVol = volumes.reduce((s: number, v: number) => s + v, 0);
 
-    // Build sparkline from intraday closes (sample ~20 points)
-    const step = Math.max(1, Math.floor(closes.length / 20));
-    const sparkline: number[] = [];
-    for (let i = 0; i < closes.length; i += step) {
-      sparkline.push(+closes[i].toFixed(2));
-    }
-    if (sparkline.length > 0 && sparkline[sparkline.length - 1] !== +price.toFixed(2)) {
-      sparkline.push(+price.toFixed(2));
-    }
+    // Build sparkline from all intraday closes for accuracy
+    const sparkline: number[] = closes.map((v: number) => +v.toFixed(2));
 
     return {
       symbol: rawSymbol.toUpperCase(),
