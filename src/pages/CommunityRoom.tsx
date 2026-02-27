@@ -63,7 +63,7 @@ const CommunityRoom = () => {
       if (room) {
         const { data } = await supabase
           .from("messages")
-          .select("*")
+          .select("*, profile:profiles!messages_user_id_fkey(username, display_name, avatar_url, is_verified)")
           .eq("room_id", room.id)
           .order("created_at", { ascending: true })
           .limit(100);
@@ -81,9 +81,22 @@ const CommunityRoom = () => {
         event: "INSERT",
         schema: "public",
         table: "messages",
-      }, (payload) => {
+      }, async (payload) => {
         const newMsg = payload.new as Message;
-        setMessages((prev) => [...prev, newMsg]);
+        // Fetch profile for the new message
+        if (newMsg.user_id) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("username, display_name, avatar_url, is_verified")
+            .eq("user_id", newMsg.user_id)
+            .single();
+          if (profileData) newMsg.profile = profileData;
+        }
+        setMessages((prev) => {
+          // Avoid duplicates from optimistic add
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
       })
       .subscribe();
 
