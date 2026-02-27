@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStockQuote } from "@/lib/market-api";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { usePortfolioValue } from "@/hooks/use-portfolio-value";
 
 const INDEX_SYMBOLS = [
   { symbol: "^GSPC", label: "S&P 500" },
@@ -38,9 +39,10 @@ export function useLiveIndices() {
 
 export function usePortfolioChart(timeframe: string) {
   const { user } = useAuth();
+  const portfolio = usePortfolioValue();
 
   return useQuery({
-    queryKey: ["dashboard-portfolio-chart", timeframe, user?.id],
+    queryKey: ["dashboard-portfolio-chart", timeframe, user?.id, portfolio.totalValue],
     queryFn: async () => {
       if (!user) return [];
 
@@ -64,17 +66,29 @@ export function usePortfolioChart(timeframe: string) {
         .order("recorded_at", { ascending: true })
         .limit(500);
 
-      if (!data || data.length === 0) return [];
-
-      return data.map((row) => ({
+      const points = (data || []).map((row) => ({
         date: new Date(row.recorded_at).toLocaleDateString("en-US", {
           month: "short", day: "numeric",
           ...(timeframe === "1D" ? { hour: "numeric", minute: "2-digit" } : {}),
         }),
         value: +Number(row.total_value).toFixed(2),
       }));
+
+      // Always append the current live portfolio value so the chart is up-to-date
+      if (portfolio.totalValue > 0) {
+        const liveDate = new Date().toLocaleDateString("en-US", {
+          month: "short", day: "numeric",
+          ...(timeframe === "1D" ? { hour: "numeric", minute: "2-digit" } : {}),
+        });
+        // Avoid duplicate if last snapshot is very recent with the same label
+        if (points.length === 0 || points[points.length - 1].date !== liveDate || Math.abs(points[points.length - 1].value - portfolio.totalValue) > 0.01) {
+          points.push({ date: liveDate, value: +portfolio.totalValue.toFixed(2) });
+        }
+      }
+
+      return points;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !portfolio.isLoading,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
