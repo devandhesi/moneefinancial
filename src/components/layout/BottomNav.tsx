@@ -16,6 +16,8 @@ const extraGroups = [
     label: "Social",
     pages: [
       { path: "/social", icon: Users, label: "Finance For You" },
+      { path: "/community", icon: Hash, label: "Community" },
+      { path: "/community/dms", icon: MessageCircle, label: "Messages" },
     ],
   },
   {
