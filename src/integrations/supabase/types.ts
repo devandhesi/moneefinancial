@@ -14,6 +14,151 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_threads: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      alert_events: {
+        Row: {
+          alert_id: string
+          id: string
+          payload: Json | null
+          triggered_at: string | null
+        }
+        Insert: {
+          alert_id: string
+          id?: string
+          payload?: Json | null
+          triggered_at?: string | null
+        }
+        Update: {
+          alert_id?: string
+          id?: string
+          payload?: Json | null
+          triggered_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_events_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          threshold: number | null
+          ticker: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          threshold?: number | null
+          ticker?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          threshold?: number | null
+          ticker?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      behavior_metrics: {
+        Row: {
+          avg_hold_time_days: number | null
+          computed_at: string | null
+          id: string
+          sector_bias: Json | null
+          trades_per_week: number | null
+          user_id: string
+          volatility_response: Json | null
+        }
+        Insert: {
+          avg_hold_time_days?: number | null
+          computed_at?: string | null
+          id?: string
+          sector_bias?: Json | null
+          trades_per_week?: number | null
+          user_id: string
+          volatility_response?: Json | null
+        }
+        Update: {
+          avg_hold_time_days?: number | null
+          computed_at?: string | null
+          id?: string
+          sector_bias?: Json | null
+          trades_per_week?: number | null
+          user_id?: string
+          volatility_response?: Json | null
+        }
+        Relationships: []
+      }
       behavioral_metrics: {
         Row: {
           avg_holding_duration: number
@@ -67,6 +212,63 @@ export type Database = {
           revenge_flag?: boolean
           size_escalation_flag?: boolean
           trend_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_customers: {
+        Row: {
+          created_at: string | null
+          id: string
+          provider: string
+          provider_customer_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          provider: string
+          provider_customer_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          provider?: string
+          provider_customer_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_subscriptions: {
+        Row: {
+          created_at: string | null
+          current_period_end: string | null
+          id: string
+          plan: string | null
+          provider: string
+          provider_subscription_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          plan?: string | null
+          provider: string
+          provider_subscription_id: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          plan?: string | null
+          provider?: string
+          provider_subscription_id?: string
+          status?: string | null
           user_id?: string
         }
         Relationships: []
@@ -412,6 +614,51 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_flags: {
+        Row: {
+          description: string | null
+          is_enabled: boolean | null
+          key: string
+          updated_at: string | null
+        }
+        Insert: {
+          description?: string | null
+          is_enabled?: boolean | null
+          key: string
+          updated_at?: string | null
+        }
+        Update: {
+          description?: string | null
+          is_enabled?: boolean | null
+          key?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      feedback: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          message: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          message: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
@@ -496,6 +743,57 @@ export type Database = {
           symbol?: string
           volatility_subscore?: number
           volume_subscore?: number
+        }
+        Relationships: []
+      }
+      insider_filings: {
+        Row: {
+          created_at: string | null
+          external_id: string | null
+          filing_date: string
+          id: string
+          insider_name: string | null
+          insider_role: string | null
+          issuer_name: string | null
+          price: number | null
+          shares: number | null
+          source: string
+          source_url: string
+          ticker: string
+          transaction_type: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          external_id?: string | null
+          filing_date: string
+          id?: string
+          insider_name?: string | null
+          insider_role?: string | null
+          issuer_name?: string | null
+          price?: number | null
+          shares?: number | null
+          source: string
+          source_url: string
+          ticker: string
+          transaction_type: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          external_id?: string | null
+          filing_date?: string
+          id?: string
+          insider_name?: string | null
+          insider_role?: string | null
+          issuer_name?: string | null
+          price?: number | null
+          shares?: number | null
+          source?: string
+          source_url?: string
+          ticker?: string
+          transaction_type?: string
+          value?: number | null
         }
         Relationships: []
       }
@@ -710,6 +1008,36 @@ export type Database = {
           },
         ]
       }
+      moderation_actions: {
+        Row: {
+          action_type: string
+          actor_user_id: string | null
+          created_at: string | null
+          id: string
+          reason: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action_type: string
+          actor_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action_type?: string
+          actor_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -793,6 +1121,63 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          id: string
+          referred_user_id: string | null
+          referrer_user_id: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          referred_user_id?: string | null
+          referrer_user_id?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          referred_user_id?: string | null
+          referrer_user_id?: string | null
+        }
+        Relationships: []
+      }
+      risk_snapshots: {
+        Row: {
+          account_scope: string | null
+          beta: number | null
+          computed_at: string | null
+          exposure_by_sector: Json | null
+          exposure_by_ticker: Json | null
+          id: string
+          user_id: string
+          var_95: number | null
+        }
+        Insert: {
+          account_scope?: string | null
+          beta?: number | null
+          computed_at?: string | null
+          exposure_by_sector?: Json | null
+          exposure_by_ticker?: Json | null
+          id?: string
+          user_id: string
+          var_95?: number | null
+        }
+        Update: {
+          account_scope?: string | null
+          beta?: number | null
+          computed_at?: string | null
+          exposure_by_sector?: Json | null
+          exposure_by_ticker?: Json | null
+          id?: string
+          user_id?: string
+          var_95?: number | null
+        }
+        Relationships: []
+      }
       room_members: {
         Row: {
           id: string
@@ -852,6 +1237,7 @@ export type Database = {
           name: string
           rules: string | null
           slug: string
+          symbol: string | null
           ticker: string | null
           type: Database["public"]["Enums"]["room_type"]
           updated_at: string
@@ -866,6 +1252,7 @@ export type Database = {
           name: string
           rules?: string | null
           slug: string
+          symbol?: string | null
           ticker?: string | null
           type: Database["public"]["Enums"]["room_type"]
           updated_at?: string
@@ -880,6 +1267,7 @@ export type Database = {
           name?: string
           rules?: string | null
           slug?: string
+          symbol?: string | null
           ticker?: string | null
           type?: Database["public"]["Enums"]["room_type"]
           updated_at?: string
@@ -891,6 +1279,194 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      sim_accounts: {
+        Row: {
+          base_currency: string | null
+          created_at: string | null
+          id: string
+          name: string | null
+          user_id: string
+        }
+        Insert: {
+          base_currency?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          user_id: string
+        }
+        Update: {
+          base_currency?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sim_cash_balances: {
+        Row: {
+          as_of: string | null
+          available: number
+          currency: string
+          id: string
+          sim_account_id: string
+          total: number
+        }
+        Insert: {
+          as_of?: string | null
+          available?: number
+          currency: string
+          id?: string
+          sim_account_id: string
+          total?: number
+        }
+        Update: {
+          as_of?: string | null
+          available?: number
+          currency?: string
+          id?: string
+          sim_account_id?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sim_cash_balances_sim_account_id_fkey"
+            columns: ["sim_account_id"]
+            isOneToOne: false
+            referencedRelation: "sim_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sim_orders: {
+        Row: {
+          id: string
+          limit_price: number | null
+          order_type: string
+          placed_at: string | null
+          quantity: number
+          side: string
+          sim_account_id: string
+          status: string
+          ticker: string
+        }
+        Insert: {
+          id?: string
+          limit_price?: number | null
+          order_type?: string
+          placed_at?: string | null
+          quantity: number
+          side: string
+          sim_account_id: string
+          status?: string
+          ticker: string
+        }
+        Update: {
+          id?: string
+          limit_price?: number | null
+          order_type?: string
+          placed_at?: string | null
+          quantity?: number
+          side?: string
+          sim_account_id?: string
+          status?: string
+          ticker?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sim_orders_sim_account_id_fkey"
+            columns: ["sim_account_id"]
+            isOneToOne: false
+            referencedRelation: "sim_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sim_positions: {
+        Row: {
+          as_of: string | null
+          avg_cost: number | null
+          id: string
+          market_value: number | null
+          quantity: number
+          sim_account_id: string
+          ticker: string
+          unrealized_pnl: number | null
+        }
+        Insert: {
+          as_of?: string | null
+          avg_cost?: number | null
+          id?: string
+          market_value?: number | null
+          quantity?: number
+          sim_account_id: string
+          ticker: string
+          unrealized_pnl?: number | null
+        }
+        Update: {
+          as_of?: string | null
+          avg_cost?: number | null
+          id?: string
+          market_value?: number | null
+          quantity?: number
+          sim_account_id?: string
+          ticker?: string
+          unrealized_pnl?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sim_positions_sim_account_id_fkey"
+            columns: ["sim_account_id"]
+            isOneToOne: false
+            referencedRelation: "sim_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sim_transactions: {
+        Row: {
+          amount: number | null
+          currency: string | null
+          executed_at: string | null
+          id: string
+          price: number | null
+          quantity: number | null
+          side: string | null
+          sim_account_id: string
+          ticker: string | null
+        }
+        Insert: {
+          amount?: number | null
+          currency?: string | null
+          executed_at?: string | null
+          id?: string
+          price?: number | null
+          quantity?: number | null
+          side?: string | null
+          sim_account_id: string
+          ticker?: string | null
+        }
+        Update: {
+          amount?: number | null
+          currency?: string | null
+          executed_at?: string | null
+          id?: string
+          price?: number | null
+          quantity?: number | null
+          side?: string | null
+          sim_account_id?: string
+          ticker?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sim_transactions_sim_account_id_fkey"
+            columns: ["sim_account_id"]
+            isOneToOne: false
+            referencedRelation: "sim_accounts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -927,6 +1503,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_blocks: {
+        Row: {
+          blocked_user_id: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          blocked_user_id: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          blocked_user_id?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_events: {
+        Row: {
+          created_at: string | null
+          event_name: string
+          id: string
+          properties: Json | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_name: string
+          id?: string
+          properties?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_name?: string
+          id?: string
+          properties?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -942,6 +1566,36 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          ended_at: string | null
+          id: string
+          ip_hash: string | null
+          session_id: string | null
+          started_at: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          session_id?: string | null
+          started_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          session_id?: string | null
+          started_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
