@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus, Pin } from "lucide-react";
+import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus, Pin, Pencil, Trash2, MoreHorizontal, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import RichMessageContent from "@/components/chat/RichMessageContent";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,9 @@ interface DM {
   receiver_id: string;
   content: string;
   is_read: boolean;
+  is_edited: boolean;
+  is_deleted: boolean;
+  edited_at: string | null;
   created_at: string;
 }
 
@@ -56,6 +60,8 @@ const DirectMessages = () => {
   const [chatInput, setChatInput] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
 
   // New DM modal
   const [showNewDM, setShowNewDM] = useState(false);
@@ -193,11 +199,18 @@ const DirectMessages = () => {
             if (prev.some(m => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
-          // Auto-mark as read if we're the receiver
           if (msg.receiver_id === user.id) {
             supabase.from("direct_messages").update({ is_read: true }).eq("id", msg.id);
           }
         }
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "direct_messages",
+      }, (payload) => {
+        const updated = payload.new as DM;
+        setChatMessages(prev => prev.map(m => m.id === updated.id ? { ...m, content: updated.content, is_edited: updated.is_edited, is_deleted: updated.is_deleted } : m));
       })
       .subscribe();
 
@@ -222,6 +235,40 @@ const DirectMessages = () => {
       toast.error("Failed to send message");
       setChatInput(content);
     }
+  };
+
+  const handleDeleteDM = async (msgId: string) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("direct_messages")
+      .update({ is_deleted: true, content: "[deleted]" })
+      .eq("id", msgId)
+      .eq("sender_id", user.id);
+    if (error) { toast.error("Failed to delete"); return; }
+    setChatMessages(prev => prev.map(m => m.id === msgId ? { ...m, is_deleted: true, content: "[deleted]" } : m));
+  };
+
+  const handleStartEditDM = (msg: DM) => {
+    setEditingMsgId(msg.id);
+    setEditContent(msg.content);
+  };
+
+  const handleSaveEditDM = async () => {
+    if (!editingMsgId || !editContent.trim() || !user) return;
+    const { error } = await supabase
+      .from("direct_messages")
+      .update({ content: editContent.trim(), is_edited: true, edited_at: new Date().toISOString() })
+      .eq("id", editingMsgId)
+      .eq("sender_id", user.id);
+    if (error) { toast.error("Failed to edit"); return; }
+    setChatMessages(prev => prev.map(m => m.id === editingMsgId ? { ...m, content: editContent.trim(), is_edited: true } : m));
+    setEditingMsgId(null);
+    setEditContent("");
+  };
+
+  const handleCancelEditDM = () => {
+    setEditingMsgId(null);
+    setEditContent("");
   };
 
   if (!user) {
@@ -262,27 +309,83 @@ const DirectMessages = () => {
               <p className="text-sm text-muted-foreground">Start a conversation with @{activePartner.username}</p>
             </div>
           )}
-          {chatMessages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex ${msg.sender_id === user.id ? "justify-end" : "justify-start"}`}
-            >
-              <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${
-                msg.sender_id === user.id
-                  ? "bg-foreground text-primary-foreground"
-                  : "glass-card"
-              }`}>
-                <RichMessageContent content={msg.content} />
-                <span className={`block text-[9px] mt-0.5 ${
-                  msg.sender_id === user.id ? "text-primary-foreground/50" : "text-muted-foreground"
+          {chatMessages.map((msg) => {
+            const isOwn = msg.sender_id === user.id;
+            const isEditing = editingMsgId === msg.id;
+
+            return (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`group flex items-end gap-1.5 ${isOwn ? "justify-end" : "justify-start"}`}
+              >
+                {/* Actions (show on left for own messages) */}
+                {isOwn && !msg.is_deleted && !isEditing && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="mb-2 rounded-full p-1 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground hover:bg-secondary">
+                        <MoreHorizontal size={14} />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="left" className="w-32 p-1" align="end">
+                      <button
+                        onClick={() => handleStartEditDM(msg)}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs hover:bg-secondary"
+                      >
+                        <Pencil size={12} /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDM(msg.id)}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-secondary"
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${
+                  msg.is_deleted
+                    ? "italic text-muted-foreground bg-secondary/50"
+                    : isOwn
+                      ? "bg-foreground text-primary-foreground"
+                      : "glass-card"
                 }`}>
-                  {timeAgo(msg.created_at)}
-                </span>
-              </div>
-            </motion.div>
-          ))}
+                  {isEditing ? (
+                    <div className="space-y-1.5">
+                      <input
+                        type="text"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveEditDM();
+                          if (e.key === "Escape") handleCancelEditDM();
+                        }}
+                        className="w-full rounded-lg bg-primary-foreground/20 px-2 py-1 text-xs text-primary-foreground outline-none"
+                        autoFocus
+                      />
+                      <div className="flex gap-1.5">
+                        <button onClick={handleSaveEditDM} className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30">
+                          <Check size={10} /> Save
+                        </button>
+                        <button onClick={handleCancelEditDM} className="rounded px-2 py-0.5 text-[10px] text-primary-foreground/60 hover:text-primary-foreground">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <RichMessageContent content={msg.content} />
+                  )}
+                  <span className={`block text-[9px] mt-0.5 ${
+                    isOwn ? "text-primary-foreground/50" : "text-muted-foreground"
+                  }`}>
+                    {timeAgo(msg.created_at)}{msg.is_edited && !msg.is_deleted ? " · edited" : ""}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
 
