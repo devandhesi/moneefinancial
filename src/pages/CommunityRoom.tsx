@@ -711,19 +711,38 @@ const CommunityRoom = () => {
             <div className="glass-card flex items-center gap-2 px-3 py-2.5">
               <ChatAttachmentMenu
                 disabled={sending}
-                onSendContent={(content) => {
-                  // Send attachment content as a message directly
+                onSendContent={async (content) => {
                   if (!user) return;
-                  const sendAttachment = async () => {
-                    let roomId: string | null = roomData?.id || null;
-                    if (!roomId) {
-                      const { data: existingRoom } = await supabase.from("rooms").select("id").eq("slug", slug).single();
-                      roomId = existingRoom?.id || null;
-                    }
-                    if (!roomId) return;
-                    await supabase.from("messages").insert({ room_id: roomId, user_id: user.id, content });
-                  };
-                  sendAttachment();
+                  let roomId: string | null = roomData?.id || null;
+                  if (!roomId) {
+                    const { data: existingRoom } = await supabase.from("rooms").select("id").eq("slug", slug).single();
+                    roomId = existingRoom?.id || null;
+                  }
+                  if (!roomId) { toast.error("Room not found"); return; }
+                  // Optimistic add
+                  const tempId = crypto.randomUUID();
+                  setMessages(prev => [...prev, {
+                    id: tempId,
+                    content,
+                    user_id: user.id,
+                    is_bot: false,
+                    is_pinned: false,
+                    is_edited: false,
+                    is_deleted: false,
+                    reply_to: null,
+                    created_at: new Date().toISOString(),
+                    profile: profile ? {
+                      username: profile.username,
+                      display_name: profile.display_name,
+                      avatar_url: profile.avatar_url,
+                      is_verified: profile.is_verified,
+                    } : undefined,
+                  }]);
+                  const { error } = await supabase.from("messages").insert({ room_id: roomId, user_id: user.id, content });
+                  if (error) {
+                    toast.error("Failed to send attachment");
+                    setMessages(prev => prev.filter(m => m.id !== tempId));
+                  }
                 }}
               />
               <input
