@@ -27,11 +27,10 @@ const AskMavenButton = ({ symbol, context, compact = false, className = "" }: Pr
     return (
       <button
         onClick={handleClick}
-        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary ${className}`}
+        className={`inline-flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary ${className}`}
         title={`Ask Maven about ${symbol}`}
       >
-        <MavenIcon size={12} />
-        Maven
+        <MavenIcon size={14} />
       </button>
     );
   }

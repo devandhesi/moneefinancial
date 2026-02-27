@@ -286,8 +286,10 @@ const Invest = () => {
   const searchQuoteMap = new Map((searchQuotes || []).map(q => [q.symbol, q]));
   const { isOpen: marketOpen, displayTime, tzLabel, statusText: marketStatusText } = useMarketStatus(timezone);
 
-  const mkSparkline = (base: number, vol: number) =>
-    Array.from({ length: 16 }, (_, i) => ({ i, v: base + Math.sin(i * 0.6) * vol + (Math.random() - 0.4) * vol * 0.7 }));
+  // Fetch real sparkline data for trending stocks
+  const trendingSymbols = trendingStocks.map(s => s.symbol);
+  const { data: trendingQuotes } = useBatchQuotes(trendingSymbols, { enabled: trendingSymbols.length > 0 && activeTab === "stocks" });
+  const trendingQuoteMap = new Map((trendingQuotes || []).map(q => [q.symbol, q]));
 
   return (
     <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8">
@@ -456,8 +458,13 @@ const Invest = () => {
                     {isLoadingTrending && <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>}
                     {!isLoadingTrending && filteredStocks.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No stocks match your filter</div>}
                     {filteredStocks.map((stock, i) => {
-                      const isPositive = stock.change >= 0;
-                      const sparkline = mkSparkline(stock.price, stock.price * 0.02);
+                      const realQuote = trendingQuoteMap.get(stock.symbol);
+                      const isPositive = realQuote ? realQuote.changePercent >= 0 : stock.change >= 0;
+                      const sparkline = realQuote && realQuote.sparkline.length > 1
+                        ? realQuote.sparkline.map((v, idx) => ({ i: idx, v }))
+                        : Array.from({ length: 16 }, (_, idx) => ({ i: idx, v: stock.price + Math.sin(idx * 0.6) * stock.price * 0.01 }));
+                      const displayPrice = realQuote ? realQuote.price : stock.price;
+                      const displayChange = realQuote ? realQuote.changePercent : stock.change;
                       return (
                         <motion.div key={stock.symbol} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.03 * i }} className="glass-card flex w-full cursor-pointer items-center justify-between p-4 text-left transition-shadow hover:shadow-md" onClick={() => navigate(`/invest/${stock.symbol}`)}>
                           <div className="flex items-center gap-3">
@@ -474,10 +481,10 @@ const Invest = () => {
                               </ResponsiveContainer>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-medium tabular-nums">${stock.price.toFixed(2)}</p>
+                              <p className="text-sm font-medium tabular-nums">${formatPrice(displayPrice)}</p>
                               <p className={`flex items-center justify-end gap-0.5 text-xs tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
                                 {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                                {isPositive ? "+" : ""}{stock.change.toFixed(2)}%
+                                {isPositive ? "+" : ""}{displayChange.toFixed(2)}%
                               </p>
                             </div>
                           </div>
