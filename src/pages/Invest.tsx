@@ -14,6 +14,8 @@ import AskMavenButton from "@/components/AskMavenButton";
 import StockAlertButton from "@/components/StockAlertButton";
 import { toast } from "sonner";
 import { useTimezone } from "@/hooks/use-timezone";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ── Market status hook ───────────────────────────────────────── */
 
@@ -84,7 +86,13 @@ const COMMODITY_NAMES: Record<string, { name: string; extra: string }> = {
 
 const INDICATOR_SYMBOLS = ["^TNX", "DX-Y.NYB", "GC", "BTC"];
 
-const suggestedForYou = [
+interface MavenPick {
+  symbol: string;
+  name: string;
+  reason: string;
+}
+
+const DEFAULT_PICKS: MavenPick[] = [
   { symbol: "VTI", name: "Vanguard Total Market", reason: "Reduces your single-stock concentration risk" },
   { symbol: "XLV", name: "Health Care Select", reason: "Zero healthcare exposure detected" },
   { symbol: "BND", name: "Vanguard Total Bond", reason: "Adds stability given your high-volatility tilt" },
@@ -189,6 +197,7 @@ function AssetRow({ item, index, onClick }: { item: AssetItem; index: number; on
 
 const Invest = () => {
   const { timezone } = useTimezone();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<AssetTab>("stocks");
   const [activeSector, setActiveSector] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -197,7 +206,32 @@ const Invest = () => {
   const [searchViewMode, setSearchViewMode] = useState<"price" | "chart">("price");
   const [trendingStocks, setTrendingStocks] = useState<TrendingStock[]>([]);
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
+  const [mavenPicks, setMavenPicks] = useState<MavenPick[]>(DEFAULT_PICKS);
+  const [picksLoading, setPicksLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Fetch personalized Maven picks
+  useEffect(() => {
+    if (!user) return;
+    const fetchPicks = async () => {
+      setPicksLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await supabase.functions.invoke("maven-picks", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.data?.picks?.length > 0) {
+          setMavenPicks(res.data.picks);
+        }
+      } catch (e) {
+        console.error("Failed to load Maven picks:", e);
+      } finally {
+        setPicksLoading(false);
+      }
+    };
+    fetchPicks();
+  }, [user]);
 
   // Live crypto & commodity data
   const { data: cryptoQuotes, isLoading: cryptoLoading } = useBatchQuotes(CRYPTO_SYMBOLS, { enabled: activeTab === "crypto" });
@@ -385,7 +419,12 @@ const Invest = () => {
                       <span>Maven's Picks for You</span>
                     </div>
                     <div className="mt-2 space-y-2">
-                      {suggestedForYou.map((s) => (
+                      {picksLoading ? (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                          <span className="ml-2 text-xs text-muted-foreground">Analyzing your portfolio…</span>
+                        </div>
+                      ) : mavenPicks.map((s) => (
                         <div key={s.symbol} className="glass-card flex w-full flex-col p-3 transition-shadow hover:shadow-md">
                           <button onClick={() => navigate(`/invest/${s.symbol}`)} className="flex-1 text-left">
                             <p className="text-sm font-semibold">{s.symbol} <span className="font-normal text-muted-foreground">· {s.name}</span></p>
