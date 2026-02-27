@@ -73,6 +73,7 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [sediSearch, setSediSearch] = useState("");
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -355,6 +356,23 @@ const Reports = () => {
 
         {/* SEDI TAB */}
         <TabsContent value="sedi" className="space-y-3">
+          {/* Search */}
+          <div className="glass-card flex items-center gap-2 px-3 py-2.5">
+            <Search size={14} className="text-muted-foreground" />
+            <input
+              type="text"
+              value={sediSearch}
+              onChange={(e) => setSediSearch(e.target.value)}
+              placeholder="Search by ticker or insider name..."
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            />
+            {sediSearch && (
+              <button onClick={() => setSediSearch("")} className="text-muted-foreground hover:text-foreground">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           <Card className="p-3 bg-amber-500/5 border-amber-500/20">
             <div className="flex items-center gap-2 text-xs text-amber-400">
               <AlertTriangle size={14} />
@@ -409,7 +427,13 @@ const Reports = () => {
                 </Card>
               </div>
 
-              {sedi.map((item, i) => {
+              {sedi
+                .filter((item) => {
+                  if (!sediSearch.trim()) return true;
+                  const q = sediSearch.toLowerCase();
+                  return item.symbol?.toLowerCase().includes(q) || item.insider?.toLowerCase().includes(q) || item.company?.toLowerCase().includes(q);
+                })
+                .map((item, i) => {
                 const isBuy = item.transactionType.toLowerCase().includes("purchase") || item.transactionType.toLowerCase().includes("buy");
                 return (
                   <Card key={i} className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => navigate(`/stock/${item.symbol}`)}>
