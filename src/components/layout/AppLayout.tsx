@@ -12,7 +12,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-background">
       <DesktopSidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
 
-      <main className={`mx-auto max-w-[1440px] pb-24 lg:pb-8 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-0" : "lg:pl-56"}`}>
+      <main className={`mx-auto max-w-[1440px] pb-24 lg:pb-8 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-14" : "lg:pl-56"}`}>
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
 
