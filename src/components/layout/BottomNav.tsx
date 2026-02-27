@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, Users, TrendingUp, Bell, MoreHorizontal, Star, MessageCircle, BookOpen, FlaskConical, User, Settings, Newspaper, Wrench, FileBarChart, Hash, PieChart, ShieldAlert, Flame, Grid3X3, Receipt, ClipboardList } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import MavenIcon from "@/components/MavenIcon";
 
 const primaryTabs = [
   { path: "/", icon: LayoutDashboard, label: "Home" },
@@ -129,6 +130,7 @@ const BottomNav = () => {
           {primaryTabs.map((tab) => {
             const isActive = location.pathname === tab.path || (tab.path !== "/" && location.pathname.startsWith(tab.path + "/"));
             const Icon = tab.icon;
+            const isMaven = tab.path === "/chat";
             return (
               <NavLink key={tab.path} to={tab.path} className="relative flex flex-col items-center gap-0.5 px-3 py-1.5">
                 {isActive && (
@@ -138,7 +140,11 @@ const BottomNav = () => {
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
-                <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                {isMaven ? (
+                  <MavenIcon size={20} className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                ) : (
+                  <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                )}
                 <span className={`text-[10px] leading-tight ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
                   {tab.label}
                 </span>
