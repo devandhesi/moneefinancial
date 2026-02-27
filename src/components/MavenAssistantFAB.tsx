@@ -1,13 +1,11 @@
-import { useState, useRef, useEffect } from "react";
-import { ChevronDown } from "lucide-react";
-import { X, Send, Loader2 } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { ChevronDown, X, Send, Loader2, Plus, Clock, Trash2 } from "lucide-react";
 import MavenIcon from "./MavenIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { streamChat } from "@/lib/chat-stream";
 import ReactMarkdown from "react-markdown";
-
-type Msg = { role: "user" | "assistant"; content: string };
+import { useMavenChat } from "@/hooks/use-maven-chat";
 
 const PAGE_CONTEXT: Record<string, { label: string; description: string }> = {
   "/": { label: "Dashboard", description: "the main dashboard with portfolio overview, health score, projections, market mood, and upcoming events" },
@@ -28,7 +26,6 @@ const PAGE_CONTEXT: Record<string, { label: string; description: string }> = {
 };
 
 function getPageContext(pathname: string) {
-  // Handle dynamic routes like /invest/:symbol or /learn/:courseId
   if (pathname.startsWith("/invest/")) {
     const symbol = pathname.split("/")[2]?.toUpperCase();
     return { label: `Stock: ${symbol}`, description: `the detailed stock page for ${symbol} showing price, charts, and analysis` };
@@ -85,19 +82,25 @@ function SuggestedQuestions({ actions, onSelect }: { actions: typeof QUICK_ACTIO
 }
 
 export default function MavenAssistantFAB() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const {
+    open, setOpen,
+    messages, setMessages,
+    loading, setLoading,
+    history, showHistory, setShowHistory,
+    startNewChat, loadThread, saveCurrentThread,
+  } = useMavenChat();
+
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const ctx = getPageContext(location.pathname);
 
-  // Reset conversation when page changes
+  // Auto-save thread when messages change
   useEffect(() => {
-    setMessages([]);
-    setInput("");
-  }, [location.pathname]);
+    if (messages.length > 0 && !loading) {
+      saveCurrentThread();
+    }
+  }, [messages, loading]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -105,7 +108,7 @@ export default function MavenAssistantFAB() {
 
   const sendMessage = async (text: string) => {
     if (loading) return;
-    const userMsg: Msg = { role: "user", content: text };
+    const userMsg = { role: "user" as const, content: text };
     const allMessages = [...messages, userMsg];
     setMessages(allMessages);
     setInput("");
@@ -177,10 +180,58 @@ export default function MavenAssistantFAB() {
                 <MavenIcon size={16} className="text-foreground" />
                 <p className="text-sm font-semibold text-foreground tracking-tight leading-none">maven</p>
               </div>
-              <button onClick={() => setOpen(false)} className="rounded-lg p-1 hover:bg-muted/60 transition-colors">
-                <X className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="rounded-lg p-1 hover:bg-muted/60 transition-colors"
+                  title="Chat history"
+                >
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={startNewChat}
+                  className="rounded-lg p-1 hover:bg-muted/60 transition-colors"
+                  title="New chat"
+                >
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+                <button onClick={() => setOpen(false)} className="rounded-lg p-1 hover:bg-muted/60 transition-colors">
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
             </div>
+
+            {/* History panel */}
+            <AnimatePresence>
+              {showHistory && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden border-b border-[var(--glass-border-subtle)]"
+                >
+                  <div className="max-h-[200px] overflow-y-auto p-2 space-y-0.5">
+                    {history.length === 0 ? (
+                      <p className="text-center text-xs text-muted-foreground py-4">No chat history yet</p>
+                    ) : (
+                      history.map((thread) => (
+                        <button
+                          key={thread.id}
+                          onClick={() => loadThread(thread.id)}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors group"
+                        >
+                          <p className="text-xs font-medium truncate">{thread.title}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(thread.createdAt).toLocaleDateString()} · {thread.messages.length} messages
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[240px]">

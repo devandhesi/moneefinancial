@@ -8,6 +8,7 @@ import { TimezoneProvider } from "@/hooks/use-timezone";
 import { SidebarConfigProvider } from "@/hooks/use-sidebar-config";
 import { AuthProvider } from "@/hooks/use-auth";
 import { TradingModeProvider } from "@/hooks/use-trading-mode";
+import { MavenChatProvider } from "@/hooks/use-maven-chat";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -52,6 +53,7 @@ const App = () => (
       <SidebarConfigProvider>
       <AuthProvider>
       <TradingModeProvider>
+      <MavenChatProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -95,6 +97,7 @@ const App = () => (
           </AppLayout>
         </BrowserRouter>
       </TooltipProvider>
+      </MavenChatProvider>
       </TradingModeProvider>
       </AuthProvider>
       </SidebarConfigProvider>
