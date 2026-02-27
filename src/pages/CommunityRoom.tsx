@@ -5,7 +5,7 @@ import {
   ArrowLeft, Send, Hash, TrendingUp, Users, Pin, Info,
   MoreHorizontal, Smile, Reply, Flag, Loader2, Bot,
   ChevronRight, X, Plus, BarChart3, Image, ListChecks,
-  Bookmark, UserPlus, Copy, Check, Search,
+  Bookmark, UserPlus, Copy, Check, Search, Pencil, Trash2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,6 +60,8 @@ const CommunityRoom = () => {
   const [typingUsers, setTypingUsers] = useState<Map<string, { username: string; ts: number }>>(new Map());
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [editingMsg, setEditingMsg] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const [roomData, setRoomData] = useState<{
     id: string;
     name: string;
@@ -161,13 +163,23 @@ const CommunityRoom = () => {
             if (profileData) newMsg.profile = profileData;
           }
           setMessages((prev) => {
-            // Remove optimistic message from same user with same content
             const deduped = prev.filter(
               (m) => m.id === newMsg.id ? false : !(m.user_id === newMsg.user_id && m.content === newMsg.content && m.id !== newMsg.id && Date.now() - new Date(m.created_at).getTime() < 5000)
             );
             if (deduped.some((m) => m.id === newMsg.id)) return deduped;
             return [...deduped, newMsg];
           });
+        })
+        .on("postgres_changes", {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${roomId}`,
+        }, (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((m) => m.id === updated.id ? { ...m, content: updated.content, is_edited: updated.is_edited, is_deleted: updated.is_deleted } : m)
+          );
         })
         .subscribe();
     };
@@ -344,7 +356,40 @@ const CommunityRoom = () => {
     }
   };
 
-  // Search users to add
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("messages")
+      .update({ is_deleted: true, content: "[deleted]" })
+      .eq("id", msgId)
+      .eq("user_id", user.id);
+    if (error) { toast.error("Failed to delete"); return; }
+    setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, is_deleted: true, content: "[deleted]" } : m));
+  };
+
+  const handleStartEdit = (msg: Message) => {
+    setEditingMsg(msg.id);
+    setEditContent(msg.content);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMsg || !editContent.trim() || !user) return;
+    const { error } = await supabase
+      .from("messages")
+      .update({ content: editContent.trim(), is_edited: true, edited_at: new Date().toISOString() })
+      .eq("id", editingMsg)
+      .eq("user_id", user.id);
+    if (error) { toast.error("Failed to edit"); return; }
+    setMessages((prev) => prev.map((m) => m.id === editingMsg ? { ...m, content: editContent.trim(), is_edited: true } : m));
+    setEditingMsg(null);
+    setEditContent("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMsg(null);
+    setEditContent("");
+  };
+
   const searchUsers = useCallback(async (query: string) => {
     if (query.length < 2) { setSearchResults([]); return; }
     setSearching(true);
@@ -502,10 +547,25 @@ const CommunityRoom = () => {
                     )}
                     <span className="text-[10px] text-muted-foreground">{formatTime(msg.created_at)}</span>
                     {msg.is_pinned && <Pin size={10} className="text-accent-foreground" />}
+                    {msg.is_edited && !msg.is_deleted && <span className="text-[10px] text-muted-foreground italic">(edited)</span>}
                   </div>
 
                   {msg.is_deleted ? (
                     <p className="mt-0.5 text-xs italic text-muted-foreground">Message deleted</p>
+                  ) : editingMsg === msg.id ? (
+                    <div className="mt-1 space-y-1.5">
+                      <input
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") handleCancelEdit(); }}
+                        className="w-full rounded-lg bg-secondary px-3 py-1.5 text-sm outline-none"
+                        autoFocus
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={handleSaveEdit} className="rounded-md bg-foreground px-2.5 py-1 text-[11px] font-medium text-primary-foreground">Save</button>
+                        <button onClick={handleCancelEdit} className="rounded-md px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="mt-0.5 text-[13px] leading-relaxed break-words">
                       <RichMessageContent content={msg.content} />
@@ -570,6 +630,24 @@ const CommunityRoom = () => {
                     >
                       <Reply size={12} />
                     </button>
+                    {msg.user_id === user?.id && !msg.is_deleted && (
+                      <>
+                        <button
+                          onClick={() => handleStartEdit(msg)}
+                          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          title="Edit"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="rounded p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </>
+                    )}
                     <button className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
                       <Flag size={12} />
                     </button>
