@@ -50,6 +50,9 @@ const CommunityRoom = () => {
   const [searching, setSearching] = useState(false);
   const [addedUsers, setAddedUsers] = useState<Set<string>>(new Set());
   const [copiedLink, setCopiedLink] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Map<string, { username: string; ts: number }>>(new Map());
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [roomData, setRoomData] = useState<{
     id: string;
     name: string;
@@ -146,6 +149,48 @@ const CommunityRoom = () => {
 
     return () => { if (channel) supabase.removeChannel(channel); };
   }, [slug]);
+
+  // Typing indicator channel
+  useEffect(() => {
+    if (!slug || !user || !profile) return;
+    const ch = supabase.channel(`typing-${slug}`);
+    ch.on("broadcast", { event: "typing" }, (payload) => {
+      const { userId, username } = payload.payload as { userId: string; username: string };
+      if (userId === user.id) return;
+      setTypingUsers((prev) => {
+        const next = new Map(prev);
+        next.set(userId, { username, ts: Date.now() });
+        return next;
+      });
+    }).subscribe();
+    typingChannelRef.current = ch;
+
+    const cleanup = setInterval(() => {
+      setTypingUsers((prev) => {
+        const now = Date.now();
+        const next = new Map(prev);
+        for (const [k, v] of next) {
+          if (now - v.ts > 3000) next.delete(k);
+        }
+        return next.size !== prev.size ? next : prev;
+      });
+    }, 2000);
+
+    return () => {
+      supabase.removeChannel(ch);
+      clearInterval(cleanup);
+      typingChannelRef.current = null;
+    };
+  }, [slug, user, profile]);
+
+  const broadcastTyping = useCallback(() => {
+    if (!typingChannelRef.current || !user || !profile) return;
+    typingChannelRef.current.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId: user.id, username: profile.username },
+    });
+  }, [user, profile]);
 
   const handleSend = async () => {
     if (!input.trim() || sending || !user) return;
@@ -447,6 +492,33 @@ const CommunityRoom = () => {
           )}
         </AnimatePresence>
 
+        {/* Typing indicator */}
+        <AnimatePresence>
+          {typingUsers.size > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="px-4 py-1.5 flex items-center gap-2"
+            >
+              <span className="flex gap-0.5">
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                  />
+                ))}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {Array.from(typingUsers.values()).map((t) => t.username).slice(0, 3).join(", ")}
+                {typingUsers.size > 3 ? ` +${typingUsers.size - 3}` : ""} typing…
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Input */}
         <div className="border-t border-border/30 px-4 py-3">
           {user ? (
@@ -472,7 +544,7 @@ const CommunityRoom = () => {
                 ref={inputRef}
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => { setInput(e.target.value); broadcastTyping(); }}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder={`Message ${roomInfo.name}...`}
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
