@@ -459,37 +459,16 @@ const Invest = () => {
                     {!isLoadingTrending && filteredStocks.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No stocks match your filter</div>}
                     {filteredStocks.map((stock, i) => {
                       const realQuote = trendingQuoteMap.get(stock.symbol);
-                      const isPositive = realQuote ? realQuote.changePercent >= 0 : stock.change >= 0;
-                      const sparkline = realQuote && realQuote.sparkline.length > 1
-                        ? realQuote.sparkline.map((v, idx) => ({ i: idx, v }))
-                        : Array.from({ length: 16 }, (_, idx) => ({ i: idx, v: stock.price + Math.sin(idx * 0.6) * stock.price * 0.01 }));
-                      const displayPrice = realQuote ? realQuote.price : stock.price;
-                      const displayChange = realQuote ? realQuote.changePercent : stock.change;
-                      return (
-                        <motion.div key={stock.symbol} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.03 * i }} className="glass-card flex w-full cursor-pointer items-center justify-between p-4 text-left transition-shadow hover:shadow-md" onClick={() => navigate(`/invest/${stock.symbol}`)}>
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-xs font-bold">{stock.symbol.slice(0, 2)}</div>
-                            <div><p className="text-sm font-semibold">{stock.symbol}</p><p className="text-xs text-muted-foreground">{stock.name}</p></div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="hidden h-8 w-16 sm:block">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={sparkline}>
-                                  <defs><linearGradient id={`sg-stock-${stock.symbol}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0.3} /><stop offset="100%" stopColor={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} stopOpacity={0} /></linearGradient></defs>
-                                  <Area type="monotone" dataKey="v" stroke={isPositive ? "hsl(var(--gain))" : "hsl(var(--loss))"} strokeWidth={1.5} fill={`url(#sg-stock-${stock.symbol})`} />
-                                </AreaChart>
-                              </ResponsiveContainer>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium tabular-nums">${formatPrice(displayPrice)}</p>
-                              <p className={`flex items-center justify-end gap-0.5 text-xs tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
-                                {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                                {isPositive ? "+" : ""}{displayChange.toFixed(2)}%
-                              </p>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
+                      const item: AssetItem = {
+                        symbol: stock.symbol,
+                        name: stock.name,
+                        price: realQuote ? realQuote.price : stock.price,
+                        change: realQuote ? realQuote.changePercent : stock.change,
+                        sparkline: realQuote && realQuote.sparkline.length > 1
+                          ? realQuote.sparkline.map((v, idx) => ({ i: idx, v }))
+                          : Array.from({ length: 16 }, (_, idx) => ({ i: idx, v: stock.price + Math.sin(idx * 0.6) * stock.price * 0.01 })),
+                      };
+                      return <AssetRow key={stock.symbol} item={item} index={i} onClick={() => navigate(`/invest/${stock.symbol}`)} />;
                     })}
                   </div>
                 </motion.div>
