@@ -76,16 +76,20 @@ const CommunityRoom = () => {
   }, [messages]);
 
   // Load messages & subscribe to realtime
+  const roomIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     const loadMessages = async () => {
-      // Try to find room by slug
       const { data: room } = await supabase
         .from("rooms")
         .select("id, name, type, slug, join_code, member_count, description, created_by")
         .eq("slug", slug)
         .single();
 
-      if (room) setRoomData(room as any);
+      if (room) {
+        setRoomData(room as any);
+        roomIdRef.current = room.id;
+      }
 
       if (room) {
         const { data } = await supabase
@@ -97,37 +101,49 @@ const CommunityRoom = () => {
         if (data) setMessages(data as Message[]);
       }
       setLoading(false);
+      return room?.id || null;
     };
 
     loadMessages();
 
-    // Realtime subscription
-    const channel = supabase
-      .channel(`room-${slug}`)
-      .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-      }, async (payload) => {
-        const newMsg = payload.new as Message;
-        // Fetch profile for the new message
-        if (newMsg.user_id) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("username, display_name, avatar_url, is_verified")
-            .eq("user_id", newMsg.user_id)
-            .single();
-          if (profileData) newMsg.profile = profileData;
-        }
-        setMessages((prev) => {
-          // Avoid duplicates from optimistic add
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-      })
-      .subscribe();
+    // Realtime subscription — only subscribe after we have the room
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    return () => { supabase.removeChannel(channel); };
+    const subscribeRealtime = (roomId: string) => {
+      channel = supabase
+        .channel(`room-${slug}`)
+        .on("postgres_changes", {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${roomId}`,
+        }, async (payload) => {
+          const newMsg = payload.new as Message;
+          if (newMsg.user_id) {
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("username, display_name, avatar_url, is_verified")
+              .eq("user_id", newMsg.user_id)
+              .single();
+            if (profileData) newMsg.profile = profileData;
+          }
+          setMessages((prev) => {
+            // Remove optimistic message from same user with same content
+            const deduped = prev.filter(
+              (m) => m.id === newMsg.id ? false : !(m.user_id === newMsg.user_id && m.content === newMsg.content && m.id !== newMsg.id && Date.now() - new Date(m.created_at).getTime() < 5000)
+            );
+            if (deduped.some((m) => m.id === newMsg.id)) return deduped;
+            return [...deduped, newMsg];
+          });
+        })
+        .subscribe();
+    };
+
+    loadMessages().then((rid) => {
+      if (rid) subscribeRealtime(rid);
+    });
+
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, [slug]);
 
   const handleSend = async () => {
