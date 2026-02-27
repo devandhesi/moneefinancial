@@ -1233,8 +1233,11 @@ export type Database = {
           description: string | null
           id: string
           is_archived: boolean
+          is_invite_only: boolean
+          join_code: string | null
           member_count: number
           name: string
+          password_hash: string | null
           rules: string | null
           slug: string
           symbol: string | null
@@ -1248,8 +1251,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_archived?: boolean
+          is_invite_only?: boolean
+          join_code?: string | null
           member_count?: number
           name: string
+          password_hash?: string | null
           rules?: string | null
           slug: string
           symbol?: string | null
@@ -1263,8 +1269,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_archived?: boolean
+          is_invite_only?: boolean
+          join_code?: string | null
           member_count?: number
           name?: string
+          password_hash?: string | null
           rules?: string | null
           slug?: string
           symbol?: string | null

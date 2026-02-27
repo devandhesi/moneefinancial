@@ -42,6 +42,8 @@ import Calendar from "./pages/Calendar";
 import InsiderTracking from "./pages/InsiderTracking";
 import ResetPassword from "./pages/ResetPassword";
 import BrowseRooms from "./pages/BrowseRooms";
+import CreateRoom from "./pages/CreateRoom";
+import JoinRoom from "./pages/JoinRoom";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,7 +82,9 @@ const App = () => (
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/community" element={<CommunityFeed />} />
               <Route path="/community/rooms" element={<BrowseRooms />} />
+              <Route path="/community/create-room" element={<CreateRoom />} />
               <Route path="/community/room/:slug" element={<CommunityRoom />} />
+              <Route path="/join/:code" element={<JoinRoom />} />
               <Route path="/community/dms" element={<DirectMessages />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings/broker" element={<BrokerConnections />} />
