@@ -5,8 +5,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 /**
- * Global hook that listens for incoming DMs via realtime
- * and shows in-app toasts + browser Notifications.
+ * Global hook that listens for:
+ * 1. Incoming DMs via realtime
+ * 2. Triggered stock alert events
+ * 3. General notifications (price_alert, system, etc.)
+ * Shows in-app toasts + browser Notifications for all.
  */
 export function useDmNotifications() {
   const { user } = useAuth();
@@ -19,7 +22,6 @@ export function useDmNotifications() {
     if (permissionAsked.current) return;
     if ("Notification" in window && Notification.permission === "default") {
       permissionAsked.current = true;
-      // Delay slightly so it doesn't fire on first page load
       const t = setTimeout(() => Notification.requestPermission(), 5000);
       return () => clearTimeout(t);
     }
@@ -29,7 +31,8 @@ export function useDmNotifications() {
     if (!user) return;
 
     const channel = supabase
-      .channel("global-dm-listener")
+      .channel("global-notifications")
+      // ── DM listener ──
       .on(
         "postgres_changes",
         {
@@ -43,13 +46,10 @@ export function useDmNotifications() {
             id: string;
             sender_id: string;
             content: string;
-            created_at: string;
           };
 
-          // Skip if user is already viewing this DM conversation
           if (location.pathname === "/community/dms") return;
 
-          // Fetch sender profile for display name
           const { data: sender } = await supabase
             .from("profiles")
             .select("username, display_name")
@@ -59,33 +59,96 @@ export function useDmNotifications() {
           const senderName = sender?.display_name || sender?.username || "Someone";
           const preview = msg.content.length > 60 ? msg.content.slice(0, 60) + "…" : msg.content;
 
-          // In-app toast
           toast(senderName, {
             description: preview,
-            action: {
-              label: "View",
-              onClick: () => navigate("/community/dms"),
-            },
+            action: { label: "View", onClick: () => navigate("/community/dms") },
             duration: 6000,
           });
 
-          // Browser notification (works when tab is in background)
-          if ("Notification" in window && Notification.permission === "granted") {
-            try {
-              const notif = new Notification(`Message from ${senderName}`, {
-                body: preview,
-                icon: "/favicon.ico",
-                tag: `dm-${msg.id}`,
-              });
-              notif.onclick = () => {
-                window.focus();
-                navigate("/community/dms");
-                notif.close();
-              };
-            } catch {
-              // Notification constructor can fail in some contexts
-            }
-          }
+          showBrowserNotif(`Message from ${senderName}`, preview, `dm-${msg.id}`, () => {
+            navigate("/community/dms");
+          });
+        }
+      )
+      // ── Notifications table listener (price alerts, system, etc.) ──
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const notif = payload.new as {
+            id: string;
+            title: string;
+            body: string | null;
+            type: string;
+            link: string | null;
+          };
+
+          const isAlert = notif.type === "price_alert";
+          const icon = isAlert ? "🚨" : "🔔";
+
+          toast(`${icon} ${notif.title}`, {
+            description: notif.body || undefined,
+            action: notif.link
+              ? { label: "View", onClick: () => navigate(notif.link!) }
+              : undefined,
+            duration: isAlert ? 10000 : 6000,
+          });
+
+          showBrowserNotif(notif.title, notif.body || "", `notif-${notif.id}`, () => {
+            if (notif.link) navigate(notif.link);
+            else navigate("/notifications");
+          });
+        }
+      )
+      // ── Alert events listener (stock_alerts triggers) ──
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "alert_events",
+        },
+        async (payload) => {
+          const event = payload.new as {
+            id: string;
+            alert_id: string;
+            payload: Record<string, any> | null;
+          };
+
+          // Fetch the parent alert to check ownership and details
+          const { data: alert } = await supabase
+            .from("stock_alerts")
+            .select("user_id, symbol, alert_type, target_value")
+            .eq("id", event.alert_id)
+            .single();
+
+          if (!alert || alert.user_id !== user.id) return;
+
+          const symbol = alert.symbol;
+          const type = alert.alert_type.replace(/_/g, " ");
+          const value = alert.target_value;
+          const title = `🚨 ${symbol} Alert`;
+          const body = value
+            ? `${symbol} hit your ${type} target of $${value}`
+            : `${symbol} triggered your ${type} alert`;
+
+          toast(title, {
+            description: body,
+            action: {
+              label: "View",
+              onClick: () => navigate(`/invest/${symbol}`),
+            },
+            duration: 10000,
+          });
+
+          showBrowserNotif(title, body, `alert-${event.id}`, () => {
+            navigate(`/invest/${symbol}`);
+          });
         }
       )
       .subscribe();
@@ -94,4 +157,19 @@ export function useDmNotifications() {
       supabase.removeChannel(channel);
     };
   }, [user, location.pathname, navigate]);
+}
+
+/** Helper to fire a browser Notification */
+function showBrowserNotif(title: string, body: string, tag: string, onClick: () => void) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, { body, icon: "/favicon.ico", tag });
+    n.onclick = () => {
+      window.focus();
+      onClick();
+      n.close();
+    };
+  } catch {
+    // Notification constructor can fail in some contexts
+  }
 }
