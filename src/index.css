@@ -233,3 +233,18 @@
     display: none;
   }
 }
+
+/* ── Streaming cursor for Maven chat ─────────────────── */
+.streaming-cursor > *:last-child::after {
+  content: "▊";
+  display: inline;
+  animation: blink-cursor 0.8s steps(2) infinite;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.85em;
+  margin-left: 1px;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
