@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, TrendingUp, Bell, MoreHorizontal, Star, MessageCircle, BookOpen, FlaskConical, User, Settings, Newspaper, Wrench, FileBarChart, X, Hash, PieChart, ShieldAlert, Flame, Grid3X3, Receipt, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Users, TrendingUp, Bell, MoreHorizontal, Star, MessageCircle, BookOpen, FlaskConical, User, Settings, Newspaper, Wrench, FileBarChart, Hash, PieChart, ShieldAlert, Flame, Grid3X3, Receipt, ClipboardList } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const primaryTabs = [
@@ -74,25 +74,24 @@ const BottomNav = () => {
       <AnimatePresence>
         {showMore && (
           <motion.div
-            className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-[70] glass-card-strong p-4 lg:hidden max-h-[70vh] overflow-y-auto"
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-[70] bg-card border-t border-border/40 lg:hidden max-h-[65vh] overflow-y-auto rounded-t-2xl shadow-2xl"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
           >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">More Pages</span>
-              <button onClick={() => setShowMore(false)} className="rounded-lg p-1 hover:bg-secondary">
-                <X size={14} className="text-muted-foreground" />
-              </button>
+            {/* Handle bar */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="h-1 w-10 rounded-full bg-muted-foreground/20" />
             </div>
-            <div className="space-y-4">
+
+            <div className="px-5 pb-5 space-y-5">
               {extraGroups.map((group) => (
                 <div key={group.label}>
-                  <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                     {group.label}
                   </p>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="space-y-0.5">
                     {group.pages.map((page) => {
                       const Icon = page.icon;
                       const isActive = location.pathname === page.path;
@@ -101,12 +100,14 @@ const BottomNav = () => {
                           key={page.path + page.label}
                           to={page.path}
                           onClick={() => setShowMore(false)}
-                          className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 transition-colors ${
-                            isActive ? "bg-foreground/10" : "hover:bg-secondary"
+                          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+                            isActive
+                              ? "bg-foreground/[0.06] text-foreground"
+                              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                           }`}
                         >
-                          <Icon size={18} strokeWidth={isActive ? 2 : 1.5} className={isActive ? "text-foreground" : "text-muted-foreground"} />
-                          <span className={`text-[10px] leading-tight text-center ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                          <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
+                          <span className={`text-sm ${isActive ? "font-medium" : ""}`}>
                             {page.label}
                           </span>
                         </NavLink>
