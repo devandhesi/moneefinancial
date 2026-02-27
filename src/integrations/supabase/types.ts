@@ -653,6 +653,7 @@ export type Database = {
           is_edited: boolean
           is_read: boolean
           receiver_id: string
+          reply_to: string | null
           sender_id: string
         }
         Insert: {
@@ -664,6 +665,7 @@ export type Database = {
           is_edited?: boolean
           is_read?: boolean
           receiver_id: string
+          reply_to?: string | null
           sender_id: string
         }
         Update: {
@@ -675,9 +677,18 @@ export type Database = {
           is_edited?: boolean
           is_read?: boolean
           receiver_id?: string
+          reply_to?: string | null
           sender_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feature_flags: {
         Row: {
