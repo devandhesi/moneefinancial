@@ -15,8 +15,7 @@ const extraGroups = [
   {
     label: "Social",
     pages: [
-      { path: "/social", icon: Newspaper, label: "Finance For You" },
-      { path: "/community", icon: Hash, label: "Rooms" },
+      { path: "/social", icon: Users, label: "Finance For You" },
     ],
   },
   {
