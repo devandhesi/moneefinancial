@@ -297,12 +297,12 @@ const Invest = () => {
     <div className="px-5 pb-24 pt-14 lg:pb-8 lg:pt-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Invest</h1>
             <p className="mt-1 text-sm text-muted-foreground">Stocks, crypto & commodities</p>
           </div>
-          <div className="glass-card flex items-center gap-2.5 px-3.5 py-2">
+          <div className="glass-card flex items-center gap-2.5 px-3.5 py-2 self-start sm:self-auto">
             {marketOpen ? <Sun size={16} className="text-gain" /> : <Moon size={16} className="text-muted-foreground" />}
             <div className="text-right">
               <div className="flex items-center gap-1.5">
@@ -449,7 +449,7 @@ const Invest = () => {
                     </CollapsibleContent>
                   </Collapsible>
 
-                  <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+                  <div className="mt-5 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                     {sectors.map((s) => (
                       <button key={s} onClick={() => setActiveSector(s)} className={`whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-medium transition-all ${activeSector === s ? "bg-foreground text-primary-foreground" : "glass-card text-muted-foreground hover:text-foreground"}`}>{s}</button>
                     ))}

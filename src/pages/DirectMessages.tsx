@@ -295,7 +295,7 @@ const DirectMessages = () => {
   // Active chat view
   if (activePartner) {
     return (
-      <div className="flex h-[calc(100vh-5rem)] flex-col px-5 pt-14 pb-4 lg:pt-8">
+      <div className="flex h-[calc(100vh-7rem)] lg:h-[calc(100vh-2rem)] flex-col px-5 pt-14 pb-4 lg:pt-8">
         {/* Chat header */}
         <div className="flex items-center gap-3 pb-3 border-b border-border/30">
           <button onClick={() => { setActivePartner(null); loadConversations(); }} className="rounded-lg p-1.5 hover:bg-secondary">
