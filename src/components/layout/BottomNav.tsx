@@ -25,17 +25,8 @@ const extraGroups = [
       { path: "/watchlist", icon: Star, label: "Watchlist" },
       { path: "/news", icon: Newspaper, label: "Market News" },
       { path: "/reports", icon: FileBarChart, label: "Reports" },
-      { path: "/allocation", icon: PieChart, label: "Allocation" },
       { path: "/orders", icon: ClipboardList, label: "Orders" },
       { path: "/transactions", icon: Receipt, label: "Transactions" },
-    ],
-  },
-  {
-    label: "Analytics",
-    pages: [
-      { path: "/heat-engine", icon: Flame, label: "Heat Engine" },
-      { path: "/heatmap", icon: Grid3X3, label: "Heatmap" },
-      { path: "/behavioral-risk", icon: ShieldAlert, label: "Risk" },
     ],
   },
   {
