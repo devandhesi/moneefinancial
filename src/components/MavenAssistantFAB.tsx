@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { ChevronDown } from "lucide-react";
 import { X, Send, Loader2 } from "lucide-react";
 import MavenIcon from "./MavenIcon";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,6 +44,45 @@ const QUICK_ACTIONS = [
   { label: "📊 Analyze what I see", prompt: "Analyze what I'm looking at and give me actionable insights or warnings." },
   { label: "🎯 What should I do next?", prompt: "Based on this screen, what should I do next? Give me a clear action plan." },
 ];
+
+function SuggestedQuestions({ actions, onSelect }: { actions: typeof QUICK_ACTIONS; onSelect: (prompt: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="pt-2">
+      <p className="text-center text-sm font-medium text-foreground mb-3">How can I help?</p>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-xs text-muted-foreground"
+      >
+        <span className="font-medium">Suggested questions</span>
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-col gap-1.5 pt-2">
+              {actions.map((action) => (
+                <button
+                  key={action.label}
+                  onClick={() => onSelect(action.prompt)}
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-[13px] text-foreground"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function MavenAssistantFAB() {
   const [open, setOpen] = useState(false);
@@ -145,25 +185,7 @@ export default function MavenAssistantFAB() {
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[240px]">
               {messages.length === 0 && (
-                <div className="space-y-4 pt-2">
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-medium text-foreground">How can I help?</p>
-                    <p className="text-xs text-muted-foreground">
-                      Context-aware on <span className="font-medium">{ctx.label}</span>
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {QUICK_ACTIONS.map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => sendMessage(action.prompt)}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl border border-border/40 bg-muted/30 hover:bg-muted/60 transition-colors text-[13px] text-foreground"
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <SuggestedQuestions actions={QUICK_ACTIONS} onSelect={sendMessage} />
               )}
 
               {messages.map((msg, i) => (
