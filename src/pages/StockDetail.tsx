@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useWatchlist } from "@/hooks/use-watchlist";
+import { useSimAccount, useSimCash, useSimPositions, useExecuteTrade } from "@/hooks/use-sim-portfolio";
 
 const chartModes = ["Simple", "Candle"] as const;
 type ChartMode = typeof chartModes[number];
@@ -61,6 +62,12 @@ const StockDetail = () => {
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeRange, setActiveRange] = useState<TimeRange>("3M");
   const [pendingOrders, setPendingOrders] = useState<Array<{type: string; shares: number; price: number; time: string}>>([]);
+  const { data: simAccount } = useSimAccount();
+  const { data: simCash } = useSimCash(simAccount?.id);
+  const { data: simPositions } = useSimPositions(simAccount?.id);
+  const executeTrade = useExecuteTrade();
+  const currentPosition = simPositions?.find(p => p.ticker === symbol);
+  const availableCash = simCash?.available ?? 0;
   const [zoomStart, setZoomStart] = useState(0);
   const [zoomEnd, setZoomEnd] = useState(100);
   const [measureFrom, setMeasureFrom] = useState<string | null>(null);
@@ -240,10 +247,11 @@ const StockDetail = () => {
   const changePercent = quote?.changePercent ?? 0;
   const isPositive = changePercent >= 0;
   const purchaseValue = shares * currentPrice;
-  const portfolioValue = 12438.5;
+  const investmentValue = (simPositions || []).reduce((s, p) => s + (p.market_value || 0), 0);
+  const portfolioValue = availableCash + investmentValue;
   const currentTechPct = 68;
   const newPortfolioValue = portfolioValue + purchaseValue;
-  const newTechPct = ((currentTechPct / 100 * portfolioValue + purchaseValue) / newPortfolioValue * 100).toFixed(1);
+  const newTechPct = portfolioValue > 0 ? ((currentTechPct / 100 * portfolioValue + purchaseValue) / newPortfolioValue * 100).toFixed(1) : "0";
   const healthChange = Number(newTechPct) > 72 ? -3 : Number(newTechPct) > 70 ? -1 : 1;
 
   const toggleWatchlist = async () => {
@@ -265,20 +273,32 @@ const StockDetail = () => {
     else { await navigator.clipboard.writeText(`${text}\n${url}`); toast.success("Link copied to clipboard"); }
   };
 
-  const handleBuy = () => { if (shares <= 0) { toast.error("Enter a valid number of shares"); return; } if (coachMode && Number(newTechPct) > 70) { setShowCoachWarning(true); return; } executeBuy(); };
-  const executeBuy = () => {
+  const handleBuy = () => { if (shares <= 0) { toast.error("Enter a valid number of shares"); return; } if (coachMode && Number(newTechPct) > 70) { setShowCoachWarning(true); return; } doExecuteBuy(); };
+  const doExecuteBuy = async () => {
     const price = orderType === "limit" ? Number(limitPrice) : currentPrice;
-    const order = { type: orderType === "limit" ? "Limit Buy" : "Market Buy", shares, price, time: new Date().toLocaleTimeString() };
-    setPendingOrders((prev) => [order, ...prev]);
-    setShowCoachWarning(false);
-    toast.success(`📄 Paper ${order.type}: ${shares} share${shares > 1 ? "s" : ""} of ${symbol} at $${formatPrice(price)}`, { description: `Total: $${formatPrice(shares * price)}` });
+    if (!symbol) return;
+    try {
+      await executeTrade.mutateAsync({ symbol, side: "buy", quantity: shares, price, orderType, limitPrice: orderType === "limit" ? Number(limitPrice) : undefined });
+      const order = { type: orderType === "limit" ? "Limit Buy" : "Market Buy", shares, price, time: new Date().toLocaleTimeString() };
+      setPendingOrders((prev) => [order, ...prev]);
+      setShowCoachWarning(false);
+      toast.success(`📄 Paper ${order.type}: ${shares} share${shares > 1 ? "s" : ""} of ${symbol} at $${formatPrice(price)}`, { description: `Total: $${formatPrice(shares * price)}` });
+    } catch (e: any) {
+      toast.error(e.message || "Trade failed");
+    }
   };
-  const handleSell = () => {
+  const handleSell = async () => {
     if (shares <= 0) { toast.error("Enter a valid number of shares"); return; }
     const price = orderType === "limit" ? Number(limitPrice) : currentPrice;
-    const order = { type: orderType === "limit" ? "Limit Sell" : "Market Sell", shares, price, time: new Date().toLocaleTimeString() };
-    setPendingOrders((prev) => [order, ...prev]);
-    toast.success(`📄 Paper ${order.type}: ${shares} share${shares > 1 ? "s" : ""} of ${symbol} at $${formatPrice(price)}`, { description: `Total: $${formatPrice(shares * price)}` });
+    if (!symbol) return;
+    try {
+      await executeTrade.mutateAsync({ symbol, side: "sell", quantity: shares, price, orderType, limitPrice: orderType === "limit" ? Number(limitPrice) : undefined });
+      const order = { type: orderType === "limit" ? "Limit Sell" : "Market Sell", shares, price, time: new Date().toLocaleTimeString() };
+      setPendingOrders((prev) => [order, ...prev]);
+      toast.success(`📄 Paper ${order.type}: ${shares} share${shares > 1 ? "s" : ""} of ${symbol} at $${formatPrice(price)}`, { description: `Total: $${formatPrice(shares * price)}` });
+    } catch (e: any) {
+      toast.error(e.message || "Trade failed");
+    }
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -500,10 +520,20 @@ const StockDetail = () => {
             )}
           </div>
         </div>
-        <p className="mb-3 text-xs text-muted-foreground">Est. cost: <span className="font-medium text-foreground">${formatPrice(purchaseValue)}</span></p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-muted-foreground">Est. cost: <span className="font-medium text-foreground">${formatPrice(purchaseValue)}</span></p>
+          <p className="text-xs text-muted-foreground">Cash: <span className="font-medium text-foreground">${availableCash.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span></p>
+        </div>
+        {currentPosition && (
+          <p className="mb-3 text-xs text-muted-foreground">You own: <span className="font-medium text-foreground">{currentPosition.quantity} shares</span> · Avg cost: <span className="font-medium text-foreground">${formatPrice(currentPosition.avg_cost ?? 0)}</span></p>
+        )}
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={handleBuy} className="rounded-xl bg-gain py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90">Buy</button>
-          <button onClick={handleSell} className="rounded-xl bg-loss py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90">Sell</button>
+          <button onClick={handleBuy} disabled={executeTrade.isPending} className="rounded-xl bg-gain py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            {executeTrade.isPending ? "Processing..." : "Buy"}
+          </button>
+          <button onClick={handleSell} disabled={executeTrade.isPending} className="rounded-xl bg-loss py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            {executeTrade.isPending ? "Processing..." : "Sell"}
+          </button>
         </div>
       </motion.div>
 
@@ -537,7 +567,7 @@ const StockDetail = () => {
               <p className="text-xs text-muted-foreground leading-relaxed">Adding {shares} share{shares > 1 ? "s" : ""} of {symbol} would push your tech allocation to <strong className="text-foreground">{newTechPct}%</strong> which is above the recommended 70% threshold.</p>
               <div className="flex gap-2">
                 <button onClick={() => setShowCoachWarning(false)} className="flex-1 rounded-xl bg-secondary py-2 text-xs font-medium text-foreground">Cancel</button>
-                <button onClick={executeBuy} className="flex-1 rounded-xl bg-foreground py-2 text-xs font-medium text-primary-foreground">Buy Anyway</button>
+                <button onClick={doExecuteBuy} className="flex-1 rounded-xl bg-foreground py-2 text-xs font-medium text-primary-foreground">Buy Anyway</button>
               </div>
             </motion.div>
           </motion.div>
