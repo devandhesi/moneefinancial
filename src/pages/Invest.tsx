@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, ArrowUpRight, ArrowDownRight, Search, Sparkles, X, Loader2,
   Sun, Moon, Bitcoin, Flame, MessageCircle, Receipt, ClipboardList,
-  Gauge, Activity, Percent, DollarSign, Shield, Zap, PieChart,
+  Gauge, Activity, Percent, DollarSign, Shield, Zap, PieChart, BarChart3,
 } from "lucide-react";
+import MicroSparkline from "@/components/widgets/MicroSparkline";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { searchStocks, getTrendingStocks, type TrendingStock, type StockSearchResult } from "@/lib/market-api";
@@ -193,6 +194,7 @@ const Invest = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<StockSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchViewMode, setSearchViewMode] = useState<"price" | "chart">("price");
   const [trendingStocks, setTrendingStocks] = useState<TrendingStock[]>([]);
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
   const navigate = useNavigate();
@@ -245,6 +247,9 @@ const Invest = () => {
   const sectors = ["All", ...new Set(trendingStocks.map((s) => s.sector).filter(Boolean))];
   const filteredStocks = trendingStocks.filter((stock) => activeSector === "All" || stock.sector === activeSector);
   const showSearchResults = searchQuery.trim().length > 0;
+  const searchSymbols = searchResults.map(r => r.symbol);
+  const { data: searchQuotes } = useBatchQuotes(searchSymbols, { enabled: searchSymbols.length > 0 });
+  const searchQuoteMap = new Map((searchQuotes || []).map(q => [q.symbol, q]));
   const { isOpen: marketOpen, displayTime, tzLabel, statusText: marketStatusText } = useMarketStatus(timezone);
 
   const mkSparkline = (base: number, vol: number) =>
@@ -308,22 +313,60 @@ const Invest = () => {
       <AnimatePresence>
         {showSearchResults && (
           <motion.div className="mt-2 space-y-1" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+            {/* View mode toggle */}
+            {searchResults.length > 0 && (
+              <div className="flex justify-end mb-1">
+                <div className="flex rounded-lg bg-secondary p-0.5">
+                  <button onClick={() => setSearchViewMode("price")} className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-all ${searchViewMode === "price" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+                    <DollarSign size={11} className="inline -mt-0.5" /> Price
+                  </button>
+                  <button onClick={() => setSearchViewMode("chart")} className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-all ${searchViewMode === "chart" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+                    <BarChart3 size={11} className="inline -mt-0.5" /> Chart
+                  </button>
+                </div>
+              </div>
+            )}
             {searchResults.length === 0 && !isSearching && <div className="py-4 text-center text-sm text-muted-foreground">No results found</div>}
-            {searchResults.map((result) => (
-              <button key={result.symbol} onClick={() => { setSearchQuery(""); navigate(`/invest/${result.symbol}`); }} className="glass-card flex w-full items-center justify-between p-3 text-left transition-shadow hover:shadow-md">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-xs font-bold">{result.symbol.slice(0, 2)}</div>
-                  <div>
-                    <p className="text-sm font-semibold">{result.symbol}</p>
-                    <p className="text-xs text-muted-foreground">{result.name}</p>
+            {searchResults.map((result) => {
+              const quote = searchQuoteMap.get(result.symbol);
+              const isPositive = quote ? quote.changePercent >= 0 : true;
+              return (
+                <button key={result.symbol} onClick={() => { setSearchQuery(""); navigate(`/invest/${result.symbol}`); }} className="glass-card flex w-full items-center justify-between p-3 text-left transition-shadow hover:shadow-md">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-xs font-bold">{result.symbol.slice(0, 2)}</div>
+                    <div>
+                      <p className="text-sm font-semibold">{result.symbol}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{result.name}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">{result.type} · {result.exchange}</span>
-                  <AskMavenButton symbol={result.symbol} compact />
-                </div>
-              </button>
-            ))}
+                  <div className="flex items-center gap-2">
+                    {quote ? (
+                      searchViewMode === "price" ? (
+                        <div className="text-right">
+                          <p className="text-sm font-medium tabular-nums">${quote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <p className={`flex items-center justify-end gap-0.5 text-xs tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
+                            {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                            {isPositive ? "+" : ""}{quote.changePercent.toFixed(2)}%
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {quote.sparkline && quote.sparkline.length > 1 && (
+                            <MicroSparkline data={quote.sparkline} width={64} height={24} positive={isPositive} />
+                          )}
+                          <span className={`text-[10px] font-medium tabular-nums ${isPositive ? "text-gain" : "text-loss"}`}>
+                            {isPositive ? "+" : ""}{quote.changePercent.toFixed(2)}%
+                          </span>
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">{result.type} · {result.exchange}</span>
+                    )}
+                    <AskMavenButton symbol={result.symbol} compact />
+                  </div>
+                </button>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
