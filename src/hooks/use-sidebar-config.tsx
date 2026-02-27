@@ -34,6 +34,7 @@ interface SidebarConfigContextType {
   toggleVisibility: (id: string) => void;
   moveUp: (id: string) => void;
   moveDown: (id: string) => void;
+  reorder: (section: "main" | "secondary", fromIndex: number, toIndex: number) => void;
   resetToDefaults: () => void;
 }
 
@@ -96,12 +97,24 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const reorder = useCallback((section: "main" | "secondary", fromIndex: number, toIndex: number) => {
+    setLinks(prev => {
+      const sectionItems = prev.filter(l => l.section === section);
+      const otherItems = prev.filter(l => l.section !== section);
+      const [moved] = sectionItems.splice(fromIndex, 1);
+      sectionItems.splice(toIndex, 0, moved);
+      // Re-assign orders
+      const reordered = sectionItems.map((item, i) => ({ ...item, order: section === "main" ? i : i + 100 }));
+      return [...otherItems, ...reordered].sort((a, b) => a.order - b.order);
+    });
+  }, []);
+
   const resetToDefaults = useCallback(() => {
     setLinks(DEFAULT_LINKS);
   }, []);
 
   return (
-    <SidebarConfigContext.Provider value={{ links, toggleVisibility, moveUp, moveDown, resetToDefaults }}>
+    <SidebarConfigContext.Provider value={{ links, toggleVisibility, moveUp, moveDown, reorder, resetToDefaults }}>
       {children}
     </SidebarConfigContext.Provider>
   );
