@@ -74,18 +74,21 @@ const BottomNav = () => {
       <AnimatePresence>
         {showMore && (
           <motion.div
-            className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-[70] bg-card border-t border-border/40 lg:hidden max-h-[65vh] overflow-y-auto rounded-t-2xl shadow-2xl"
+            className="fixed inset-0 z-[70] bg-card lg:hidden overflow-y-auto"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 400, damping: 35 }}
           >
-            {/* Handle bar */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="h-1 w-10 rounded-full bg-muted-foreground/20" />
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 pt-[env(safe-area-inset-top)] bg-card">
+              <h2 className="text-lg font-semibold tracking-tight pt-4 pb-3">More</h2>
+              <button onClick={() => setShowMore(false)} className="pt-4 pb-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Done
+              </button>
             </div>
 
-            <div className="px-5 pb-5 space-y-5">
+            <div className="px-5 pb-24 space-y-5">
               {extraGroups.map((group) => (
                 <div key={group.label}>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
