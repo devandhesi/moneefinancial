@@ -114,7 +114,7 @@ const Reports = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">SEDI Reports</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Insider Reports</h1>
           <p className="text-sm text-muted-foreground">
             Insider filings · Executive trading activity
           </p>
