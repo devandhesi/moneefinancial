@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Bell, BellPlus, X, Loader2, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -100,8 +101,8 @@ const StockAlertButton = ({ symbol, currentPrice, compact = false }: Props) => {
         {!compact && <span>{hasAlerts ? `${alerts.length} Alert${alerts.length > 1 ? "s" : ""}` : "Alert"}</span>}
       </button>
 
-      <AnimatePresence>
-        {open && (
+      {open && createPortal(
+        <AnimatePresence>
           <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setOpen(false)}>
             <motion.div
               className="absolute inset-0 bg-background/60 backdrop-blur-sm"
@@ -196,8 +197,9 @@ const StockAlertButton = ({ symbol, currentPrice, compact = false }: Props) => {
               )}
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 };
