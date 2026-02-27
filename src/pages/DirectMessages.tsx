@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus } from "lucide-react";
+import { ArrowLeft, Search, MessageCircle, Plus, Send, Loader2, X, UserPlus, Pin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePinnedItems } from "@/hooks/use-pinned-items";
 
 interface Profile {
   user_id: string;
@@ -59,6 +60,7 @@ const DirectMessages = () => {
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [searching, setSearching] = useState(false);
+  const { isPinned, togglePin } = usePinnedItems("dm");
 
   // Load conversation list
   const loadConversations = useCallback(async () => {
@@ -309,6 +311,55 @@ const DirectMessages = () => {
       )
     : conversations;
 
+  // Sort pinned conversations first
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    const aPinned = isPinned(a.partner.user_id);
+    const bPinned = isPinned(b.partner.user_id);
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+    return 0;
+  });
+
+  const renderConversation = (conv: ConversationPreview, i: number) => {
+    const pinned = isPinned(conv.partner.user_id);
+    return (
+      <motion.div
+        key={conv.partner.user_id}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.03 * i }}
+        className={`glass-card flex w-full items-center gap-3 p-3 transition-colors hover:bg-secondary/50 ${pinned ? "ring-1 ring-accent/20" : ""}`}
+      >
+        <button onClick={() => openChat(conv.partner)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
+            {(conv.partner.display_name || conv.partner.username).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold truncate">{conv.partner.display_name || conv.partner.username}</p>
+              <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{timeAgo(conv.lastTime)}</span>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{conv.lastMessage}</p>
+          </div>
+        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {conv.unread > 0 && (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-primary-foreground">
+              {conv.unread}
+            </div>
+          )}
+          <button
+            onClick={() => togglePin(conv.partner.user_id)}
+            className={`rounded-lg p-1.5 transition-colors ${pinned ? "text-accent-foreground" : "text-muted-foreground/40 hover:text-muted-foreground"} hover:bg-secondary`}
+            title={pinned ? "Unpin" : "Pin"}
+          >
+            <Pin size={14} />
+          </button>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -343,7 +394,7 @@ const DirectMessages = () => {
         <div className="flex justify-center py-20">
           <Loader2 size={20} className="animate-spin text-muted-foreground" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : sortedFiltered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <MessageCircle size={28} className="mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{search ? "No matching conversations" : "No messages yet"}</p>
@@ -353,32 +404,7 @@ const DirectMessages = () => {
         </div>
       ) : (
         <div className="mt-4 space-y-1">
-          {filtered.map((conv, i) => (
-            <motion.button
-              key={conv.partner.user_id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.03 * i }}
-              onClick={() => openChat(conv.partner)}
-              className="glass-card flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-secondary/50"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xs font-bold text-muted-foreground">
-                {(conv.partner.display_name || conv.partner.username).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">{conv.partner.display_name || conv.partner.username}</p>
-                  <span className="text-[10px] text-muted-foreground">{timeAgo(conv.lastTime)}</span>
-                </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">{conv.lastMessage}</p>
-              </div>
-              {conv.unread > 0 && (
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-primary-foreground">
-                  {conv.unread}
-                </div>
-              )}
-            </motion.button>
-          ))}
+          {sortedFiltered.map((conv, i) => renderConversation(conv, i))}
         </div>
       )}
 

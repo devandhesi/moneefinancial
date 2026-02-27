@@ -1079,6 +1079,30 @@ export type Database = {
           },
         ]
       }
+      pinned_items: {
+        Row: {
+          id: string
+          item_id: string
+          item_type: string
+          pinned_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          item_type: string
+          pinned_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          item_type?: string
+          pinned_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
