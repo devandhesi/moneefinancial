@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Hash, TrendingUp, Users, Search, ArrowLeft, Loader2, ArrowRight } from "lucide-react";
+import { Hash, TrendingUp, Users, Search, ArrowLeft, Loader2, ArrowRight, Pin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePinnedItems } from "@/hooks/use-pinned-items";
 
 interface Room {
   id: string;
@@ -19,6 +20,7 @@ const BrowseRooms = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const { isPinned, togglePin } = usePinnedItems("room");
 
   useEffect(() => {
     const fetch = async () => {
@@ -82,31 +84,40 @@ const BrowseRooms = () => {
       ) : (
         <div className="mt-4 space-y-1.5">
           {filtered.map((room, i) => (
-            <motion.button
+            <motion.div
               key={room.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.02 * i }}
-              onClick={() => navigate(`/community/room/${room.slug}`)}
-              className="glass-card flex w-full items-center justify-between p-3 text-left transition-colors hover:bg-secondary/50"
+              className={`glass-card flex w-full items-center justify-between p-3 transition-colors hover:bg-secondary/50 ${isPinned(room.slug) ? "ring-1 ring-accent/20" : ""}`}
             >
-              <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(`/community/room/${room.slug}`)}
+                className="flex items-center gap-3 flex-1 text-left min-w-0"
+              >
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary">
                   {room.type === "stock" ? <TrendingUp size={16} /> : <Hash size={16} />}
                 </div>
-                <div>
-                  <p className="text-sm font-medium">{room.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{room.description || room.type}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{room.name}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{room.description || room.type}</p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
+              </button>
+              <div className="flex items-center gap-2 shrink-0">
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Users size={12} />
                   {room.member_count}
                 </div>
+                <button
+                  onClick={() => togglePin(room.slug)}
+                  className={`rounded-lg p-1.5 transition-colors ${isPinned(room.slug) ? "text-accent-foreground" : "text-muted-foreground/40 hover:text-muted-foreground"} hover:bg-secondary`}
+                  title={isPinned(room.slug) ? "Unpin" : "Pin"}
+                >
+                  <Pin size={14} />
+                </button>
                 <ArrowRight size={14} className="text-muted-foreground" />
               </div>
-            </motion.button>
+            </motion.div>
           ))}
         </div>
       )}

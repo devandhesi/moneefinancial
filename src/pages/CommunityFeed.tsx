@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Hash, TrendingUp, MessageCircle, Users, Search, Plus, Flame, ArrowRight, Loader2 } from "lucide-react";
+import { Hash, TrendingUp, MessageCircle, Users, Search, Plus, Flame, ArrowRight, Loader2, Pin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { usePinnedItems } from "@/hooks/use-pinned-items";
 
 interface Room {
   id: string;
@@ -44,6 +45,7 @@ const CommunityFeed = () => {
   const { profile } = useAuth();
   const [search, setSearch] = useState("");
   const [rooms, setRooms] = useState<Room[]>([]);
+  const { isPinned, togglePin, pinnedIds } = usePinnedItems("room");
   const [stockResults, setStockResults] = useState<StockResult[]>([]);
   const [searching, setSearching] = useState(false);
 
@@ -299,31 +301,70 @@ const CommunityFeed = () => {
         </div>
       </motion.div>
 
+      {/* Pinned Rooms */}
+      {rooms.filter(r => isPinned(r.slug)).length > 0 && (
+        <motion.div className="mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.13 }}>
+          <div className="flex items-center gap-1.5 mb-3">
+            <Pin size={12} className="text-accent-foreground" />
+            <h2 className="text-sm font-medium text-muted-foreground">Pinned</h2>
+          </div>
+          <div className="space-y-1.5">
+            {rooms.filter(r => isPinned(r.slug)).map((room) => (
+              <div key={room.id} className="glass-card flex w-full items-center justify-between p-3 transition-colors hover:bg-secondary/50 ring-1 ring-accent/20">
+                <button onClick={() => navigate(`/community/room/${room.slug}`)} className="flex items-center gap-3 flex-1 text-left min-w-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary">
+                    {room.type === "stock" ? <TrendingUp size={16} /> : <Hash size={16} />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{room.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{room.description || room.type}</p>
+                  </div>
+                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Users size={12} />
+                    {room.member_count}
+                  </div>
+                  <button onClick={() => togglePin(room.slug)} className="rounded-lg p-1.5 text-accent-foreground hover:bg-secondary transition-colors" title="Unpin">
+                    <Pin size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* Active Rooms from DB */}
       {rooms.length > 0 && (
         <motion.div className="mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Your Rooms</h2>
           <div className="space-y-1.5">
             {rooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => navigate(`/community/room/${room.slug}`)}
-                className="glass-card flex w-full items-center justify-between p-3 text-left transition-colors hover:bg-secondary/50"
-              >
-                <div className="flex items-center gap-3">
+              <div key={room.id} className="glass-card flex w-full items-center justify-between p-3 transition-colors hover:bg-secondary/50">
+                <button onClick={() => navigate(`/community/room/${room.slug}`)} className="flex items-center gap-3 flex-1 text-left min-w-0">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary">
                     {room.type === "stock" ? <TrendingUp size={16} /> : <Hash size={16} />}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{room.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{room.description || room.type}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{room.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{room.description || room.type}</p>
                   </div>
+                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Users size={12} />
+                    {room.member_count}
+                  </div>
+                  <button
+                    onClick={() => togglePin(room.slug)}
+                    className={`rounded-lg p-1.5 transition-colors ${isPinned(room.slug) ? "text-accent-foreground" : "text-muted-foreground/40 hover:text-muted-foreground"} hover:bg-secondary`}
+                    title={isPinned(room.slug) ? "Unpin" : "Pin"}
+                  >
+                    <Pin size={14} />
+                  </button>
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Users size={12} />
-                  {room.member_count}
-                </div>
-              </button>
+              </div>
             ))}
           </div>
         </motion.div>
