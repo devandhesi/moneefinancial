@@ -65,6 +65,12 @@ export default function WalkthroughOverlay() {
       if (retryCountRef.current < 15) {
         retryRef.current = setTimeout(measure, 250);
       } else {
+        // Element not found after retries
+        if (step.advanceOn) {
+          // For reactive steps, auto-advance (the next step will navigate)
+          nextStep();
+          return;
+        }
         setRect(null);
         setTooltipStyle(getCenteredStyle());
         setReady(true);
@@ -131,7 +137,7 @@ export default function WalkthroughOverlay() {
       setTooltipStyle(style);
       setReady(true);
     }, 400);
-  }, [isActive, step, currentStep, isCenter, tooltipWidth, getCenteredStyle]);
+  }, [isActive, step, currentStep, isCenter, tooltipWidth, getCenteredStyle, nextStep]);
 
   useEffect(() => {
     setReady(false);
@@ -176,6 +182,26 @@ export default function WalkthroughOverlay() {
     };
   }, [isActive, step, ready, nextStep]);
 
+  // Handle backdrop click — forward clicks in the spotlight area to the target element
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (rect && hasAdvanceOn && step) {
+      const x = e.clientX;
+      const y = e.clientY;
+      if (
+        x >= rect.left && x <= rect.left + rect.width &&
+        y >= rect.top && y <= rect.top + rect.height
+      ) {
+        const selector = step.advanceOn?.selector || `[data-tour-id="${step.targetId}"]`;
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (el) {
+          el.click();
+        }
+        return;
+      }
+    }
+    e.stopPropagation();
+  }, [rect, hasAdvanceOn, step]);
+
   if (!isActive) return null;
 
   const progress = ((currentStep + 1) / steps.length) * 100;
@@ -213,10 +239,15 @@ export default function WalkthroughOverlay() {
             width="100%" height="100%"
             fill="rgba(0,0,0,0.55)"
             mask="url(#spotlight-mask)"
-            style={{ pointerEvents: "auto" }}
-            onClick={(e) => e.stopPropagation()}
           />
         </svg>
+
+        {/* Full-screen click handler */}
+        <div
+          className="absolute inset-0"
+          style={{ pointerEvents: "auto" }}
+          onClick={handleBackdropClick}
+        />
 
         {/* Animated spotlight ring */}
         {rect && ready && (
