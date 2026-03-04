@@ -15,6 +15,8 @@ export interface WalkthroughStep {
   };
   /** Hint text shown below description, e.g. "Tap the button to continue" */
   actionHint?: string;
+  /** Auto-action identifier executed when this step is reached */
+  autoAction?: string;
 }
 
 export interface Tour {
@@ -58,10 +60,11 @@ const GETTING_STARTED: WalkthroughStep[] = [
   },
   {
     targetId: "tour-deposit-section",
-    title: "Add Paper Money 💰",
-    description: "Enter an amount or tap a quick-add button like $10K. This is simulated money — not real! Tap 'Add' when ready.",
+    title: "Adding $10,000 Paper Money 💰",
+    description: "We're depositing $10,000 of simulated paper money into your account right now — it's not real money! You'll use this to practice trading.",
     route: "/settings",
     position: "top",
+    autoAction: "deposit-10k",
   },
   {
     targetId: "tour-invest-link",
