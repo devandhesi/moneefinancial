@@ -196,7 +196,13 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
                       const Icon = iconMap[item.icon] || LayoutDashboard;
                       const isMaven = item.path === "/chat";
                       return (
-                        <NavLink key={item.path} to={item.path} className={linkClass(item.path)}>
+                        <NavLink key={item.path} to={item.path} className={linkClass(item.path)}
+                          data-tour-id={
+                            item.path === "/settings" ? "tour-settings-link" :
+                            item.path === "/invest" ? "tour-invest-link" :
+                            item.path === "/watchlist" ? "tour-watchlist-link" : undefined
+                          }
+                        >
                           {isMaven ? <MavenIcon size={16} /> : <Icon size={16} />}
                           <span>{item.label}</span>
                         </NavLink>

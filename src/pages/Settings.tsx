@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, Trash2, AlertTriangle, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, Trash2, AlertTriangle, Compass, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,7 @@ import { useSimAccount, useSimCash, useDepositFunds, useResetPaperTrading } from
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useWalkthrough } from "@/hooks/use-walkthrough";
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -20,6 +21,7 @@ const Settings = () => {
   const { data: simCash } = useSimCash(simAccount?.id);
   const depositMutation = useDepositFunds();
   const resetMutation = useResetPaperTrading();
+  const { startTour } = useWalkthrough();
   const [depositAmount, setDepositAmount] = useState("");
   const [dragState, setDragState] = useState<{ section: "main" | "secondary"; index: number } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -86,7 +88,7 @@ const Settings = () => {
       </motion.div>
 
       {/* Paper Trading Funds */}
-      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.087 }}>
+      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.087 }} data-tour-id="tour-deposit-section">
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Paper Trading</h2>
         <div className="glass-card p-4">
           <div className="flex items-center gap-3 mb-4">
@@ -346,6 +348,23 @@ const Settings = () => {
             </button>
           ))}
         </div>
+      </motion.div>
+
+      {/* Start Tour */}
+      <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Help</h2>
+        <button
+          onClick={() => { startTour(); navigate("/"); }}
+          className="glass-card flex w-full items-center gap-3 p-4 text-left transition-shadow hover:shadow-md"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+            <Compass size={18} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Getting Started Tour</p>
+            <p className="text-[11px] text-muted-foreground">Interactive walkthrough of all key features</p>
+          </div>
+        </button>
       </motion.div>
 
       <motion.div className="mt-6 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }}>

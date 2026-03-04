@@ -103,7 +103,7 @@ const Dashboard = () => {
               <span>{marketOpen ? "Open" : "Closed"}</span>
             </div>
           </div>
-          <div className="mt-1 flex items-center gap-3">
+          <div className="mt-1 flex items-center gap-3" data-tour-id="tour-portfolio-value">
             {holdingsLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 size={18} className="animate-spin" />
@@ -202,7 +202,7 @@ const Dashboard = () => {
 
         {/* Accounts Summary */}
         {isWidgetVisible("accounts") && (
-          <motion.div className="mt-5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }}>
+          <motion.div className="mt-5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} data-tour-id="tour-accounts-summary">
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">Accounts</h2>
             <div className="grid grid-cols-2 gap-2">
                <div className="glass-card glass-shimmer p-4">

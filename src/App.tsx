@@ -9,6 +9,8 @@ import { SidebarConfigProvider } from "@/hooks/use-sidebar-config";
 import { AuthProvider } from "@/hooks/use-auth";
 import { TradingModeProvider } from "@/hooks/use-trading-mode";
 import { MavenChatProvider } from "@/hooks/use-maven-chat";
+import { WalkthroughProvider } from "@/hooks/use-walkthrough";
+import WalkthroughOverlay from "@/components/WalkthroughOverlay";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -55,10 +57,12 @@ const App = () => (
       <AuthProvider>
       <TradingModeProvider>
       <MavenChatProvider>
+      <WalkthroughProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <WalkthroughOverlay />
           <AppLayout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -100,6 +104,7 @@ const App = () => (
           </AppLayout>
         </BrowserRouter>
       </TooltipProvider>
+      </WalkthroughProvider>
       </MavenChatProvider>
       </TradingModeProvider>
       </AuthProvider>
