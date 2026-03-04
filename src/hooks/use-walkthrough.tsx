@@ -6,6 +6,15 @@ export interface WalkthroughStep {
   description: string;
   route?: string;
   position?: "top" | "bottom" | "left" | "right" | "center";
+  /** If set, the step advances automatically when the user performs this action */
+  advanceOn?: {
+    /** DOM event to listen for (click, input, change) */
+    event: "click" | "input" | "change";
+    /** Optional CSS selector — defaults to [data-tour-id="<targetId>"] */
+    selector?: string;
+  };
+  /** Hint text shown below description, e.g. "Tap the button to continue" */
+  actionHint?: string;
 }
 
 export interface Tour {
@@ -40,10 +49,12 @@ const GETTING_STARTED: WalkthroughStep[] = [
   },
   {
     targetId: "tour-settings-link",
-    title: "Head to Settings",
+    title: "Head to Settings ⚙️",
     description: "Let's go to Settings to add paper money to your account so you can start trading.",
     route: "/",
     position: "right",
+    advanceOn: { event: "click" },
+    actionHint: "Tap Settings to continue",
   },
   {
     targetId: "tour-deposit-section",
@@ -58,6 +69,8 @@ const GETTING_STARTED: WalkthroughStep[] = [
     description: "Head to Invest to search for stocks, view prices and charts, and place your first paper trade.",
     route: "/settings",
     position: "right",
+    advanceOn: { event: "click" },
+    actionHint: "Tap Invest to continue",
   },
   {
     targetId: "tour-invest-search",
@@ -65,6 +78,8 @@ const GETTING_STARTED: WalkthroughStep[] = [
     description: "Type a company name or ticker symbol to find stocks. Tap any stock to see details and buy/sell.",
     route: "/invest",
     position: "bottom",
+    advanceOn: { event: "click" },
+    actionHint: "Tap the search bar to continue",
   },
   {
     targetId: "tour-watchlist-link",
@@ -72,6 +87,8 @@ const GETTING_STARTED: WalkthroughStep[] = [
     description: "Track stocks you're interested in by adding them to your Watchlist. You'll see live prices and changes.",
     route: "/invest",
     position: "right",
+    advanceOn: { event: "click" },
+    actionHint: "Tap Watchlist to continue",
   },
   {
     targetId: "tour-maven-fab",
@@ -79,6 +96,8 @@ const GETTING_STARTED: WalkthroughStep[] = [
     description: "Maven is your personal financial assistant. Ask anything about markets, your portfolio, or investing concepts.",
     route: "/",
     position: "left",
+    advanceOn: { event: "click" },
+    actionHint: "Tap Maven to continue",
   },
   {
     targetId: "tour-complete",
@@ -103,6 +122,8 @@ const ANALYZING_GRAPHS: WalkthroughStep[] = [
     description: "Start by searching for any stock — try AAPL, TSLA, or NVDA. You can also tap one of the popular stocks below the search bar.",
     route: "/learn/charts",
     position: "bottom",
+    advanceOn: { event: "click" },
+    actionHint: "Tap the search bar to continue",
   },
   {
     targetId: "tour-charts-popular",
@@ -110,6 +131,8 @@ const ANALYZING_GRAPHS: WalkthroughStep[] = [
     description: "These are popular stocks to analyze. Tap any one to instantly load its chart. Great for practice!",
     route: "/learn/charts",
     position: "top",
+    advanceOn: { event: "click" },
+    actionHint: "Pick a stock to continue",
   },
   {
     targetId: "tour-charts-timerange",
@@ -117,6 +140,8 @@ const ANALYZING_GRAPHS: WalkthroughStep[] = [
     description: "Switch between 1 Day, 1 Week, 1 Month, and more. Different timeframes reveal different patterns — short-term traders use 1D/1W, long-term investors use 3M/1Y.",
     route: "/learn/charts",
     position: "top",
+    advanceOn: { event: "click" },
+    actionHint: "Try switching a timeframe",
   },
   {
     targetId: "tour-charts-mode",
@@ -124,6 +149,8 @@ const ANALYZING_GRAPHS: WalkthroughStep[] = [
     description: "Simple mode shows a clean line. Candle mode shows open/high/low/close per period — essential for technical analysis. Try switching!",
     route: "/learn/charts",
     position: "bottom",
+    advanceOn: { event: "click" },
+    actionHint: "Toggle a chart mode to continue",
   },
   {
     targetId: "tour-charts-indicators",
@@ -131,6 +158,8 @@ const ANALYZING_GRAPHS: WalkthroughStep[] = [
     description: "Toggle SMA20, EMA12, Bollinger Bands, and Volume. These overlays help you spot trends, momentum, and volatility. Tap each to see it on the chart.",
     route: "/learn/charts",
     position: "top",
+    advanceOn: { event: "click" },
+    actionHint: "Toggle an indicator to continue",
   },
   {
     targetId: "tour-charts-ai",
@@ -138,6 +167,8 @@ const ANALYZING_GRAPHS: WalkthroughStep[] = [
     description: "This is your AI chart teacher. Ask 'What does this pattern mean?' or 'Is the volume significant?' — Maven sees the same chart data you do and explains it in plain English.",
     route: "/learn/charts",
     position: "left",
+    advanceOn: { event: "click" },
+    actionHint: "Tap the chat to continue",
   },
   {
     targetId: "tour-graphs-done",
