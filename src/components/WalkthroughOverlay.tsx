@@ -20,12 +20,16 @@ export default function WalkthroughOverlay() {
   const [ready, setReady] = useState(false);
   const retryRef = useRef<NodeJS.Timeout>();
   const retryCountRef = useRef(0);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const step = steps[currentStep];
   const isCenter = step?.position === "center";
   const isFirst = currentStep === 0;
   const isLast = currentStep === steps.length - 1;
   const hasAdvanceOn = !!step?.advanceOn;
+
+  // Responsive tooltip width
+  const tooltipWidth = Math.min(340, window.innerWidth - 32);
 
   // Navigate to the correct route if needed
   useEffect(() => {
@@ -35,17 +39,22 @@ export default function WalkthroughOverlay() {
     }
   }, [isActive, currentStep, step?.route, location.pathname, navigate]);
 
+  // Compute centered position (pixel-based, no transform)
+  const getCenteredStyle = useCallback((): React.CSSProperties => {
+    const tooltipHeight = 220;
+    return {
+      top: Math.max(16, (window.innerHeight - tooltipHeight) / 2),
+      left: Math.max(16, (window.innerWidth - tooltipWidth) / 2),
+    };
+  }, [tooltipWidth]);
+
   // Find, scroll to, and measure the target element
   const measure = useCallback(() => {
     if (!isActive || !step) return;
 
     if (isCenter) {
       setRect(null);
-      setTooltipStyle({
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-      });
+      setTooltipStyle(getCenteredStyle());
       setReady(true);
       return;
     }
@@ -57,11 +66,7 @@ export default function WalkthroughOverlay() {
         retryRef.current = setTimeout(measure, 250);
       } else {
         setRect(null);
-        setTooltipStyle({
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-        });
+        setTooltipStyle(getCenteredStyle());
         setReady(true);
       }
       return;
@@ -80,7 +85,6 @@ export default function WalkthroughOverlay() {
       };
       setRect(spotlight);
 
-      const tooltipWidth = 340;
       const tooltipHeight = 200;
       const gap = 20;
       let style: React.CSSProperties = {};
@@ -97,21 +101,37 @@ export default function WalkthroughOverlay() {
           left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
         };
       } else if (pos === "right") {
-        style = {
-          top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
-          left: Math.min(window.innerWidth - tooltipWidth - 16, spotlight.left + spotlight.width + gap),
-        };
+        // On narrow screens, fall back to bottom positioning
+        if (spotlight.left + spotlight.width + gap + tooltipWidth > window.innerWidth - 16) {
+          style = {
+            top: spotlight.top + spotlight.height + gap,
+            left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
+          };
+        } else {
+          style = {
+            top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
+            left: Math.min(window.innerWidth - tooltipWidth - 16, spotlight.left + spotlight.width + gap),
+          };
+        }
       } else if (pos === "left") {
-        style = {
-          top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
-          left: Math.max(16, spotlight.left - tooltipWidth - gap),
-        };
+        // On narrow screens, fall back to bottom positioning
+        if (spotlight.left - gap - tooltipWidth < 16) {
+          style = {
+            top: spotlight.top + spotlight.height + gap,
+            left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
+          };
+        } else {
+          style = {
+            top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
+            left: Math.max(16, spotlight.left - tooltipWidth - gap),
+          };
+        }
       }
 
       setTooltipStyle(style);
       setReady(true);
     }, 400);
-  }, [isActive, step, currentStep, isCenter]);
+  }, [isActive, step, currentStep, isCenter, tooltipWidth, getCenteredStyle]);
 
   useEffect(() => {
     setReady(false);
@@ -142,11 +162,11 @@ export default function WalkthroughOverlay() {
     const el = document.querySelector(selector) as HTMLElement | null;
     if (!el) return;
 
-    // Add highlight class
+    // Add highlight class and ensure it's clickable above the overlay
     el.classList.add("tour-highlight-target");
 
     const handler = () => {
-      setTimeout(() => nextStep(), 300);
+      setTimeout(() => nextStep(), 400);
     };
 
     el.addEventListener(eventType, handler, { capture: true, once: true });
@@ -198,20 +218,6 @@ export default function WalkthroughOverlay() {
           />
         </svg>
 
-        {/* Clickable pass-through zone over the spotlight (for advanceOn steps) */}
-        {rect && ready && hasAdvanceOn && (
-          <div
-            className="absolute z-[10001]"
-            style={{
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height,
-              pointerEvents: "auto",
-            }}
-          />
-        )}
-
         {/* Animated spotlight ring */}
         {rect && ready && (
           <motion.div
@@ -238,11 +244,12 @@ export default function WalkthroughOverlay() {
         {/* Tooltip Card */}
         {ready && (
           <motion.div
-            className="absolute z-[10002] w-[340px]"
-            style={tooltipStyle}
-            initial={{ opacity: 0, y: 16, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.92 }}
+            ref={tooltipRef}
+            className="absolute z-[10002]"
+            style={{ ...tooltipStyle, width: tooltipWidth }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
             transition={{ type: "spring", damping: 28, stiffness: 380, delay: 0.15 }}
             key={currentStep}
           >
