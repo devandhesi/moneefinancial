@@ -1,14 +1,16 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, Trash2, AlertTriangle, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
-import { useSimAccount, useSimCash, useDepositFunds } from "@/hooks/use-sim-portfolio";
+import { useSimAccount, useSimCash, useDepositFunds, useResetPaperTrading } from "@/hooks/use-sim-portfolio";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -17,9 +19,12 @@ const Settings = () => {
   const { data: simAccount } = useSimAccount();
   const { data: simCash } = useSimCash(simAccount?.id);
   const depositMutation = useDepositFunds();
+  const resetMutation = useResetPaperTrading();
   const [depositAmount, setDepositAmount] = useState("");
   const [dragState, setDragState] = useState<{ section: "main" | "secondary"; index: number } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [resetStep, setResetStep] = useState(0); // 0=closed, 1=first confirm, 2=final confirm
+  const CONFIRM_PHRASE = "RESET";
 
   const iconMap: Record<string, LucideIcon> = {
     LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt,
@@ -140,8 +145,102 @@ const Settings = () => {
           <p className="mt-3 text-[11px] text-muted-foreground">
             This is simulated money for paper trading. Not real currency.
           </p>
+          <div className="mt-4 border-t border-border/30 pt-4">
+            <button
+              onClick={() => setResetStep(1)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 size={14} />
+              Reset Paper Trading Account
+            </button>
+          </div>
         </div>
       </motion.div>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={resetStep > 0} onOpenChange={(open) => { if (!open) setResetStep(0); }}>
+        <AlertDialogContent className="max-w-md">
+          {resetStep === 1 && (
+            <>
+              <AlertDialogHeader>
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle size={24} className="text-destructive" />
+                </div>
+                <AlertDialogTitle className="text-center">Reset Paper Trading?</AlertDialogTitle>
+                <AlertDialogDescription className="text-center">
+                  This will permanently delete all your paper trading data including:
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <ul className="space-y-2 text-sm text-muted-foreground px-2">
+                <li className="flex items-center gap-2">• All open positions</li>
+                <li className="flex items-center gap-2">• Order history</li>
+                <li className="flex items-center gap-2">• Transaction history</li>
+                <li className="flex items-center gap-2">• Cash balance (reset to $0)</li>
+              </ul>
+              <AlertDialogFooter className="mt-2">
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button variant="destructive" onClick={() => setResetStep(2)}>
+                  Continue
+                </Button>
+              </AlertDialogFooter>
+            </>
+          )}
+          {resetStep === 2 && (
+            <>
+              <AlertDialogHeader>
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle size={24} className="text-destructive" />
+                </div>
+                <AlertDialogTitle className="text-center">Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription className="text-center">
+                  This action cannot be undone. Type <span className="font-bold text-foreground">RESET</span> below to confirm.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <input
+                id="reset-confirm-input"
+                type="text"
+                placeholder='Type "RESET" to confirm'
+                className="w-full rounded-xl border border-border/50 bg-secondary px-3 py-2.5 text-sm font-medium outline-none transition-colors focus:border-destructive/50"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.target as HTMLInputElement).value === CONFIRM_PHRASE) {
+                    resetMutation.mutate(undefined, {
+                      onSuccess: () => {
+                        toast.success("Paper trading account has been reset");
+                        setResetStep(0);
+                      },
+                      onError: (err: any) => toast.error(err.message || "Reset failed"),
+                    });
+                  }
+                }}
+              />
+              <AlertDialogFooter className="mt-2">
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button
+                  variant="destructive"
+                  disabled={resetMutation.isPending}
+                  onClick={() => {
+                    const input = document.getElementById("reset-confirm-input") as HTMLInputElement;
+                    if (input?.value !== CONFIRM_PHRASE) {
+                      toast.error('Please type "RESET" to confirm');
+                      return;
+                    }
+                    resetMutation.mutate(undefined, {
+                      onSuccess: () => {
+                        toast.success("Paper trading account has been reset");
+                        setResetStep(0);
+                      },
+                      onError: (err: any) => toast.error(err.message || "Reset failed"),
+                    });
+                  }}
+                >
+                  {resetMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Permanently Reset
+                </Button>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Sidebar Layout */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.09 }}>
