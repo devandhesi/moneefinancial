@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useWalkthrough } from "@/hooks/use-walkthrough";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, MousePointerClick } from "lucide-react";
 
 interface SpotlightRect {
   top: number;
@@ -25,6 +25,7 @@ export default function WalkthroughOverlay() {
   const isCenter = step?.position === "center";
   const isFirst = currentStep === 0;
   const isLast = currentStep === steps.length - 1;
+  const hasAdvanceOn = !!step?.advanceOn;
 
   // Navigate to the correct route if needed
   useEffect(() => {
@@ -55,7 +56,6 @@ export default function WalkthroughOverlay() {
       if (retryCountRef.current < 15) {
         retryRef.current = setTimeout(measure, 250);
       } else {
-        // Element not found — show tooltip centered with a note
         setRect(null);
         setTooltipStyle({
           top: "50%",
@@ -67,10 +67,8 @@ export default function WalkthroughOverlay() {
       return;
     }
 
-    // Smooth scroll element into view
     el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
 
-    // Wait for scroll to settle, then measure
     setTimeout(() => {
       const r = el.getBoundingClientRect();
       const padding = 10;
@@ -134,6 +132,28 @@ export default function WalkthroughOverlay() {
     return () => window.removeEventListener("resize", handler);
   }, [isActive, measure]);
 
+  // Reactive advancement: listen for advanceOn events on the target element
+  useEffect(() => {
+    if (!isActive || !step?.advanceOn || !ready) return;
+
+    const selector = step.advanceOn.selector || `[data-tour-id="${step.targetId}"]`;
+    const eventType = step.advanceOn.event;
+
+    const handler = () => {
+      // Small delay so the user sees their action register
+      setTimeout(() => nextStep(), 300);
+    };
+
+    const el = document.querySelector(selector);
+    if (!el) return;
+
+    // Use capture phase to catch the event before it's consumed
+    el.addEventListener(eventType, handler, { capture: true, once: true });
+    return () => {
+      el.removeEventListener(eventType, handler, { capture: true });
+    };
+  }, [isActive, step, ready, nextStep]);
+
   if (!isActive) return null;
 
   const progress = ((currentStep + 1) / steps.length) * 100;
@@ -165,9 +185,6 @@ export default function WalkthroughOverlay() {
                 />
               )}
             </mask>
-            <filter id="backdrop-blur">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
-            </filter>
           </defs>
           <rect
             x="0" y="0"
@@ -178,6 +195,20 @@ export default function WalkthroughOverlay() {
             onClick={(e) => e.stopPropagation()}
           />
         </svg>
+
+        {/* Clickable pass-through zone over the spotlight (for advanceOn steps) */}
+        {rect && ready && hasAdvanceOn && (
+          <div
+            className="absolute z-[10001]"
+            style={{
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+              pointerEvents: "auto",
+            }}
+          />
+        )}
 
         {/* Animated spotlight ring */}
         {rect && ready && (
@@ -205,7 +236,7 @@ export default function WalkthroughOverlay() {
         {/* Tooltip Card */}
         {ready && (
           <motion.div
-            className="absolute z-[10000] w-[340px]"
+            className="absolute z-[10002] w-[340px]"
             style={tooltipStyle}
             initial={{ opacity: 0, y: 16, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -244,6 +275,18 @@ export default function WalkthroughOverlay() {
 
                 <p className="text-[13px] text-muted-foreground leading-relaxed">{step.description}</p>
 
+                {/* Action hint for reactive steps */}
+                {hasAdvanceOn && step.actionHint && (
+                  <motion.div
+                    className="mt-3 flex items-center gap-2 text-[12px] text-primary/80 font-medium"
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <MousePointerClick size={14} />
+                    <span>{step.actionHint}</span>
+                  </motion.div>
+                )}
+
                 {/* Navigation */}
                 <div className="mt-5 flex items-center justify-between">
                   <button
@@ -267,9 +310,13 @@ export default function WalkthroughOverlay() {
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={nextStep}
-                      className="flex h-8 items-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                      className={`flex h-8 items-center gap-1.5 rounded-xl px-4 text-[13px] font-medium transition-colors ${
+                        hasAdvanceOn
+                          ? "bg-secondary/80 text-foreground hover:bg-secondary"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      }`}
                     >
-                      {isLast ? "Finish" : "Next"}
+                      {isLast ? "Finish" : hasAdvanceOn ? "Skip" : "Next"}
                       {!isLast && <ArrowRight size={12} />}
                     </motion.button>
                   </div>
