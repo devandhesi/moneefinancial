@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useWalkthrough } from "@/hooks/use-walkthrough";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 interface SpotlightRect {
   top: number;
@@ -19,6 +19,7 @@ export default function WalkthroughOverlay() {
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [ready, setReady] = useState(false);
   const retryRef = useRef<NodeJS.Timeout>();
+  const retryCountRef = useRef(0);
 
   const step = steps[currentStep];
   const isCenter = step?.position === "center";
@@ -33,7 +34,7 @@ export default function WalkthroughOverlay() {
     }
   }, [isActive, currentStep, step?.route, location.pathname, navigate]);
 
-  // Find and measure the target element
+  // Find, scroll to, and measure the target element
   const measure = useCallback(() => {
     if (!isActive || !step) return;
 
@@ -50,90 +51,95 @@ export default function WalkthroughOverlay() {
 
     const el = document.querySelector(`[data-tour-id="${step.targetId}"]`) as HTMLElement;
     if (!el) {
-      // Retry — element might not be rendered yet after navigation
-      retryRef.current = setTimeout(measure, 200);
+      retryCountRef.current++;
+      if (retryCountRef.current < 15) {
+        retryRef.current = setTimeout(measure, 250);
+      }
       return;
     }
 
-    const r = el.getBoundingClientRect();
-    const padding = 8;
-    const spotlight: SpotlightRect = {
-      top: r.top - padding,
-      left: r.left - padding,
-      width: r.width + padding * 2,
-      height: r.height + padding * 2,
-    };
-    setRect(spotlight);
+    // Smooth scroll element into view
+    el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
 
-    // Position tooltip relative to spotlight
-    const tooltipWidth = 320;
-    const tooltipHeight = 180;
-    const gap = 16;
-    let style: React.CSSProperties = {};
+    // Wait for scroll to settle, then measure
+    setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      const padding = 10;
+      const spotlight: SpotlightRect = {
+        top: r.top - padding,
+        left: r.left - padding,
+        width: r.width + padding * 2,
+        height: r.height + padding * 2,
+      };
+      setRect(spotlight);
 
-    const pos = step.position || "bottom";
+      const tooltipWidth = 340;
+      const tooltipHeight = 200;
+      const gap = 20;
+      let style: React.CSSProperties = {};
+      const pos = step.position || "bottom";
 
-    if (pos === "bottom") {
-      style = {
-        top: spotlight.top + spotlight.height + gap,
-        left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
-      };
-    } else if (pos === "top") {
-      style = {
-        top: Math.max(16, spotlight.top - tooltipHeight - gap),
-        left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
-      };
-    } else if (pos === "right") {
-      style = {
-        top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
-        left: Math.min(window.innerWidth - tooltipWidth - 16, spotlight.left + spotlight.width + gap),
-      };
-    } else if (pos === "left") {
-      style = {
-        top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
-        left: Math.max(16, spotlight.left - tooltipWidth - gap),
-      };
-    }
+      if (pos === "bottom") {
+        style = {
+          top: spotlight.top + spotlight.height + gap,
+          left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
+        };
+      } else if (pos === "top") {
+        style = {
+          top: Math.max(16, spotlight.top - tooltipHeight - gap),
+          left: Math.max(16, Math.min(spotlight.left + spotlight.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
+        };
+      } else if (pos === "right") {
+        style = {
+          top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
+          left: Math.min(window.innerWidth - tooltipWidth - 16, spotlight.left + spotlight.width + gap),
+        };
+      } else if (pos === "left") {
+        style = {
+          top: Math.max(16, spotlight.top + spotlight.height / 2 - tooltipHeight / 2),
+          left: Math.max(16, spotlight.left - tooltipWidth - gap),
+        };
+      }
 
-    setTooltipStyle(style);
-    setReady(true);
+      setTooltipStyle(style);
+      setReady(true);
+    }, 400);
   }, [isActive, step, currentStep, isCenter]);
 
   useEffect(() => {
     setReady(false);
+    retryCountRef.current = 0;
     clearTimeout(retryRef.current);
-    // Small delay to let navigation complete
-    const timeout = setTimeout(measure, 300);
+    const timeout = setTimeout(measure, 350);
     return () => {
       clearTimeout(timeout);
       clearTimeout(retryRef.current);
     };
   }, [measure]);
 
-  // Re-measure on resize/scroll
+  // Re-measure on resize
   useEffect(() => {
     if (!isActive) return;
     const handler = () => measure();
     window.addEventListener("resize", handler);
-    window.addEventListener("scroll", handler, true);
-    return () => {
-      window.removeEventListener("resize", handler);
-      window.removeEventListener("scroll", handler, true);
-    };
+    return () => window.removeEventListener("resize", handler);
   }, [isActive, measure]);
 
   if (!isActive) return null;
 
+  const progress = ((currentStep + 1) / steps.length) * 100;
+
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         key="walkthrough-overlay"
         className="fixed inset-0 z-[9999]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
       >
-        {/* Dark overlay with spotlight cutout */}
+        {/* Backdrop with spotlight cutout */}
         <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }}>
           <defs>
             <mask id="spotlight-mask">
@@ -144,104 +150,123 @@ export default function WalkthroughOverlay() {
                   y={rect.top}
                   width={rect.width}
                   height={rect.height}
-                  rx="12"
-                  ry="12"
+                  rx="16"
+                  ry="16"
                   fill="black"
                 />
               )}
             </mask>
+            <filter id="backdrop-blur">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+            </filter>
           </defs>
           <rect
             x="0" y="0"
             width="100%" height="100%"
-            fill="rgba(0,0,0,0.65)"
+            fill="rgba(0,0,0,0.55)"
             mask="url(#spotlight-mask)"
             style={{ pointerEvents: "auto" }}
             onClick={(e) => e.stopPropagation()}
           />
         </svg>
 
-        {/* Spotlight ring highlight */}
+        {/* Animated spotlight ring */}
         {rect && ready && (
           <motion.div
-            className="absolute rounded-xl border-2 border-primary/60 shadow-[0_0_24px_rgba(var(--primary),0.15)]"
-            initial={{ opacity: 0, scale: 0.95 }}
+            className="absolute pointer-events-none"
+            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
             style={{
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height,
-              pointerEvents: "none",
+              top: rect.top - 3,
+              left: rect.left - 3,
+              width: rect.width + 6,
+              height: rect.height + 6,
             }}
-            transition={{ duration: 0.3 }}
-          />
+          >
+            <div className="absolute inset-0 rounded-2xl border-2 border-primary/50" />
+            <motion.div
+              className="absolute inset-0 rounded-2xl border-2 border-primary/30"
+              animate={{ scale: [1, 1.04, 1], opacity: [0.5, 0.2, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.div>
         )}
 
-        {/* Tooltip */}
+        {/* Tooltip Card */}
         {ready && (
           <motion.div
-            className="absolute z-[10000] w-[320px] rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl p-5 shadow-2xl"
+            className="absolute z-[10000] w-[340px]"
             style={tooltipStyle}
-            initial={{ opacity: 0, y: 12, scale: 0.95 }}
+            initial={{ opacity: 0, y: 16, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", damping: 25, stiffness: 350, delay: 0.1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.92 }}
+            transition={{ type: "spring", damping: 28, stiffness: 380, delay: 0.15 }}
             key={currentStep}
           >
-            {/* Progress bar */}
-            <div className="flex gap-1 mb-4">
-              {steps.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-                    i <= currentStep ? "bg-primary" : "bg-muted"
-                  }`}
+            <div className="rounded-2xl border border-border/40 bg-background/90 backdrop-blur-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.25)] overflow-hidden">
+              {/* Continuous progress bar */}
+              <div className="h-1 bg-muted/50">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-r-full"
+                  initial={{ width: `${((currentStep) / steps.length) * 100}%` }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
                 />
-              ))}
-            </div>
+              </div>
 
-            {/* Icon for center steps */}
-            {isCenter && (
-              <div className="flex justify-center mb-3">
-                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Sparkles size={24} className="text-primary" />
+              <div className="p-5">
+                {/* Header with M icon */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isCenter
+                      ? "bg-gradient-to-br from-primary/20 to-primary/5"
+                      : "bg-primary/10"
+                  }`}>
+                    <span className="text-lg font-bold text-primary tracking-tighter">m</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-[15px] font-semibold tracking-tight leading-tight">{step.title}</h3>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                      Step {currentStep + 1} of {steps.length}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[13px] text-muted-foreground leading-relaxed">{step.description}</p>
+
+                {/* Navigation */}
+                <div className="mt-5 flex items-center justify-between">
+                  <button
+                    onClick={skipTour}
+                    className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors duration-200"
+                  >
+                    Skip tour
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {!isFirst && (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={prevStep}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary/80 text-foreground transition-colors hover:bg-secondary"
+                      >
+                        <ArrowLeft size={14} />
+                      </motion.button>
+                    )}
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={nextStep}
+                      className="flex h-8 items-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      {isLast ? "Finish" : "Next"}
+                      {!isLast && <ArrowRight size={12} />}
+                    </motion.button>
+                  </div>
                 </div>
               </div>
-            )}
-
-            <h3 className="text-base font-semibold tracking-tight">{step.title}</h3>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{step.description}</p>
-
-            {/* Navigation */}
-            <div className="mt-5 flex items-center justify-between">
-              <button
-                onClick={skipTour}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Skip tour
-              </button>
-              <div className="flex items-center gap-2">
-                {!isFirst && (
-                  <button
-                    onClick={prevStep}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground transition-colors hover:bg-secondary/80"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-                )}
-                <button
-                  onClick={nextStep}
-                  className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  {isLast ? "Finish" : "Next"}
-                  {!isLast && <ArrowRight size={14} />}
-                </button>
-              </div>
             </div>
-
-            <p className="mt-3 text-center text-[10px] text-muted-foreground/60">
-              {currentStep + 1} of {steps.length}
-            </p>
           </motion.div>
         )}
       </motion.div>
