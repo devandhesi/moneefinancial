@@ -96,6 +96,11 @@ const BottomNav = () => {
                           key={page.path + page.label}
                           to={page.path}
                           onClick={() => setShowMore(false)}
+                          data-tour-id={
+                            page.path === "/settings" ? "tour-settings-link" :
+                            page.path === "/invest" ? "tour-invest-link" :
+                            page.path === "/watchlist" ? "tour-watchlist-link" : undefined
+                          }
                           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
                             isActive
                               ? "bg-foreground/[0.06] text-foreground"
@@ -124,7 +129,12 @@ const BottomNav = () => {
             const Icon = tab.icon;
             const isMaven = tab.path === "/chat";
             return (
-              <NavLink key={tab.path} to={tab.path} className="relative flex flex-col items-center gap-0.5 px-3 py-1.5">
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                data-tour-id={tab.path === "/invest" ? "tour-invest-link" : undefined}
+                className="relative flex flex-col items-center gap-0.5 px-3 py-1.5"
+              >
                 {isActive && (
                   <motion.div
                     layoutId="nav-indicator"
