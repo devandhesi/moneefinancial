@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useWalkthrough } from "@/hooks/use-walkthrough";
+import { useDepositFunds } from "@/hooks/use-sim-portfolio";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, MousePointerClick } from "lucide-react";
+import { ArrowLeft, ArrowRight, MousePointerClick, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface SpotlightRect {
   top: number;
@@ -15,12 +17,15 @@ export default function WalkthroughOverlay() {
   const { isActive, currentStep, steps, nextStep, prevStep, skipTour } = useWalkthrough();
   const navigate = useNavigate();
   const location = useLocation();
+  const depositMutation = useDepositFunds();
   const [rect, setRect] = useState<SpotlightRect | null>(null);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [ready, setReady] = useState(false);
+  const [autoActionDone, setAutoActionDone] = useState(false);
   const retryRef = useRef<NodeJS.Timeout>();
   const retryCountRef = useRef(0);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const autoActionRanRef = useRef<number>(-1);
 
   const step = steps[currentStep];
   const isCenter = step?.position === "center";
@@ -182,7 +187,37 @@ export default function WalkthroughOverlay() {
     };
   }, [isActive, step, ready, nextStep]);
 
-  // Handle backdrop click — forward clicks in the spotlight area to the target element
+  // Auto-action execution: perform actions automatically when a step is reached
+  useEffect(() => {
+    if (!isActive || !step?.autoAction || !ready) return;
+    if (autoActionRanRef.current === currentStep) return; // already ran for this step
+    autoActionRanRef.current = currentStep;
+    setAutoActionDone(false);
+
+    const runAction = async () => {
+      try {
+        if (step.autoAction === "deposit-10k") {
+          await depositMutation.mutateAsync({ amount: 10000 });
+          toast.success("$10,000 paper money added to your account! 🎉");
+        }
+        setAutoActionDone(true);
+      } catch (e: any) {
+        // If already has funds, still mark as done
+        setAutoActionDone(true);
+        toast.info("Paper money is already in your account!");
+      }
+    };
+
+    // Slight delay so the user sees the step first
+    const timer = setTimeout(runAction, 800);
+    return () => clearTimeout(timer);
+  }, [isActive, step, ready, currentStep, depositMutation]);
+
+  // Reset autoActionDone when step changes
+  useEffect(() => {
+    setAutoActionDone(false);
+  }, [currentStep]);
+
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (rect && hasAdvanceOn && step) {
       const x = e.clientX;
@@ -324,6 +359,31 @@ export default function WalkthroughOverlay() {
                   >
                     <MousePointerClick size={14} />
                     <span>{step.actionHint}</span>
+                  </motion.div>
+                )}
+
+                {/* Auto-action status */}
+                {step.autoAction && (
+                  <motion.div
+                    className={`mt-3 flex items-center gap-2 text-[12px] font-medium ${autoActionDone ? "text-green-500" : "text-primary/80"}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {autoActionDone ? (
+                      <>
+                        <CheckCircle2 size={14} />
+                        <span>Done! $10,000 deposited ✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <motion.div
+                          className="h-3.5 w-3.5 rounded-full border-2 border-primary/60 border-t-transparent"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                        <span>Depositing paper money...</span>
+                      </>
+                    )}
                   </motion.div>
                 )}
 
