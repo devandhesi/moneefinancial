@@ -54,6 +54,15 @@ export default function WalkthroughOverlay() {
       retryCountRef.current++;
       if (retryCountRef.current < 15) {
         retryRef.current = setTimeout(measure, 250);
+      } else {
+        // Element not found — show tooltip centered with a note
+        setRect(null);
+        setTooltipStyle({
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        });
+        setReady(true);
       }
       return;
     }
