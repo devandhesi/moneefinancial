@@ -133,24 +133,26 @@ export default function WalkthroughOverlay() {
   }, [isActive, measure]);
 
   // Reactive advancement: listen for advanceOn events on the target element
+  // Also apply a highlight class to make the element visually pop
   useEffect(() => {
     if (!isActive || !step?.advanceOn || !ready) return;
 
     const selector = step.advanceOn.selector || `[data-tour-id="${step.targetId}"]`;
     const eventType = step.advanceOn.event;
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (!el) return;
+
+    // Add highlight class
+    el.classList.add("tour-highlight-target");
 
     const handler = () => {
-      // Small delay so the user sees their action register
       setTimeout(() => nextStep(), 300);
     };
 
-    const el = document.querySelector(selector);
-    if (!el) return;
-
-    // Use capture phase to catch the event before it's consumed
     el.addEventListener(eventType, handler, { capture: true, once: true });
     return () => {
       el.removeEventListener(eventType, handler, { capture: true });
+      el.classList.remove("tour-highlight-target");
     };
   }, [isActive, step, ready, nextStep]);
 
