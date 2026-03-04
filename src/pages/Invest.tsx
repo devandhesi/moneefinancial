@@ -340,7 +340,7 @@ const Invest = () => {
       </motion.div>
 
       {/* Search Bar */}
-      <motion.div className="glass-card mt-3 flex items-center gap-2 px-4 py-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
+      <motion.div className="glass-card mt-3 flex items-center gap-2 px-4 py-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} data-tour-id="tour-invest-search">
         <Search size={16} className="text-muted-foreground" />
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={`Search ${activeTab}...`} className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
         {isSearching && <Loader2 size={14} className="animate-spin text-muted-foreground" />}

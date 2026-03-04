@@ -157,7 +157,7 @@ export default function MavenAssistantFAB() {
             whileTap={{ scale: 0.95 }}
             onClick={() => setOpen(true)}
             className="fixed bottom-28 right-5 lg:bottom-8 lg:right-8 z-50 h-10 w-10 rounded-xl glass-card-float text-foreground flex items-center justify-center hover:scale-105 transition-transform"
-            aria-label="Ask Maven"
+            data-tour-id="tour-maven-fab"
           >
             <MavenIcon size={18} />
           </motion.button>
