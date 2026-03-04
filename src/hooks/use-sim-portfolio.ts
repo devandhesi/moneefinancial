@@ -168,6 +168,37 @@ export function useDepositFunds() {
   });
 }
 
+export function useResetPaperTrading() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+      const account = await ensureSimAccount(user.id);
+
+      // Delete all positions
+      await supabase.from("sim_positions").delete().eq("sim_account_id", account.id);
+      // Delete all orders
+      await supabase.from("sim_orders").delete().eq("sim_account_id", account.id);
+      // Delete all transactions
+      await supabase.from("sim_transactions").delete().eq("sim_account_id", account.id);
+      // Reset cash to 0
+      await supabase
+        .from("sim_cash_balances")
+        .update({ total: 0, available: 0, as_of: new Date().toISOString() })
+        .eq("sim_account_id", account.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sim-cash"] });
+      qc.invalidateQueries({ queryKey: ["sim-positions"] });
+      qc.invalidateQueries({ queryKey: ["sim-orders"] });
+      qc.invalidateQueries({ queryKey: ["sim-transactions"] });
+      qc.invalidateQueries({ queryKey: ["portfolio-value"] });
+    },
+  });
+}
+
 export function useExecuteTrade() {
   const qc = useQueryClient();
   const { user } = useAuth();
