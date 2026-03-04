@@ -335,7 +335,7 @@ const LearnCharts = () => {
       </motion.div>
 
       {/* Search */}
-      <motion.div className="relative mt-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+      <motion.div className="relative mt-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} data-tour-id="tour-charts-search">
         <div className="glass-card flex items-center gap-2 px-4 py-3">
           <Search size={16} className="text-muted-foreground" />
           <input
@@ -377,7 +377,7 @@ const LearnCharts = () => {
       {!selectedSymbol && (
         <motion.div className="mt-5" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Popular stocks to learn with</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-tour-id="tour-charts-popular">
             {popularStocks.map((s) => (
               <button
                 key={s.symbol}
@@ -435,7 +435,7 @@ const LearnCharts = () => {
 
             {/* Chart controls */}
             <div className="mt-4 flex items-center justify-between">
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5" data-tour-id="tour-charts-mode">
                 {chartModes.map((mode) => (
                   <button
                     key={mode}
@@ -446,7 +446,7 @@ const LearnCharts = () => {
                   </button>
                 ))}
               </div>
-              <div className="flex gap-0.5">
+              <div className="flex gap-0.5" data-tour-id="tour-charts-timerange">
                 {timeRanges.map((range) => (
                   <button
                     key={range}
@@ -460,7 +460,7 @@ const LearnCharts = () => {
             </div>
 
             {/* Indicators */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5" data-tour-id="tour-charts-indicators">
               {indicators.map((ind) => (
                 <button
                   key={ind}
@@ -562,7 +562,7 @@ const LearnCharts = () => {
           {/* AI Teaching Panel */}
           <AnimatePresence>
             {(chatOpen || typeof window !== "undefined") && (
-              <motion.div
+              <motion.div data-tour-id="tour-charts-ai"
                 className={`flex flex-col rounded-2xl border border-border bg-card overflow-hidden ${chatOpen ? "block" : "hidden lg:flex"}`}
                 style={{ maxHeight: "calc(100vh - 140px)", position: "sticky", top: 80 }}
                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}

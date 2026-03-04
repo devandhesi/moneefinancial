@@ -11,7 +11,7 @@ import { useSimAccount, useSimCash, useDepositFunds, useResetPaperTrading } from
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useWalkthrough } from "@/hooks/use-walkthrough";
+import { useWalkthrough, ALL_TOURS } from "@/hooks/use-walkthrough";
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -350,21 +350,30 @@ const Settings = () => {
         </div>
       </motion.div>
 
-      {/* Start Tour */}
+      {/* Tutorials */}
       <motion.div className="mt-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Help</h2>
-        <button
-          onClick={() => { startTour(); navigate("/"); }}
-          className="glass-card flex w-full items-center gap-3 p-4 text-left transition-shadow hover:shadow-md"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Compass size={18} className="text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">Getting Started Tour</p>
-            <p className="text-[11px] text-muted-foreground">Interactive walkthrough of all key features</p>
-          </div>
-        </button>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Tutorials</h2>
+        <div className="space-y-2">
+          {ALL_TOURS.map((tour) => (
+            <button
+              key={tour.id}
+              onClick={() => {
+                startTour(tour.id);
+                navigate(tour.steps[0]?.route || "/");
+              }}
+              className="glass-card flex w-full items-center gap-3 p-4 text-left transition-shadow hover:shadow-md"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-lg">
+                {tour.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{tour.label}</p>
+                <p className="text-[11px] text-muted-foreground">{tour.description}</p>
+              </div>
+              <span className="text-[10px] text-muted-foreground/50 shrink-0">{tour.steps.length} steps</span>
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       <motion.div className="mt-6 rounded-lg bg-secondary px-4 py-3 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }}>
