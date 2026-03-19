@@ -23,7 +23,7 @@ const Settings = () => {
   const resetMutation = useResetPaperTrading();
   const { startTour } = useWalkthrough();
   const [depositAmount, setDepositAmount] = useState("");
-  const [dragState, setDragState] = useState<{ section: "main" | "secondary"; index: number } | null>(null);
+  const [dragState, setDragState] = useState<{ section: string; index: number } | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [resetStep, setResetStep] = useState(0); // 0=closed, 1=first confirm, 2=final confirm
   const CONFIRM_PHRASE = "RESET";
