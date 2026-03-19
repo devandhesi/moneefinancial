@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, BookOpen, Clock, HelpCircle, Sparkles, Send,
-  Bookmark, BookmarkCheck, StickyNote, Loader2, X,
+  Bookmark, BookmarkCheck, StickyNote, Loader2, X, PieChart,
   Brain, Briefcase, Wallet, CreditCard, TrendingUp, Landmark, ShieldCheck, Rocket,
   type LucideIcon,
 } from "lucide-react";
@@ -71,7 +71,7 @@ const InlineQuiz = ({ quiz, onComplete }: { quiz: Quiz; onComplete: (correct: bo
   );
 };
 
-/* ── AI Sidebar ────────────────────────────────────────────── */
+/* ── AI Sidebar (Portfolio-Aware) ───────────────────────── */
 interface ChatMsg { role: "user" | "assistant"; content: string }
 
 const AISidebar = ({ lessonTitle, sectionContent, moduleTitle }: { lessonTitle: string; sectionContent: string; moduleTitle: string }) => {
@@ -84,9 +84,18 @@ const AISidebar = ({ lessonTitle, sectionContent, moduleTitle }: { lessonTitle: 
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const holdingsContext = (positions && positions.length > 0)
-    ? `\n\nUser's current holdings: ${positions.map(p => `${p.ticker} (${p.quantity} shares @ $${p.avg_cost?.toFixed(2)})`).join(", ")}`
-    : "\n\nUser has no current holdings.";
+  const hasHoldings = positions && positions.length > 0;
+  const holdingsContext = hasHoldings
+    ? `\n\nUser's current portfolio:\n${positions.map(p => {
+        const value = (p.quantity * (p.avg_cost || 0)).toFixed(2);
+        const pnl = p.unrealized_pnl ? ` | P&L: $${p.unrealized_pnl.toFixed(2)}` : "";
+        return `- ${p.ticker}: ${p.quantity} shares @ $${p.avg_cost?.toFixed(2)} avg ($${value} total${pnl})`;
+      }).join("\n")}\nTotal positions: ${positions.length}`
+    : "\n\nUser has no current holdings in their paper trading portfolio.";
+
+  const totalValue = hasHoldings
+    ? positions.reduce((s, p) => s + (p.quantity * (p.avg_cost || 0)), 0)
+    : 0;
 
   const send = async (text?: string) => {
     const msg = text || input;
@@ -99,7 +108,18 @@ const AISidebar = ({ lessonTitle, sectionContent, moduleTitle }: { lessonTitle: 
     let assistantSoFar = "";
     const systemMsg: ChatMsg = {
       role: "user",
-      content: `[SYSTEM] You are Maven, an AI tutor inside Monee's learning platform. You're helping a student understand "${lessonTitle}" from the module "${moduleTitle}". Reference the lesson content and the student's real portfolio when relevant. Be encouraging, use **bold** for key terms, keep answers under 200 words. End with a follow-up question.\n\nLesson excerpt: ${sectionContent.slice(0, 1500)}${holdingsContext}`,
+      content: `[SYSTEM] You are Maven, an AI tutor inside Monee's learning platform. You're helping a student understand "${lessonTitle}" from the module "${moduleTitle}".
+
+CRITICAL INSTRUCTION: Always connect lesson concepts to the student's ACTUAL portfolio when they have holdings. Be specific — use their real ticker symbols, quantities, and values. Examples:
+- "Since you hold 5 shares of AAPL, this concept means..."
+- "Looking at your $TSLA position, if we applied this principle, your portfolio would..."
+- "Your current allocation is X% in tech — this lesson about diversification suggests..."
+
+If they ask about portfolio impact, do actual calculations with their holdings. Show before/after scenarios.
+
+Be encouraging, use **bold** for key terms and $TICKER format. Keep answers under 250 words. End with a follow-up question that connects back to their portfolio.
+
+Lesson excerpt: ${sectionContent.slice(0, 1500)}${holdingsContext}`,
     };
 
     const upsert = (chunk: string) => {
@@ -124,28 +144,64 @@ const AISidebar = ({ lessonTitle, sectionContent, moduleTitle }: { lessonTitle: 
     }
   };
 
-  const chips = [
-    "Explain this like I'm 5",
-    "How does this relate to my portfolio?",
-    "Give me a real-world example",
-    "Quiz me on this section",
-  ];
+  const portfolioChips = hasHoldings
+    ? [
+        "How does this apply to my portfolio?",
+        `What would happen if I applied this to my ${positions[0]?.ticker} position?`,
+        "Am I diversified enough based on this lesson?",
+        "Show me a scenario with my holdings",
+      ]
+    : [
+        "Explain this like I'm 5",
+        "Give me a real-world example",
+        "What should I look for in my first stock?",
+        "Quiz me on this section",
+      ];
 
   return (
     <div className="glass-card flex flex-col h-[400px] lg:h-[600px]">
       <div className="flex items-center gap-2 p-3 border-b border-border/30">
         <Sparkles size={14} className="text-violet-500" />
         <span className="text-xs font-semibold">Maven AI Tutor</span>
+        {hasHoldings && (
+          <span className="ml-auto flex items-center gap-1 text-[9px] font-medium text-gain bg-gain/10 px-1.5 py-0.5 rounded-md">
+            <PieChart size={9} /> Portfolio linked
+          </span>
+        )}
       </div>
+
+      {/* Portfolio context banner */}
+      {hasHoldings && messages.length === 0 && (
+        <div className="mx-3 mt-3 rounded-lg bg-secondary/50 p-2.5 border border-border/20">
+          <p className="text-[10px] font-semibold text-foreground mb-1">📊 Your Portfolio</p>
+          <div className="flex flex-wrap gap-1">
+            {positions.slice(0, 5).map(p => (
+              <span key={p.ticker} className="text-[9px] font-medium bg-background/60 px-1.5 py-0.5 rounded-md">
+                ${p.ticker} · {p.quantity}sh
+              </span>
+            ))}
+            {positions.length > 5 && (
+              <span className="text-[9px] text-muted-foreground px-1">+{positions.length - 5} more</span>
+            )}
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-1">
+            Maven will reference these holdings in responses
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 && (
-          <div className="text-center py-8">
+          <div className="text-center py-6">
             <Sparkles size={24} className="mx-auto text-muted-foreground/30 mb-2" />
-            <p className="text-xs text-muted-foreground">Ask Maven anything about this lesson</p>
+            <p className="text-xs text-muted-foreground">
+              {hasHoldings
+                ? "Ask how this lesson applies to your portfolio"
+                : "Ask Maven anything about this lesson"}
+            </p>
             <div className="mt-3 flex flex-wrap gap-1.5 justify-center">
-              {chips.map(c => (
-                <button key={c} onClick={() => send(c)} className="rounded-lg bg-secondary px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+              {portfolioChips.map(c => (
+                <button key={c} onClick={() => send(c)} className="rounded-lg bg-secondary px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors text-left">
                   {c}
                 </button>
               ))}
@@ -165,7 +221,7 @@ const AISidebar = ({ lessonTitle, sectionContent, moduleTitle }: { lessonTitle: 
         ))}
         {loading && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 size={12} className="animate-spin" /> Thinking...
+            <Loader2 size={12} className="animate-spin" /> Analyzing with your portfolio...
           </div>
         )}
         <div ref={endRef} />
@@ -177,7 +233,7 @@ const AISidebar = ({ lessonTitle, sectionContent, moduleTitle }: { lessonTitle: 
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && send()}
-          placeholder="Ask about this lesson..."
+          placeholder={hasHoldings ? "Ask about your portfolio..." : "Ask about this lesson..."}
           className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
         />
         <button onClick={() => send()} disabled={loading || !input.trim()} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
