@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
-import { useSidebarConfig } from "@/hooks/use-sidebar-config";
+import { useSidebarConfig, SECTION_LABELS } from "@/hooks/use-sidebar-config";
 import { useTimezone, TIMEZONE_OPTIONS } from "@/hooks/use-timezone";
 import { useSimAccount, useSimCash, useDepositFunds, useResetPaperTrading } from "@/hooks/use-sim-portfolio";
 import { toast } from "sonner";
