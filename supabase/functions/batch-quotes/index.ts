@@ -49,7 +49,7 @@ async function fetchQuote(rawSymbol: string): Promise<QuoteResult | null> {
   try {
     const yahooSymbol = mapSymbol(rawSymbol);
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=30m&range=5d&includePrePost=false`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=3mo&includePrePost=false`,
       { headers: { "User-Agent": "Mozilla/5.0" } }
     );
     if (!res.ok) return null;
