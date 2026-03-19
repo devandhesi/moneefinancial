@@ -211,7 +211,21 @@ const LearnLesson = () => {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+    setReadingProgress(0);
   }, [lessonIdx]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const el = contentRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const total = el.scrollHeight;
+      const scrolled = Math.max(0, -rect.top + window.innerHeight * 0.5);
+      setReadingProgress(Math.min(scrolled / total, 1));
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   if (!mod || !mod.lessons[lessonIdx]) {
     return (
