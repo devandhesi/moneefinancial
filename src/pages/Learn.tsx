@@ -44,7 +44,7 @@ const Learn = () => {
   const xpProgress = Math.min((currentXp % 500) / 500 * 100, 100);
 
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
-  const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
+  const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } } as const;
 
   return (
     <div className="px-5 pt-14 pb-24 lg:pb-8 lg:pt-8 max-w-4xl mx-auto">

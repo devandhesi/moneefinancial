@@ -52,7 +52,7 @@ const LearnModule = () => {
   }, 0);
 
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
-  const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
+  const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } } as const;
 
   return (
     <div className="px-5 pt-14 pb-24 lg:pb-8 lg:pt-8 max-w-3xl mx-auto">
