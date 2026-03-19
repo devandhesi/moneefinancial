@@ -17,7 +17,10 @@ import Chat from "./pages/Chat";
 import Invest from "./pages/Invest";
 import StockDetail from "./pages/StockDetail";
 import Learn from "./pages/Learn";
-import LearnCourse from "./pages/LearnCourse";
+import LearnModule from "./pages/LearnModule";
+import LearnLesson from "./pages/LearnLesson";
+import LearnQuiz from "./pages/LearnQuiz";
+import LearnGlossary from "./pages/LearnGlossary";
 import LearnCharts from "./pages/LearnCharts";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -73,7 +76,11 @@ const App = () => (
               <Route path="/invest/:symbol" element={<StockDetail />} />
               <Route path="/learn" element={<Learn />} />
               <Route path="/learn/charts" element={<LearnCharts />} />
-              <Route path="/learn/:courseId" element={<LearnCourse />} />
+              <Route path="/learn/glossary" element={<LearnGlossary />} />
+              <Route path="/learn/:courseId/quiz" element={<LearnQuiz />} />
+              <Route path="/learn/:courseId/test" element={<LearnQuiz />} />
+              <Route path="/learn/:courseId/:lessonIndex" element={<LearnLesson />} />
+              <Route path="/learn/:courseId" element={<LearnModule />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/social" element={<Social />} />
