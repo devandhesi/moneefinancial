@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import MavenIcon from "@/components/MavenIcon";
 import { useMavenChat } from "@/hooks/use-maven-chat";
+import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
 
 /* ── Word-by-word reveal hook ──────────────────────────── */
 function useWordReveal() {
@@ -459,12 +460,28 @@ const ChatPage = () => {
           {/* Messages */}
           <div className="flex-1 space-y-5 overflow-y-auto pb-2">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-4">
-                  <Sparkles size={24} className="text-muted-foreground" />
+              <div className="space-y-5">
+                <div className="flex flex-col items-center justify-center text-center pt-4 pb-2">
+                  <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+                    <Sparkles size={24} className="text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium">Hey — I'm Maven.</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xs">Ask me anything about money — stocks, budgeting, saving, investing, debt, or just how to be smarter with your cash.</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-3">Here's a sample conversation ↓</p>
                 </div>
-                <p className="text-sm font-medium">Hey — I'm Maven.</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Ask me anything about money — stocks, budgeting, saving, investing, debt, or just how to be smarter with your cash.</p>
+                {/* Demo conversation */}
+                {DEMO_CHAT_CONVERSATION.map((msg, i) =>
+                  msg.role === "user" ? (
+                    <UserMessage key={`demo-${i}`} content={msg.content} />
+                  ) : (
+                    <AssistantMessage key={`demo-${i}`} content={msg.content} />
+                  )
+                )}
+                <div className="flex justify-center pt-2 pb-4">
+                  <div className="glass-card px-4 py-2 text-xs text-muted-foreground">
+                    ↑ Sample conversation · Ask your own question below
+                  </div>
+                </div>
               </div>
             )}
 

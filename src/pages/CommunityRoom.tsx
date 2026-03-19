@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import RichMessageContent from "@/components/chat/RichMessageContent";
+import { DEMO_COMMUNITY_MESSAGES } from "@/data/demo-data";
 
 interface Reaction {
   emoji: string;
@@ -506,14 +507,39 @@ const CommunityRoom = () => {
               <Loader2 size={20} className="animate-spin text-muted-foreground" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary mb-3">
-                {roomInfo.type === "stock" ? <TrendingUp size={24} /> : <Hash size={24} />}
+            <div className="space-y-1">
+              {/* Demo messages when room is empty */}
+              <div className="flex flex-col items-center justify-center text-center py-3 mb-2">
+                <p className="text-[10px] text-muted-foreground/60 bg-secondary/50 rounded-full px-3 py-1">
+                  Sample conversation · Sign in to join
+                </p>
               </div>
-              <p className="text-sm font-medium">Welcome to {roomInfo.name}</p>
-              <p className="mt-1 text-xs text-muted-foreground max-w-[240px]">
-                Be the first to start a conversation. Use $TICKER tags and #hashtags.
-              </p>
+              {DEMO_COMMUNITY_MESSAGES.map((demo) => (
+                <div key={demo.id} className="group flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-secondary/30">
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-[10px] font-bold text-muted-foreground">
+                    {demo.avatar_initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold">{demo.display_name}</span>
+                      <span className="text-[10px] text-muted-foreground">{demo.time_ago}</span>
+                    </div>
+                    <div className="mt-0.5 text-[13px] leading-relaxed break-words text-foreground/90">
+                      {demo.content}
+                    </div>
+                    {demo.reactions && demo.reactions.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {demo.reactions.map((r) => (
+                          <span key={r.emoji} className="inline-flex items-center gap-1 rounded-full bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                            <span>{r.emoji}</span>
+                            <span className="font-medium">{r.count}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             messages.map((msg) => {
