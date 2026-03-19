@@ -261,12 +261,13 @@ const Settings = () => {
         </div>
         <p className="text-xs text-muted-foreground mb-4">Choose which pages appear in the sidebar and reorder them.</p>
 
-        {(["main", "secondary"] as const).map((section) => {
+        {(["main", "investing", "social", "learn", "bottom"] as const).map((section) => {
           const sectionLinks = links.filter(l => l.section === section);
+          if (sectionLinks.length === 0) return null;
           return (
             <div key={section} className="mb-4">
               <p className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                {section === "main" ? "Primary" : "Secondary"}
+                {SECTION_LABELS[section] || section}
               </p>
               <div className="space-y-1.5">
                 {sectionLinks.map((link, idx) => {
@@ -277,7 +278,7 @@ const Settings = () => {
                   return (
                     <div
                       key={link.id}
-                      draggable
+                      draggable={!isProtected}
                       onDragStart={() => setDragState({ section, index: idx })}
                       onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
                       onDrop={() => {
@@ -288,12 +289,13 @@ const Settings = () => {
                         setDragOverIndex(null);
                       }}
                       onDragEnd={() => { setDragState(null); setDragOverIndex(null); }}
-                      className={`glass-card flex items-center justify-between px-4 py-3 cursor-grab active:cursor-grabbing transition-all ${
+                      className={`glass-card flex items-center justify-between px-4 py-3 ${isProtected ? "" : "cursor-grab active:cursor-grabbing"} transition-all ${
                         isDragging ? "opacity-40 scale-95" : ""
                       } ${isDragOver && !isDragging ? "ring-2 ring-primary/40 scale-[1.02]" : ""}`}
                     >
                       <div className="flex items-center gap-3">
-                        <GripVertical size={14} className="text-muted-foreground/50 shrink-0" />
+                        {!isProtected && <GripVertical size={14} className="text-muted-foreground/50 shrink-0" />}
+                        {isProtected && <div className="w-3.5 shrink-0" />}
                         <Icon size={16} className={link.visible ? "text-foreground" : "text-muted-foreground/40"} />
                         <span className={`text-sm font-medium ${link.visible ? "" : "text-muted-foreground/50 line-through"}`}>
                           {link.label}
