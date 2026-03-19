@@ -32,7 +32,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       </main>
 
       <BottomNav />
-      <MavenAssistantFAB />
+      {location.pathname !== "/chat" && <MavenAssistantFAB />}
     </div>
   );
 };
