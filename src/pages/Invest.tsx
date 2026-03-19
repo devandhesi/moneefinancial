@@ -470,9 +470,9 @@ const Invest = () => {
                         name: stock.name,
                         price: realQuote ? realQuote.price : stock.price,
                         change: realQuote ? realQuote.changePercent : stock.change,
-                        sparkline: realQuote && realQuote.sparkline.length > 1
+                      sparkline: realQuote && realQuote.sparkline.length > 1
                           ? realQuote.sparkline.map((v, idx) => ({ i: idx, v }))
-                          : Array.from({ length: 16 }, (_, idx) => ({ i: idx, v: stock.price + Math.sin(idx * 0.6) * stock.price * 0.01 })),
+                          : [],
                       };
                       return <AssetRow key={stock.symbol} item={item} index={i} onClick={() => navigate(`/invest/${stock.symbol}`)} />;
                     })}
