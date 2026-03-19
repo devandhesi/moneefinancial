@@ -49,6 +49,9 @@ import ResetPassword from "./pages/ResetPassword";
 import BrowseRooms from "./pages/BrowseRooms";
 import CreateRoom from "./pages/CreateRoom";
 import JoinRoom from "./pages/JoinRoom";
+import DataSources from "./pages/DataSources";
+import Methodology from "./pages/Methodology";
+import Transparency from "./pages/Transparency";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -108,6 +111,9 @@ const App = () => (
               <Route path="/markets" element={<Markets />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/insider-tracking" element={<InsiderTracking />} />
+              <Route path="/institutional/data-sources" element={<DataSources />} />
+              <Route path="/institutional/methodology" element={<Methodology />} />
+              <Route path="/institutional/transparency" element={<Transparency />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

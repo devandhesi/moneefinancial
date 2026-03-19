@@ -338,11 +338,11 @@ const Settings = () => {
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Institutional</h2>
         <div className="space-y-2">
           {[
-            { label: "Data Sources", desc: "Where our market data comes from" },
-            { label: "Methodology", desc: "How behavioral grading works" },
-            { label: "Transparency", desc: "Our commitment to clarity" },
+            { label: "Data Sources", desc: "Where our market data comes from", path: "/institutional/data-sources" },
+            { label: "Methodology", desc: "How behavioral grading works", path: "/institutional/methodology" },
+            { label: "Transparency", desc: "Our commitment to clarity", path: "/institutional/transparency" },
           ].map((item) => (
-            <button key={item.label} className="glass-card flex w-full items-center justify-between p-4 text-left transition-shadow hover:shadow-md">
+            <button key={item.label} onClick={() => navigate(item.path)} className="glass-card flex w-full items-center justify-between p-4 text-left transition-shadow hover:shadow-md">
               <div>
                 <p className="text-sm font-medium">{item.label}</p>
                 <p className="text-[11px] text-muted-foreground">{item.desc}</p>
