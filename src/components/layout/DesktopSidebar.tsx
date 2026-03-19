@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -19,74 +19,22 @@ import {
   Wrench,
   type LucideIcon,
   Users,
-  PieChart,
-  ShieldAlert,
-  Flame,
-  Grid3X3,
   Receipt,
   ClipboardList,
-  Link2,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/use-auth";
+import { useSidebarConfig, SECTION_LABELS } from "@/hooks/use-sidebar-config";
 import { Switch } from "@/components/ui/switch";
 import MavenIcon from "@/components/MavenIcon";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User,
   FlaskConical, Settings, Star, Bell, Hash, Newspaper, Wrench, FileBarChart, Users,
-  PieChart, ShieldAlert, Flame, Grid3X3, Receipt, ClipboardList, Link2,
+  Receipt, ClipboardList,
 };
-
-interface NavGroup {
-  label: string;
-  items: { path: string; icon: string; label: string }[];
-  defaultOpen?: boolean;
-}
-
-const navGroups: NavGroup[] = [
-  {
-    label: "",
-    defaultOpen: true,
-    items: [
-      { path: "/", icon: "LayoutDashboard", label: "Dashboard" },
-      { path: "/chat", icon: "MessageCircle", label: "Maven AI" },
-    ],
-  },
-  {
-    label: "Investing",
-    defaultOpen: true,
-    items: [
-      { path: "/invest", icon: "TrendingUp", label: "Invest" },
-      { path: "/watchlist", icon: "Star", label: "Watchlist" },
-      { path: "/news", icon: "Newspaper", label: "Market News" },
-      { path: "/reports", icon: "FileBarChart", label: "Reports" },
-      { path: "/orders", icon: "ClipboardList", label: "Orders" },
-      { path: "/transactions", icon: "Receipt", label: "Transactions" },
-    ],
-  },
-  {
-    label: "Social",
-    defaultOpen: true,
-    items: [
-      { path: "/social", icon: "Users", label: "Finance For You" },
-      { path: "/community", icon: "Hash", label: "Community" },
-      { path: "/community/dms", icon: "MessageCircle", label: "Messages" },
-      { path: "/notifications", icon: "Bell", label: "Notifications" },
-    ],
-  },
-  {
-    label: "Learn",
-    items: [
-      { path: "/learn", icon: "BookOpen", label: "Modules" },
-      { path: "/learn/charts", icon: "TrendingUp", label: "Learn Charts" },
-      { path: "/simulation", icon: "FlaskConical", label: "Sim Lab" },
-      { path: "/tools", icon: "Wrench", label: "Tools" },
-    ],
-  },
-];
 
 interface DesktopSidebarProps {
   collapsed: boolean;
@@ -96,24 +44,41 @@ interface DesktopSidebarProps {
 const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) => {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const { user, profile, signOut } = useAuth();
+  const { profile } = useAuth();
+  const { links } = useSidebarConfig();
   const [hovered, setHovered] = useState(false);
+
+  // Group visible links by section
+  const visibleLinks = links.filter(l => l.visible);
+  const sections = ["main", "investing", "social", "learn"] as const;
+
+  const groupedLinks = sections.map(section => ({
+    section,
+    label: SECTION_LABELS[section] || section,
+    items: visibleLinks.filter(l => l.section === section),
+  })).filter(g => g.items.length > 0);
+
+  const bottomLinks = visibleLinks.filter(l => l.section === "bottom");
 
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const open = new Set<string>();
-    navGroups.forEach((g) => {
-      if (g.defaultOpen || g.items.some((i) => location.pathname === i.path || location.pathname.startsWith(i.path + "/"))) {
-        open.add(g.label);
+    groupedLinks.forEach((g) => {
+      if (g.section === "main" || g.items.some((i) => location.pathname === i.path || location.pathname.startsWith(i.path + "/"))) {
+        open.add(g.section);
       }
     });
+    // Default open investing and social
+    open.add("investing");
+    open.add("social");
     return open;
   });
 
-  const toggleGroup = (label: string) => {
+  const toggleGroup = (section: string) => {
+    if (section === "main") return; // main is always open
     setOpenGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
       return next;
     });
   };
@@ -131,7 +96,6 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
 
   return (
     <>
-      {/* Persistent logo + hover trigger when collapsed */}
       {collapsed && !hovered && (
         <div
           className="fixed inset-y-0 left-0 z-50 hidden w-56 lg:flex lg:flex-col"
@@ -157,10 +121,7 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
             <span className="ml-1.5 text-[10px] text-muted-foreground">beta</span>
           </div>
           <button
-            onClick={() => {
-              onCollapsedChange(!collapsed);
-              setHovered(false);
-            }}
+            onClick={() => { onCollapsedChange(!collapsed); setHovered(false); }}
             className="text-muted-foreground hover:text-foreground transition-colors"
             title={collapsed ? "Pin sidebar" : "Hide sidebar"}
           >
@@ -169,15 +130,15 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pt-1 space-y-1">
-          {navGroups.map((group) => {
-            const isUngrouped = group.label === "";
-            const isOpen = openGroups.has(group.label);
+          {groupedLinks.map((group) => {
+            const isMain = group.section === "main";
+            const isOpen = isMain || openGroups.has(group.section);
 
             return (
-              <div key={group.label || "top"}>
-                {!isUngrouped && (
+              <div key={group.section}>
+                {!isMain && (
                   <button
-                    onClick={() => toggleGroup(group.label)}
+                    onClick={() => toggleGroup(group.section)}
                     className="flex w-full items-center justify-between px-3 py-2 mt-2"
                   >
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -190,13 +151,16 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
                   </button>
                 )}
 
-                {(isUngrouped || isOpen) && (
+                {isOpen && (
                   <div className="space-y-0.5">
                     {group.items.map((item) => {
                       const Icon = iconMap[item.icon] || LayoutDashboard;
                       const isMaven = item.path === "/chat";
                       return (
-                        <NavLink key={item.path} to={item.path} className={linkClass(item.path)}
+                        <NavLink
+                          key={item.path}
+                          to={item.path}
+                          className={linkClass(item.path)}
                           data-tour-id={
                             item.path === "/settings" ? "tour-settings-link" :
                             item.path === "/invest" ? "tour-invest-link" :
@@ -216,27 +180,24 @@ const DesktopSidebar = ({ collapsed, onCollapsedChange }: DesktopSidebarProps) =
         </nav>
 
         <div className="border-t border-[var(--glass-border-subtle)] px-3 py-3 space-y-2">
-          <NavLink to="/profile" className={linkClass("/profile")}>
-            <User size={16} />
-            <span>{profile?.display_name || "Profile"}</span>
-          </NavLink>
-          <NavLink to="/settings" className={linkClass("/settings")}>
-            <Settings size={16} />
-            <span>Settings</span>
-          </NavLink>
+          {bottomLinks.map((item) => {
+            const Icon = iconMap[item.icon] || User;
+            const label = item.id === "profile" ? (profile?.display_name || "Profile") : item.label;
+            return (
+              <NavLink key={item.path} to={item.path} className={linkClass(item.path)}>
+                <Icon size={16} />
+                <span>{label}</span>
+              </NavLink>
+            );
+          })}
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex items-center gap-2 text-muted-foreground">
               {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
               <span className="text-[12px] font-medium">Dark Mode</span>
             </div>
-            <Switch
-              checked={theme === "dark"}
-              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-            />
+            <Switch checked={theme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} />
           </div>
-          <p className="px-3 text-[9px] text-muted-foreground/60">
-            Paper Trading · Educational only
-          </p>
+          <p className="px-3 text-[9px] text-muted-foreground/60">Paper Trading · Educational only</p>
         </div>
       </aside>
     </>
