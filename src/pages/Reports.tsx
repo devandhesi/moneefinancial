@@ -31,7 +31,7 @@ interface InsiderReport {
   url: string;
 }
 
-const AUTO_REFRESH_MS = 60_000;
+const AUTO_REFRESH_MS = 30_000; // 30s polling for near-realtime
 
 const Reports = () => {
   const navigate = useNavigate();
