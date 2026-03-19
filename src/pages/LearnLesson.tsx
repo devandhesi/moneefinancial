@@ -237,7 +237,9 @@ const LearnLesson = () => {
 
   const goNext = () => {
     if (!lessonComplete) markComplete();
-    if (lessonIdx < mod.lessons.length - 1) {
+    if (lesson.quiz) {
+      navigate(`/learn/${mod.id}/${lessonIdx}/quiz`);
+    } else if (lessonIdx < mod.lessons.length - 1) {
       navigate(`/learn/${mod.id}/${lessonIdx + 1}`);
     } else {
       navigate(`/learn/${mod.id}/quiz`);
@@ -309,11 +311,26 @@ const LearnLesson = () => {
             ))}
           </div>
 
-          {/* Quiz */}
+          {/* Quiz CTA */}
           {lesson.quiz && (
-            <div className="mt-8">
-              <InlineQuiz quiz={lesson.quiz} onComplete={(correct) => { if (correct) markComplete(); }} />
-            </div>
+            <motion.div
+              className="mt-8 glass-card p-6 text-center"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary mb-3">
+                <HelpCircle size={22} className="text-muted-foreground" />
+              </div>
+              <h3 className="text-sm font-bold">Ready to test your knowledge?</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Complete a quick quiz on what you just learned</p>
+              <button
+                onClick={() => navigate(`/learn/${mod.id}/${lessonIdx}/quiz`)}
+                className="mt-4 rounded-xl bg-foreground px-6 py-2.5 text-xs font-medium text-primary-foreground inline-flex items-center gap-1.5"
+              >
+                Start Quiz <ArrowRight size={12} />
+              </button>
+            </motion.div>
           )}
 
           {/* Navigation */}

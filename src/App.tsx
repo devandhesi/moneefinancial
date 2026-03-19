@@ -20,6 +20,7 @@ import Learn from "./pages/Learn";
 import LearnModule from "./pages/LearnModule";
 import LearnLesson from "./pages/LearnLesson";
 import LearnQuiz from "./pages/LearnQuiz";
+import LearnLessonQuiz from "./pages/LearnLessonQuiz";
 import LearnGlossary from "./pages/LearnGlossary";
 import LearnCharts from "./pages/LearnCharts";
 import Profile from "./pages/Profile";
@@ -79,6 +80,7 @@ const App = () => (
               <Route path="/learn/glossary" element={<LearnGlossary />} />
               <Route path="/learn/:courseId/quiz" element={<LearnQuiz />} />
               <Route path="/learn/:courseId/test" element={<LearnQuiz />} />
+              <Route path="/learn/:courseId/:lessonIndex/quiz" element={<LearnLessonQuiz />} />
               <Route path="/learn/:courseId/:lessonIndex" element={<LearnLesson />} />
               <Route path="/learn/:courseId" element={<LearnModule />} />
               <Route path="/profile" element={<Profile />} />
