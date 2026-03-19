@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import RichMessageContent from "@/components/chat/RichMessageContent";
+import { DEMO_COMMUNITY_MESSAGES } from "@/data/demo-data";
 
 interface Reaction {
   emoji: string;
