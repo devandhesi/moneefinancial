@@ -35,8 +35,8 @@ const Learn = () => {
   return (
     <div className="px-5 pt-14 pb-6 lg:pt-8 max-w-3xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-semibold tracking-tight">Investing 101</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Everything you need to start investing with confidence</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Investing 101 🎓</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Everything you need to start investing with confidence — built for students</p>
       </motion.div>
 
       {/* Stats bar */}
