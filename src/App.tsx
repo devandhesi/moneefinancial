@@ -77,10 +77,10 @@ const App = () => (
               <Route path="/learn" element={<Learn />} />
               <Route path="/learn/charts" element={<LearnCharts />} />
               <Route path="/learn/glossary" element={<LearnGlossary />} />
-              <Route path="/learn/:courseId" element={<LearnModule />} />
-              <Route path="/learn/:courseId/:lessonIndex" element={<LearnLesson />} />
               <Route path="/learn/:courseId/quiz" element={<LearnQuiz />} />
               <Route path="/learn/:courseId/test" element={<LearnQuiz />} />
+              <Route path="/learn/:courseId/:lessonIndex" element={<LearnLesson />} />
+              <Route path="/learn/:courseId" element={<LearnModule />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/social" element={<Social />} />
