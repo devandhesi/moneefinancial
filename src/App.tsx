@@ -111,6 +111,9 @@ const App = () => (
               <Route path="/markets" element={<Markets />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/insider-tracking" element={<InsiderTracking />} />
+              <Route path="/institutional/data-sources" element={<DataSources />} />
+              <Route path="/institutional/methodology" element={<Methodology />} />
+              <Route path="/institutional/transparency" element={<Transparency />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
