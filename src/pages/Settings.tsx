@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, Trash2, AlertTriangle, Compass, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Shield, Moon, Sun, LayoutDashboard, MessageCircle, TrendingUp, BookOpen, User, Receipt, ClipboardList, CalendarDays, FlaskConical, Users, Eye, EyeOff, RotateCcw, PanelLeft, Globe, Star, ExternalLink, GripVertical, Wallet, Plus, Loader2, Trash2, AlertTriangle, Compass, Newspaper, Hash, Bell, Wrench, FileBarChart, type LucideIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
