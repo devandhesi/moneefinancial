@@ -56,7 +56,7 @@ const Learn = () => {
             <h1 className="text-2xl font-bold tracking-tight">The Money Course</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {completedLessons === 0
-                ? "8 modules to master personal finance — start anywhere"
+                ? "8 modules · Learn investing from scratch"
                 : `${totalProgress}% complete · ${completedLessons} of ${totalLessons} lessons done`}
             </p>
           </div>

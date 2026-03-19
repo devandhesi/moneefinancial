@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, ArrowUpRight, ArrowDownRight, Loader2, TrendingUp, Users, BookOpen, Settings2, Sparkles, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, ArrowUpRight, ArrowDownRight, Loader2, TrendingUp, Users, GraduationCap, Settings2, Sparkles, BarChart3, Wallet, BookOpen } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import AiInsightWidget from "@/components/widgets/AiInsightWidget";
 import { useTimezone } from "@/hooks/use-timezone";
@@ -11,8 +11,19 @@ import { useDailyDigest } from "@/hooks/use-daily-digest";
 import { useAuth } from "@/hooks/use-auth";
 import { usePortfolioValue } from "@/hooks/use-portfolio-value";
 import MyHoldingsWidget from "@/components/widgets/MyHoldingsWidget";
+import MavenIcon from "@/components/MavenIcon";
 
-/* ── Market status hook ───────────────────────────────────────── */
+/* ── Clear demo data on first load ────────────────────────── */
+if (typeof window !== "undefined") {
+  const cleared = sessionStorage.getItem("demo-cleared");
+  if (!cleared) {
+    localStorage.removeItem("maven-chat-history");
+    sessionStorage.removeItem("maven-open");
+    sessionStorage.setItem("demo-cleared", "true");
+  }
+}
+
+/* ── Market status hook ───────────────────────────────────── */
 function useMarketStatus(userTimezone: string) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -37,7 +48,6 @@ function useMarketStatus(userTimezone: string) {
 
 const timeframes = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
 
-// Default widget config
 const DEFAULT_WIDGETS = [
   { id: "chart", label: "Portfolio Chart", visible: true },
   { id: "holdings", label: "My Holdings", visible: true },
@@ -66,7 +76,7 @@ const Dashboard = () => {
   const [widgets, setWidgets] = useState(loadWidgetConfig);
   const { timezone } = useTimezone();
   const { isOpen: marketOpen, displayTime, tzLabel } = useMarketStatus(timezone);
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   const {
@@ -93,6 +103,7 @@ const Dashboard = () => {
   };
 
   const displayName = profile?.display_name?.split(" ")[0] || profile?.username || "there";
+  const hasPortfolio = cashBalance + investmentBalance > 0;
 
   return (
     <motion.div
@@ -106,7 +117,7 @@ const Dashboard = () => {
         <motion.div variants={stagger.item}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">{greeting()}, {displayName} 👋</p>
+              <h1 className="text-lg font-medium text-muted-foreground">{greeting()}, {displayName} 👋</h1>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className={`h-1.5 w-1.5 rounded-full ${marketOpen ? "bg-gain animate-pulse" : "bg-muted-foreground/30"}`} />
@@ -115,7 +126,7 @@ const Dashboard = () => {
               <span>{marketOpen ? "Open" : "Closed"}</span>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-3" data-tour-id="tour-portfolio-value">
+          <div className="mt-3 flex items-center gap-3" data-tour-id="tour-portfolio-value">
             {holdingsLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 size={18} className="animate-spin" />
@@ -123,9 +134,9 @@ const Dashboard = () => {
               </div>
             ) : (
               <>
-                <h1 className="text-4xl font-semibold tracking-tight tabular-nums">
+                <h2 className="text-4xl font-semibold tracking-tight tabular-nums">
                   {balanceVisible ? `$${(cashBalance + investmentBalance).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••••"}
-                </h1>
+                </h2>
                 <button onClick={() => setBalanceVisible(!balanceVisible)} className="mt-1 text-muted-foreground transition-colors hover:text-foreground">
                   {balanceVisible ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
@@ -143,7 +154,7 @@ const Dashboard = () => {
 
         {/* Chart */}
         {isWidgetVisible("chart") && (
-          <motion.div className="glass-card glass-shimmer mt-5 p-4" variants={stagger.item}>
+          <motion.div className="glass-card mt-5 p-4" variants={stagger.item}>
             {chartLoading ? (
               <div className="flex h-[180px] items-center justify-center">
                 <Loader2 size={20} className="animate-spin text-muted-foreground" />
@@ -153,17 +164,17 @@ const Dashboard = () => {
                 <AreaChart data={chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                   <defs>
                     <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(152, 28%, 40%)" stopOpacity={0.15} />
-                      <stop offset="100%" stopColor="hsl(152, 28%, 40%)" stopOpacity={0} />
+                      <stop offset="0%" stopColor="hsl(var(--gain))" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="hsl(var(--gain))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(220, 8%, 50%)" }} />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis hide domain={["dataMin - 200", "dataMax + 200"]} />
                   <Tooltip
-                    contentStyle={{ background: "rgba(255,255,255,0.8)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}
+                    contentStyle={{ background: "var(--glass-bg-strong)", backdropFilter: "blur(16px)", border: "1px solid var(--glass-border)", borderRadius: "12px", fontSize: "13px", boxShadow: "var(--glass-shadow)" }}
                     formatter={(value: number) => [balanceVisible ? `$${value.toLocaleString()}` : "••••", "Portfolio"]}
                   />
-                  <Area type="monotone" dataKey="value" stroke="hsl(152, 28%, 40%)" strokeWidth={1.5} fill="url(#chartGradient)" />
+                  <Area type="monotone" dataKey="value" stroke="hsl(var(--gain))" strokeWidth={1.5} fill="url(#chartGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -180,17 +191,17 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        {/* Quick Actions — student-oriented */}
-        <motion.div className="mt-5 grid grid-cols-3 gap-2" variants={stagger.item}>
+        {/* Quick Actions */}
+        <motion.div className="mt-5 grid grid-cols-4 gap-2" variants={stagger.item}>
           {[
-            { icon: TrendingUp, label: "Invest", desc: "Buy & sell", route: "/invest", color: "text-gain" },
-            { icon: GraduationCap, label: "Learn", desc: "Free courses", route: "/learn", color: "text-amber-400" },
-            { icon: Users, label: "Social", desc: "Community", route: "/social", color: "text-blue-400" },
-          ].map(({ icon: Icon, label, desc, route, color }) => (
-            <button key={label} onClick={() => navigate(route)} className="glass-card glass-shimmer flex flex-col items-center gap-1.5 p-4 transition-all hover:shadow-md active:scale-[0.97]">
-              <Icon size={20} className={color} />
-              <span className="text-xs font-semibold">{label}</span>
-              <span className="text-[10px] text-muted-foreground">{desc}</span>
+            { icon: TrendingUp, label: "Invest", route: "/invest", color: "text-gain" },
+            { icon: GraduationCap, label: "Learn", route: "/learn", color: "text-amber-500" },
+            { icon: Users, label: "Social", route: "/social", color: "text-blue-500" },
+            { icon: BarChart3, label: "Markets", route: "/heatmap", color: "text-violet-500" },
+          ].map(({ icon: Icon, label, route, color }) => (
+            <button key={label} onClick={() => navigate(route)} className="glass-card flex flex-col items-center gap-1.5 p-3.5 transition-all hover:shadow-md active:scale-[0.97]">
+              <Icon size={18} className={color} />
+              <span className="text-[11px] font-medium">{label}</span>
             </button>
           ))}
         </motion.div>
@@ -221,13 +232,19 @@ const Dashboard = () => {
           <motion.div className="mt-5" variants={stagger.item} data-tour-id="tour-accounts-summary">
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">Accounts</h2>
             <div className="grid grid-cols-2 gap-2">
-               <div className="glass-card glass-shimmer p-4">
-                <p className="text-xs text-muted-foreground">Cash</p>
-                <p className="mt-1 text-sm font-semibold tabular-nums">{balanceVisible ? `$${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Wallet size={12} className="text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Cash</p>
+                </div>
+                <p className="text-sm font-semibold tabular-nums">{balanceVisible ? `$${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
               </div>
-              <div className="glass-card glass-shimmer p-4">
-                <p className="text-xs text-muted-foreground">Investment</p>
-                <p className="mt-1 text-sm font-semibold tabular-nums">{balanceVisible ? `$${investmentBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <BarChart3 size={12} className="text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Invested</p>
+                </div>
+                <p className="text-sm font-semibold tabular-nums">{balanceVisible ? `$${investmentBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "••••"}</p>
               </div>
             </div>
           </motion.div>
@@ -240,21 +257,16 @@ const Dashboard = () => {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 py-3 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
           >
             <Settings2 size={14} />
-            {customizing ? "Done Customizing" : "Customize Dashboard"}
+            {customizing ? "Done" : "Customize"}
           </button>
 
           {customizing && (
             <motion.div className="mt-3 glass-card p-4 space-y-2" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
-              <p className="text-xs font-medium text-muted-foreground mb-3">Toggle widgets on or off</p>
+              <p className="text-xs font-medium text-muted-foreground mb-3">Toggle widgets</p>
               {widgets.map((w: any) => (
                 <label key={w.id} className="flex items-center justify-between py-2 cursor-pointer">
                   <span className="text-sm">{w.label}</span>
-                  <input
-                    type="checkbox"
-                    checked={w.visible}
-                    onChange={() => toggleWidget(w.id)}
-                    className="h-4 w-4 rounded accent-foreground"
-                  />
+                  <input type="checkbox" checked={w.visible} onChange={() => toggleWidget(w.id)} className="h-4 w-4 rounded accent-foreground" />
                 </label>
               ))}
             </motion.div>
