@@ -49,6 +49,9 @@ import ResetPassword from "./pages/ResetPassword";
 import BrowseRooms from "./pages/BrowseRooms";
 import CreateRoom from "./pages/CreateRoom";
 import JoinRoom from "./pages/JoinRoom";
+import DataSources from "./pages/DataSources";
+import Methodology from "./pages/Methodology";
+import Transparency from "./pages/Transparency";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
