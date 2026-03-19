@@ -251,114 +251,166 @@ const LearnLesson = () => {
   };
 
   return (
-    <div className="px-5 pt-14 pb-24 lg:pb-8 lg:pt-8 max-w-6xl mx-auto">
-      {/* Header */}
-      <motion.div className="flex items-center gap-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <button onClick={() => navigate(`/learn/${mod.id}`)} className="rounded-xl p-2 transition-colors hover:bg-secondary">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Icon size={14} style={{ color: mod.color }} />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Module {mod.number} · Lesson {lessonIdx + 1}</span>
-          </div>
-          <h1 className="text-lg font-bold tracking-tight leading-tight">{lesson.title}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => toggleBookmark.mutate({ item_type: "lesson", item_id: lesson.id })}
-            className="rounded-lg p-2 hover:bg-secondary transition-colors"
-          >
-            {isBookmarked ? <BookmarkCheck size={16} className="text-amber-500" /> : <Bookmark size={16} className="text-muted-foreground" />}
+    <div className="relative">
+      {/* Reading progress bar (top of viewport) */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-[3px] z-50 origin-left"
+        style={{ background: mod.color }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: readingProgress }}
+        transition={{ duration: 0.1 }}
+      />
+
+      <div className="px-5 pt-14 pb-24 lg:pb-8 lg:pt-8 max-w-6xl mx-auto">
+        {/* Header */}
+        <motion.div className="flex items-center gap-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <button onClick={() => navigate(`/learn/${mod.id}`)} className="rounded-xl p-2 transition-colors hover:bg-secondary">
+            <ArrowLeft size={18} />
           </button>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Clock size={12} />
-            <span className="text-[10px]">{lesson.duration}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Icon size={14} style={{ color: mod.color }} />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Module {mod.number} · Lesson {lessonIdx + 1} of {mod.lessons.length}</span>
+            </div>
+            <h1 className="text-lg font-bold tracking-tight leading-tight">{lesson.title}</h1>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleBookmark.mutate({ item_type: "lesson", item_id: lesson.id })}
+              className="rounded-lg p-2 hover:bg-secondary transition-colors"
+            >
+              {isBookmarked ? <BookmarkCheck size={16} className="text-amber-500" /> : <Bookmark size={16} className="text-muted-foreground" />}
+            </button>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Clock size={12} />
+              <span className="text-[10px]">{lesson.duration}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Lesson progress dots */}
+        <div className="flex gap-1 mt-4">
+          {mod.lessons.map((l, i) => (
+            <button
+              key={l.id}
+              onClick={() => navigate(`/learn/${mod.id}/${i}`)}
+              className={`h-1.5 flex-1 rounded-full transition-all ${
+                i === lessonIdx ? "bg-foreground" : progress.completedLessons.has(l.id) ? "bg-foreground/40" : "bg-secondary"
+              }`}
+            />
+          ))}
         </div>
-      </motion.div>
 
-      {/* Progress dots */}
-      <div className="flex gap-1 mt-4">
-        {mod.lessons.map((l, i) => (
-          <button
-            key={l.id}
-            onClick={() => navigate(`/learn/${mod.id}/${i}`)}
-            className={`h-1.5 flex-1 rounded-full transition-all ${
-              i === lessonIdx ? "bg-foreground" : progress.completedLessons.has(l.id) ? "bg-foreground/40" : "bg-secondary"
-            }`}
-          />
-        ))}
-      </div>
+        {/* Content grid */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
+          {/* Main Content */}
+          <div ref={contentRef}>
+            {/* Section nav (desktop) */}
+            {lesson.sections.length > 2 && (
+              <div className="hidden lg:flex items-center gap-2 mb-6 flex-wrap">
+                {lesson.sections.map((section, si) => (
+                  <button
+                    key={si}
+                    onClick={() => {
+                      const el = document.getElementById(`section-${si}`);
+                      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="text-[10px] font-medium text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                  >
+                    {section.heading}
+                  </button>
+                ))}
+              </div>
+            )}
 
-      {/* Content grid */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Main Content */}
-        <div>
-          <div className="space-y-8">
-            {lesson.sections.map((section, si) => (
-              <motion.div
-                key={si}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: si * 0.08 }}
-              >
-                <h3 className="text-base font-bold mb-3">{section.heading}</h3>
-                <div className="prose prose-sm max-w-none text-sm leading-relaxed text-muted-foreground">
-                  <ReactMarkdown>{section.body}</ReactMarkdown>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+            <div className="space-y-10">
+              {lesson.sections.map((section, si) => (
+                <motion.div
+                  key={si}
+                  id={`section-${si}`}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: si * 0.08 }}
+                  className="scroll-mt-20"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold bg-secondary text-muted-foreground">
+                      {si + 1}
+                    </div>
+                    <h3 className="text-base font-bold">{section.heading}</h3>
+                  </div>
+                  <div className="prose prose-sm max-w-none text-sm leading-[1.8] text-muted-foreground pl-10">
+                    <ReactMarkdown>{section.body}</ReactMarkdown>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
 
-          {/* Quiz CTA */}
-          {lesson.quiz && (
+            {/* Key Takeaway */}
             <motion.div
-              className="mt-8 glass-card p-6 text-center"
+              className="mt-10 glass-card p-5 border-l-2"
+              style={{ borderLeftColor: mod.color }}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.25 }}
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary mb-3">
-                <HelpCircle size={22} className="text-muted-foreground" />
-              </div>
-              <h3 className="text-sm font-bold">Ready to test your knowledge?</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Complete a quick quiz on what you just learned</p>
-              <button
-                onClick={() => navigate(`/learn/${mod.id}/${lessonIdx}/quiz`)}
-                className="mt-4 rounded-xl bg-foreground px-6 py-2.5 text-xs font-medium text-primary-foreground inline-flex items-center gap-1.5"
-              >
-                Start Quiz <ArrowRight size={12} />
-              </button>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">💡 Key Takeaway</p>
+              <p className="text-xs leading-relaxed text-foreground">
+                {lesson.sections[lesson.sections.length - 1]?.body.split(".").slice(0, 2).join(".") + "."}
+              </p>
             </motion.div>
-          )}
 
-          {/* Navigation */}
-          <div className="mt-8 flex items-center justify-between">
-            <button onClick={goPrev} disabled={lessonIdx === 0} className="rounded-xl glass-card px-4 py-2.5 text-xs font-medium disabled:opacity-30 flex items-center gap-1">
-              <ArrowLeft size={12} /> Previous
-            </button>
-            <div className="flex items-center gap-2">
-              {!lessonComplete && (
-                <button onClick={markComplete} className="rounded-xl glass-card px-4 py-2.5 text-xs font-medium flex items-center gap-1.5 text-gain">
-                  <CheckCircle2 size={12} /> Mark complete
+            {/* Quiz CTA */}
+            {lesson.quiz && (
+              <motion.div
+                className="mt-8 glass-card p-6 text-center"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary mb-3">
+                  <HelpCircle size={22} className="text-muted-foreground" />
+                </div>
+                <h3 className="text-sm font-bold">Ready to test your knowledge?</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Complete a quick quiz on what you just learned</p>
+                <button
+                  onClick={() => navigate(`/learn/${mod.id}/${lessonIdx}/quiz`)}
+                  className="mt-4 rounded-xl bg-foreground px-6 py-2.5 text-xs font-medium text-primary-foreground inline-flex items-center gap-1.5"
+                >
+                  Start Quiz <ArrowRight size={12} />
                 </button>
-              )}
-              <button onClick={goNext} className="rounded-xl bg-foreground px-6 py-2.5 text-xs font-medium text-primary-foreground flex items-center gap-1">
-                {lessonIdx === mod.lessons.length - 1 ? "Take Quiz" : "Next"} <ArrowRight size={12} />
+              </motion.div>
+            )}
+
+            {/* Navigation */}
+            <div className="mt-8 flex items-center justify-between">
+              <button onClick={goPrev} disabled={lessonIdx === 0} className="rounded-xl glass-card px-4 py-2.5 text-xs font-medium disabled:opacity-30 flex items-center gap-1">
+                <ArrowLeft size={12} /> Previous
               </button>
+              <div className="flex items-center gap-2">
+                {!lessonComplete && (
+                  <button onClick={markComplete} className="rounded-xl glass-card px-4 py-2.5 text-xs font-medium flex items-center gap-1.5 text-gain">
+                    <CheckCircle2 size={12} /> Mark complete
+                  </button>
+                )}
+                <button onClick={goNext} className="rounded-xl bg-foreground px-6 py-2.5 text-xs font-medium text-primary-foreground flex items-center gap-1">
+                  {lesson.quiz ? "Take Quiz" : lessonIdx === mod.lessons.length - 1 ? "Module Quiz" : "Next Lesson"} <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Sidebar */}
+          <div className="hidden lg:block">
+            <div className="sticky top-20">
+              <AISidebar lessonTitle={lesson.title} sectionContent={sectionContent} moduleTitle={mod.title} />
             </div>
           </div>
         </div>
 
-        {/* AI Sidebar */}
-        <div className="hidden lg:block">
-          <AISidebar lessonTitle={lesson.title} sectionContent={sectionContent} moduleTitle={mod.title} />
-        </div>
+        {/* Mobile AI toggle */}
+        <MobileAIPanel lessonTitle={lesson.title} sectionContent={sectionContent} moduleTitle={mod.title} />
       </div>
-
-      {/* Mobile AI toggle */}
-      <MobileAIPanel lessonTitle={lesson.title} sectionContent={sectionContent} moduleTitle={mod.title} />
     </div>
   );
 };
