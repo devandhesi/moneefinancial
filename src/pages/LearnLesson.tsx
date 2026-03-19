@@ -200,6 +200,8 @@ const LearnLesson = () => {
   const mod = curriculum.find(m => m.id === courseId);
   const lessonIdx = parseInt(lessonIndex || "0", 10);
   const [progress, setProgress] = useState<LearningProgress>(loadProgress);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
