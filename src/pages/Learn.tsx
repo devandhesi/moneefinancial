@@ -61,7 +61,7 @@ const Learn = () => {
         <motion.div variants={item} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Learn 🎓</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Master investing — built for students, powered by AI</p>
+            <p className="mt-1 text-sm text-muted-foreground">Master investing — built for students</p>
           </div>
           {streak && (
             <div className="glass-card flex items-center gap-3 px-4 py-3 self-start">
