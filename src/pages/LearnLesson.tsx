@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, BookOpen, Clock, HelpCircle, Sparkles, Send,
-  Bookmark, BookmarkCheck, StickyNote, Loader2, X,
+  Bookmark, BookmarkCheck, StickyNote, Loader2, X, PieChart,
   Brain, Briefcase, Wallet, CreditCard, TrendingUp, Landmark, ShieldCheck, Rocket,
   type LucideIcon,
 } from "lucide-react";
