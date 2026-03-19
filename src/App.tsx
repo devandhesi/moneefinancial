@@ -20,6 +20,7 @@ import Learn from "./pages/Learn";
 import LearnModule from "./pages/LearnModule";
 import LearnLesson from "./pages/LearnLesson";
 import LearnQuiz from "./pages/LearnQuiz";
+import LearnLessonQuiz from "./pages/LearnLessonQuiz";
 import LearnGlossary from "./pages/LearnGlossary";
 import LearnCharts from "./pages/LearnCharts";
 import Profile from "./pages/Profile";
