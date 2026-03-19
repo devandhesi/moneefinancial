@@ -241,7 +241,7 @@ const Learn = () => {
             Complete all modules to earn your Money Course certificate. Your progress syncs across devices.
           </p>
         </motion.div>
-      </motion.variants>
+      </motion.div>
     </div>
   );
 };
