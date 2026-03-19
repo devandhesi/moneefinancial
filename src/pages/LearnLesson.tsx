@@ -237,7 +237,9 @@ const LearnLesson = () => {
 
   const goNext = () => {
     if (!lessonComplete) markComplete();
-    if (lessonIdx < mod.lessons.length - 1) {
+    if (lesson.quiz) {
+      navigate(`/learn/${mod.id}/${lessonIdx}/quiz`);
+    } else if (lessonIdx < mod.lessons.length - 1) {
       navigate(`/learn/${mod.id}/${lessonIdx + 1}`);
     } else {
       navigate(`/learn/${mod.id}/quiz`);
