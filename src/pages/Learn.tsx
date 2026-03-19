@@ -56,7 +56,7 @@ const Learn = () => {
 
   return (
     <div className="px-5 pt-14 pb-24 lg:pb-8 lg:pt-8 max-w-4xl mx-auto">
-      <motion.variants {...container} initial="hidden" animate="show">
+      <motion.div variants={container} initial="hidden" animate="show">
         {/* Hero */}
         <motion.div variants={item} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
