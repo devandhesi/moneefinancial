@@ -151,6 +151,7 @@
     border-radius: var(--radius);
     position: relative;
     overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
   .glass-card::before {
     content: '';
@@ -170,6 +171,7 @@
     border-radius: var(--radius);
     position: relative;
     overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
   .glass-card-strong::before {
     content: '';
@@ -189,6 +191,7 @@
     border-radius: calc(var(--radius) + 4px);
     position: relative;
     overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
   }
   .glass-card-float::before {
     content: '';
@@ -214,7 +217,7 @@
     border: 1px solid var(--glass-border-subtle);
     border-radius: calc(var(--radius) - 4px);
     box-shadow: var(--glass-inner-shadow);
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .glass-input:focus-within {
     border-color: var(--glass-border);
@@ -260,6 +263,11 @@
     animation: glass-shimmer-sweep 6s ease-in-out infinite;
     pointer-events: none;
   }
+
+  /* ── Smooth page transition wrapper ───────── */
+  .page-transition {
+    animation: page-enter 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
 }
 
 @layer utilities {
@@ -298,6 +306,11 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.35);
+}
+
+/* ── Global smooth transitions ─────────────── */
+button, a, input, [role="button"] {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Recharts Brush slider — circular travellers, clean track */
@@ -372,6 +385,18 @@
   100% { transform: translateX(100%) rotate(0deg); }
 }
 
+/* ── Page enter animation ──────────────────── */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ── Hide scrollbars for horizontal scrollers ── */
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -385,6 +410,16 @@
 @media (max-width: 640px) {
   .glass-card, button {
     -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ── Active press feedback ─────────────────── */
+.glass-card:active {
+  transform: scale(0.985);
+}
+@media (hover: hover) {
+  .glass-card:hover {
+    box-shadow: var(--glass-shadow-elevated), var(--glass-inner-shadow);
   }
 }
 

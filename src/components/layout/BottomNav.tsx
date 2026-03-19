@@ -82,8 +82,13 @@ const BottomNav = () => {
             </div>
 
             <div className="px-5 pb-24 space-y-5">
-              {extraGroups.map((group) => (
-                <div key={group.label}>
+              {extraGroups.map((group, gi) => (
+                <motion.div
+                  key={group.label}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 * gi, duration: 0.3 }}
+                >
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                     {group.label}
                   </p>
@@ -101,7 +106,7 @@ const BottomNav = () => {
                             page.path === "/invest" ? "tour-invest-link" :
                             page.path === "/watchlist" ? "tour-watchlist-link" : undefined
                           }
-                          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+                          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all active:scale-[0.98] ${
                             isActive
                               ? "bg-foreground/[0.06] text-foreground"
                               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -115,7 +120,7 @@ const BottomNav = () => {
                       );
                     })}
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>
@@ -139,14 +144,20 @@ const BottomNav = () => {
                   <motion.div
                     layoutId="nav-indicator"
                     className="absolute -top-1 h-0.5 w-6 rounded-full bg-foreground"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
-                {isMaven ? (
-                  <MavenIcon size={20} className={isActive ? "text-foreground" : "text-muted-foreground"} />
-                ) : (
-                  <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className={isActive ? "text-foreground" : "text-muted-foreground"} />
-                )}
+                <motion.div
+                  animate={isActive ? { scale: 1 } : { scale: 1 }}
+                  whileTap={{ scale: 0.85 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                >
+                  {isMaven ? (
+                    <MavenIcon size={20} className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                  ) : (
+                    <Icon size={20} strokeWidth={isActive ? 2 : 1.5} className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                  )}
+                </motion.div>
                 <span className={`text-[10px] leading-tight ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
                   {tab.label}
                 </span>
@@ -156,9 +167,11 @@ const BottomNav = () => {
 
           <button onClick={() => setShowMore(!showMore)} className="relative flex flex-col items-center gap-0.5 px-3 py-1.5">
             {(isExtraActive || showMore) && (
-              <motion.div layoutId="nav-indicator-more" className="absolute -top-1 h-0.5 w-6 rounded-full bg-foreground" transition={{ type: "spring", stiffness: 350, damping: 30 }} />
+              <motion.div layoutId="nav-indicator-more" className="absolute -top-1 h-0.5 w-6 rounded-full bg-foreground" transition={{ type: "spring", stiffness: 400, damping: 30 }} />
             )}
-            <MoreHorizontal size={20} strokeWidth={showMore || isExtraActive ? 2 : 1.5} className={showMore || isExtraActive ? "text-foreground" : "text-muted-foreground"} />
+            <motion.div whileTap={{ scale: 0.85 }} transition={{ type: "spring", stiffness: 500, damping: 25 }}>
+              <MoreHorizontal size={20} strokeWidth={showMore || isExtraActive ? 2 : 1.5} className={showMore || isExtraActive ? "text-foreground" : "text-muted-foreground"} />
+            </motion.div>
             <span className={`text-[10px] leading-tight ${showMore || isExtraActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>
               More
             </span>
