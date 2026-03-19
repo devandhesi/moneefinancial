@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import MavenIcon from "@/components/MavenIcon";
 import { useMavenChat } from "@/hooks/use-maven-chat";
+import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
 
 /* ── Word-by-word reveal hook ──────────────────────────── */
 function useWordReveal() {
