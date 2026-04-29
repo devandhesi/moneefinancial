@@ -92,14 +92,14 @@ interface Conversation {
 }
 
 // Custom renderer that turns $TICKER into linked text
-const TickerLink = ({ symbol }: { symbol: string }) => {
+const TickerLink = ({ symbol, label }: { symbol: string; label?: string }) => {
   const navigate = useNavigate();
   return (
     <button
       onClick={(e) => { e.preventDefault(); navigate(`/invest/${symbol}`); }}
       className="font-semibold underline underline-offset-2 decoration-primary/40 hover:decoration-primary text-foreground transition-colors cursor-pointer"
     >
-      ${symbol}
+      {label ?? `$${symbol}`}
     </button>
   );
 };
