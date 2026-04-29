@@ -22,17 +22,17 @@ const DEFAULT_LINKS: SidebarLink[] = [
   { id: "orders", path: "/orders", label: "Orders", icon: "ClipboardList", section: "investing", visible: true, order: 14 },
   { id: "transactions", path: "/transactions", label: "Transactions", icon: "Receipt", section: "investing", visible: true, order: 15 },
 
-  // Social
-  { id: "social", path: "/social", label: "Finance For You", icon: "Users", section: "social", visible: true, order: 20 },
-  { id: "community", path: "/community", label: "Community", icon: "Hash", section: "social", visible: true, order: 21 },
-  { id: "dms", path: "/community/dms", label: "Messages", icon: "MessageCircle", section: "social", visible: true, order: 22 },
-  { id: "notifications", path: "/notifications", label: "Notifications", icon: "Bell", section: "social", visible: true, order: 23 },
-
   // Learn
-  { id: "learn", path: "/learn", label: "Modules", icon: "BookOpen", section: "learn", visible: true, order: 30 },
-  { id: "learncharts", path: "/learn/charts", label: "Learn Charts", icon: "TrendingUp", section: "learn", visible: true, order: 31 },
-  { id: "simlab", path: "/simulation", label: "Sim Lab", icon: "FlaskConical", section: "learn", visible: true, order: 32 },
-  { id: "tools", path: "/tools", label: "Tools", icon: "Wrench", section: "learn", visible: true, order: 33 },
+  { id: "learn", path: "/learn", label: "Modules", icon: "BookOpen", section: "learn", visible: true, order: 20 },
+  { id: "learncharts", path: "/learn/charts", label: "Learn Charts", icon: "TrendingUp", section: "learn", visible: true, order: 21 },
+  { id: "simlab", path: "/simulation", label: "Sim Lab", icon: "FlaskConical", section: "learn", visible: true, order: 22 },
+  { id: "tools", path: "/tools", label: "Tools", icon: "Wrench", section: "learn", visible: true, order: 23 },
+
+  // Social
+  { id: "social", path: "/social", label: "Finance For You", icon: "Users", section: "social", visible: true, order: 30 },
+  { id: "community", path: "/community", label: "Community", icon: "Hash", section: "social", visible: true, order: 31 },
+  { id: "dms", path: "/community/dms", label: "Messages", icon: "MessageCircle", section: "social", visible: true, order: 32 },
+  { id: "notifications", path: "/notifications", label: "Notifications", icon: "Bell", section: "social", visible: true, order: 33 },
 
   // Bottom (always shown, not in groups)
   { id: "profile", path: "/profile", label: "Profile", icon: "User", section: "bottom", visible: true, order: 90 },
@@ -47,7 +47,7 @@ export const SECTION_LABELS: Record<string, string> = {
   bottom: "Account",
 };
 
-const STORAGE_KEY = "monee-sidebar-config";
+const STORAGE_KEY = "monee-sidebar-config-v2";
 
 interface SidebarConfigContextType {
   links: SidebarLink[];
@@ -126,7 +126,7 @@ export function SidebarConfigProvider({ children }: { children: ReactNode }) {
       const [moved] = sectionItems.splice(fromIndex, 1);
       sectionItems.splice(toIndex, 0, moved);
       // Re-assign orders based on section base
-      const sectionBases: Record<string, number> = { main: 0, investing: 10, social: 20, learn: 30, bottom: 90 };
+      const sectionBases: Record<string, number> = { main: 0, investing: 10, learn: 20, social: 30, bottom: 90 };
       const base = sectionBases[section] ?? 0;
       const reordered = sectionItems.map((item, i) => ({ ...item, order: base + i }));
       return [...otherItems, ...reordered].sort((a, b) => a.order - b.order);
