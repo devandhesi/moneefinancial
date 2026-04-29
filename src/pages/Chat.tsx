@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import MavenIcon from "@/components/MavenIcon";
 import { useMavenChat } from "@/hooks/use-maven-chat";
 import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
+import { COMPANY_REGEX, lookupTicker } from "@/lib/company-tickers";
 
 /* ── Word-by-word reveal hook ──────────────────────────── */
 function useWordReveal() {
@@ -105,11 +106,6 @@ const TickerLink = ({ symbol, label }: { symbol: string; label?: string }) => {
 };
 
 const renderTextWithTickers = (text: string) => {
-  // Combined regex: $TICKER, OR a known company name (case-insensitive).
-  // We import COMPANY_REGEX lazily to keep the source string for splitting.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { COMPANY_REGEX, lookupTicker } = require("@/lib/company-tickers") as typeof import("@/lib/company-tickers");
-
   const TICKER_RE = /\$[A-Z]{1,5}(?:\.[A-Z]{1,3})?/g;
   const COMPANY_SOURCE = COMPANY_REGEX.source;
   const combined = new RegExp(`(${TICKER_RE.source})|(${COMPANY_SOURCE})`, "gi");
