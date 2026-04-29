@@ -19,7 +19,6 @@ const DEFAULT_LINKS: SidebarLink[] = [
   { id: "invest", path: "/invest", label: "Invest", icon: "TrendingUp", section: "investing", visible: true, order: 10 },
   { id: "watchlist", path: "/watchlist", label: "Watchlist", icon: "Star", section: "investing", visible: true, order: 11 },
   { id: "news", path: "/news", label: "Market News", icon: "Newspaper", section: "investing", visible: true, order: 12 },
-  { id: "reports", path: "/reports", label: "Reports", icon: "FileBarChart", section: "investing", visible: true, order: 13 },
   { id: "orders", path: "/orders", label: "Orders", icon: "ClipboardList", section: "investing", visible: true, order: 14 },
   { id: "transactions", path: "/transactions", label: "Transactions", icon: "Receipt", section: "investing", visible: true, order: 15 },
 
