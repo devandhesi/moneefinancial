@@ -388,7 +388,7 @@ const ChatPage = () => {
     const allMessages = [...messages, userMsg];
 
     // Start word-by-word reveal
-    wordReveal.start((revealedText) => {
+    reveal.start((revealedText) => {
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === "assistant" && last.isStreaming) {
@@ -402,21 +402,21 @@ const ChatPage = () => {
       await streamChat({
         messages: allMessages,
         onDelta: (chunk) => {
-          wordReveal.push(chunk);
+          reveal.push(chunk);
         },
         onDone: async () => {
-          wordReveal.finish();
+          reveal.finish();
           // Wait a bit for the reveal queue to flush, then finalize
           const waitForFlush = () => new Promise<void>((resolve) => {
             const check = setInterval(() => {
-              const full = wordReveal.getFullText();
+              const full = reveal.getFullText();
               // Check if queue is drained
               resolve();
               clearInterval(check);
             }, 50);
           });
           await waitForFlush();
-          const finalText = wordReveal.getFullText();
+          const finalText = reveal.getFullText();
           setIsLoading(false);
           setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.role === "assistant" ? { ...m, content: finalText, isStreaming: false } : m));
           if (user && convId && finalText) {
