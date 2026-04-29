@@ -13,38 +13,68 @@ import { useMavenChat } from "@/hooks/use-maven-chat";
 import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
 import { COMPANY_REGEX, lookupTicker } from "@/lib/company-tickers";
 
-/* ── Word-by-word reveal hook ──────────────────────────── */
-function useWordReveal() {
-  const queueRef = useRef<string[]>([]);
-  const revealedRef = useRef("");
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+/* ── Smooth character reveal hook ──────────────────────────
+ * Reveals incoming stream as a steady, natural typing flow rather than
+ * dumping bursts whenever the model sends a chunk. Uses requestAnimationFrame
+ * with adaptive pacing: 1 char per frame normally, scaling up only when the
+ * pending buffer grows large so we never lag too far behind. */
+function useSmoothReveal() {
+  const pendingRef = useRef("");          // not yet revealed
+  const revealedRef = useRef("");         // shown to user
+  const rafRef = useRef<number | null>(null);
+  const lastTickRef = useRef<number>(0);
   const onUpdateRef = useRef<((text: string) => void) | null>(null);
   const doneRef = useRef(false);
 
-  const start = useCallback((onUpdate: (text: string) => void) => {
-    queueRef.current = [];
-    revealedRef.current = "";
-    doneRef.current = false;
-    onUpdateRef.current = onUpdate;
-
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      if (queueRef.current.length > 0) {
-        // Reveal multiple tokens per tick for speed (2-3 at a time)
-        const batch = queueRef.current.splice(0, 3).join("");
-        revealedRef.current += batch;
-        onUpdateRef.current?.(revealedRef.current);
-      } else if (doneRef.current && intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }, 25);
+  const stop = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
   }, []);
 
+  const tick = useCallback((ts: number) => {
+    if (lastTickRef.current === 0) lastTickRef.current = ts;
+    const dt = ts - lastTickRef.current;
+    const pending = pendingRef.current.length;
+
+    if (pending > 0) {
+      // Target ~70 chars/sec baseline (~14ms per char). Speed up smoothly
+      // when the buffer is large so we catch up without visible bursts.
+      // 0–40 buffered: 1x, 40–120: up to 2.5x, 120+: up to 5x.
+      let cps = 70;
+      if (pending > 40) cps = 70 + Math.min(pending - 40, 80) * 2;   // → 230 cps
+      if (pending > 120) cps = 230 + Math.min(pending - 120, 200) * 1.5; // → 530 cps
+
+      const charsThisFrame = Math.max(1, Math.floor((dt / 1000) * cps));
+      const take = Math.min(charsThisFrame, pending);
+      revealedRef.current += pendingRef.current.slice(0, take);
+      pendingRef.current = pendingRef.current.slice(take);
+      onUpdateRef.current?.(revealedRef.current);
+      lastTickRef.current = ts;
+      rafRef.current = requestAnimationFrame(tick);
+    } else if (!doneRef.current) {
+      // Stream still open — keep RAF alive but reset the time delta so the
+      // next chunk doesn't suddenly dump a big batch on first frame.
+      lastTickRef.current = ts;
+      rafRef.current = requestAnimationFrame(tick);
+    } else {
+      stop();
+    }
+  }, [stop]);
+
+  const start = useCallback((onUpdate: (text: string) => void) => {
+    stop();
+    pendingRef.current = "";
+    revealedRef.current = "";
+    doneRef.current = false;
+    lastTickRef.current = 0;
+    onUpdateRef.current = onUpdate;
+    rafRef.current = requestAnimationFrame(tick);
+  }, [stop, tick]);
+
   const push = useCallback((chunk: string) => {
-    // Split into small tokens (words + whitespace preserved)
-    const tokens = chunk.match(/\S+|\s+/g) || [chunk];
-    queueRef.current.push(...tokens);
+    pendingRef.current += chunk;
   }, []);
 
   const finish = useCallback(() => {
@@ -52,19 +82,18 @@ function useWordReveal() {
   }, []);
 
   const getFullText = useCallback(() => {
-    // Flush everything remaining
-    if (queueRef.current.length > 0) {
-      revealedRef.current += queueRef.current.join("");
-      queueRef.current = [];
+    // Flush anything still pending and return the complete text.
+    if (pendingRef.current.length > 0) {
+      revealedRef.current += pendingRef.current;
+      pendingRef.current = "";
+      onUpdateRef.current?.(revealedRef.current);
     }
     return revealedRef.current;
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+    return () => stop();
+  }, [stop]);
 
   return { start, push, finish, getFullText };
 }
