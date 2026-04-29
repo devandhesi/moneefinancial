@@ -105,12 +105,41 @@ const TickerLink = ({ symbol }: { symbol: string }) => {
 };
 
 const renderTextWithTickers = (text: string) => {
-  const parts = text.split(/(\$[A-Z]{1,5}(?:\.[A-Z]{1,3})?)/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
-    if (match) return <TickerLink key={i} symbol={match[1]} />;
-    return <span key={i}>{part}</span>;
-  });
+  // Combined regex: $TICKER, OR a known company name (case-insensitive).
+  // We import COMPANY_REGEX lazily to keep the source string for splitting.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { COMPANY_REGEX, lookupTicker } = require("@/lib/company-tickers") as typeof import("@/lib/company-tickers");
+
+  const TICKER_RE = /\$[A-Z]{1,5}(?:\.[A-Z]{1,3})?/g;
+  const COMPANY_SOURCE = COMPANY_REGEX.source;
+  const combined = new RegExp(`(${TICKER_RE.source})|(${COMPANY_SOURCE})`, "gi");
+
+  const out: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = combined.exec(text)) !== null) {
+    const matchText = m[0];
+    const start = m.index;
+    if (start > lastIndex) {
+      out.push(<span key={key++}>{text.slice(lastIndex, start)}</span>);
+    }
+    if (matchText.startsWith("$")) {
+      out.push(<TickerLink key={key++} symbol={matchText.slice(1).toUpperCase()} />);
+    } else {
+      const ticker = lookupTicker(matchText);
+      if (ticker) {
+        out.push(<TickerLink key={key++} symbol={ticker} label={matchText} />);
+      } else {
+        out.push(<span key={key++}>{matchText}</span>);
+      }
+    }
+    lastIndex = start + matchText.length;
+  }
+  if (lastIndex < text.length) {
+    out.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+  return out;
 };
 
 /* ── Typing dots animation ─────────────────────────────── */
