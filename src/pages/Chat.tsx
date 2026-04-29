@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import MavenIcon from "@/components/MavenIcon";
 import { useMavenChat } from "@/hooks/use-maven-chat";
 import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
+import { COMPANY_REGEX, lookupTicker } from "@/lib/company-tickers";
 
 /* ── Word-by-word reveal hook ──────────────────────────── */
 function useWordReveal() {
@@ -92,25 +93,49 @@ interface Conversation {
 }
 
 // Custom renderer that turns $TICKER into linked text
-const TickerLink = ({ symbol }: { symbol: string }) => {
+const TickerLink = ({ symbol, label }: { symbol: string; label?: string }) => {
   const navigate = useNavigate();
   return (
     <button
       onClick={(e) => { e.preventDefault(); navigate(`/invest/${symbol}`); }}
       className="font-semibold underline underline-offset-2 decoration-primary/40 hover:decoration-primary text-foreground transition-colors cursor-pointer"
     >
-      ${symbol}
+      {label ?? `$${symbol}`}
     </button>
   );
 };
 
 const renderTextWithTickers = (text: string) => {
-  const parts = text.split(/(\$[A-Z]{1,5}(?:\.[A-Z]{1,3})?)/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,3})?)$/);
-    if (match) return <TickerLink key={i} symbol={match[1]} />;
-    return <span key={i}>{part}</span>;
-  });
+  const TICKER_RE = /\$[A-Z]{1,5}(?:\.[A-Z]{1,3})?/g;
+  const COMPANY_SOURCE = COMPANY_REGEX.source;
+  const combined = new RegExp(`(${TICKER_RE.source})|(${COMPANY_SOURCE})`, "gi");
+
+  const out: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = combined.exec(text)) !== null) {
+    const matchText = m[0];
+    const start = m.index;
+    if (start > lastIndex) {
+      out.push(<span key={key++}>{text.slice(lastIndex, start)}</span>);
+    }
+    if (matchText.startsWith("$")) {
+      out.push(<TickerLink key={key++} symbol={matchText.slice(1).toUpperCase()} />);
+    } else {
+      const ticker = lookupTicker(matchText);
+      if (ticker) {
+        out.push(<TickerLink key={key++} symbol={ticker} label={matchText} />);
+      } else {
+        out.push(<span key={key++}>{matchText}</span>);
+      }
+    }
+    lastIndex = start + matchText.length;
+  }
+  if (lastIndex < text.length) {
+    out.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+  return out;
 };
 
 /* ── Typing dots animation ─────────────────────────────── */
