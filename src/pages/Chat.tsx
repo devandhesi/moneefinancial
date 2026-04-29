@@ -287,7 +287,7 @@ const ChatPage = () => {
   const [loadingConvos, setLoadingConvos] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const wordReveal = useWordReveal();
+  const wordReveal = useSmoothReveal();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
