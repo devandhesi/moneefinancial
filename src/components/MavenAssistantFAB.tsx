@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState } from "react";
 import { ChevronDown, X, Send, Loader2, Plus, Clock, Trash2, Volume2, Square } from "lucide-react";
 import MavenIcon from "./MavenIcon";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,58 +6,7 @@ import { useLocation } from "react-router-dom";
 import { streamChat } from "@/lib/chat-stream";
 import ReactMarkdown from "react-markdown";
 import { useMavenChat } from "@/hooks/use-maven-chat";
-
-const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
-
-function useMavenTTS() {
-  const [playingIdx, setPlayingIdx] = useState<number | null>(null);
-  const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      URL.revokeObjectURL(audioRef.current.src);
-      audioRef.current = null;
-    }
-    setPlayingIdx(null);
-    setLoadingIdx(null);
-  }, []);
-
-  const play = useCallback(async (text: string, idx: number) => {
-    stop();
-    setLoadingIdx(idx);
-    try {
-      const resp = await fetch(TTS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text }),
-      });
-      if (!resp.ok) throw new Error("TTS failed");
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => { setPlayingIdx(null); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setPlayingIdx(null); URL.revokeObjectURL(url); };
-      setLoadingIdx(null);
-      setPlayingIdx(idx);
-      await audio.play();
-    } catch {
-      setLoadingIdx(null);
-      setPlayingIdx(null);
-    }
-  }, [stop]);
-
-  // Cleanup on unmount
-  useEffect(() => () => stop(), [stop]);
-
-  return { play, stop, playingIdx, loadingIdx };
-}
+import { useMavenTTS } from "@/hooks/use-maven-tts";
 
 const PAGE_CONTEXT: Record<string, { label: string; description: string }> = {
   "/": { label: "Dashboard", description: "the main dashboard with portfolio overview, health score, projections, market mood, and upcoming events" },
