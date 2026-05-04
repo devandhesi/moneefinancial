@@ -1,11 +1,12 @@
 import { useRef, useEffect, useState } from "react";
-import { ChevronDown, X, Send, Loader2, Plus, Clock, Trash2 } from "lucide-react";
+import { ChevronDown, X, Send, Loader2, Plus, Clock, Trash2, Volume2, Square } from "lucide-react";
 import MavenIcon from "./MavenIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { streamChat } from "@/lib/chat-stream";
 import ReactMarkdown from "react-markdown";
 import { useMavenChat } from "@/hooks/use-maven-chat";
+import { useMavenTTS } from "@/hooks/use-maven-tts";
 
 const PAGE_CONTEXT: Record<string, { label: string; description: string }> = {
   "/": { label: "Dashboard", description: "the main dashboard with portfolio overview, health score, projections, market mood, and upcoming events" },
@@ -94,6 +95,7 @@ export default function MavenAssistantFAB() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const ctx = getPageContext(location.pathname);
+  const tts = useMavenTTS();
 
   // Auto-save thread when messages change
   useEffect(() => {
@@ -249,9 +251,33 @@ export default function MavenAssistantFAB() {
                     }`}
                   >
                     {msg.role === "assistant" ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0.5">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                        {!loading && msg.content.length > 0 && (
+                          <button
+                            onClick={() =>
+                              tts.playingIdx === i ? tts.stop() : tts.play(msg.content, i)
+                            }
+                            className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {tts.loadingIdx === i ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : tts.playingIdx === i ? (
+                              <>
+                                <Square className="h-3 w-3" />
+                                <span>Stop</span>
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className="h-3 w-3" />
+                                <span>Listen</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <span className="whitespace-pre-wrap">{msg.content}</span>
                     )}

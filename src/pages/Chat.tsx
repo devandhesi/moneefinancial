@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare } from "lucide-react";
+import { Sparkles, Send, Loader2, Plus, Trash2, MessageSquare, Volume2, Square } from "lucide-react";
 import ChatAttachmentMenu from "@/components/chat/ChatAttachmentMenu";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "@/lib/chat-stream";
@@ -12,6 +12,7 @@ import MavenIcon from "@/components/MavenIcon";
 import { useMavenChat } from "@/hooks/use-maven-chat";
 import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
 import { COMPANY_REGEX, lookupTicker } from "@/lib/company-tickers";
+import { useMavenTTS } from "@/hooks/use-maven-tts";
 
 /* ── Smooth character reveal hook ──────────────────────────
  * Reveals incoming stream as a steady, natural typing flow rather than
@@ -201,7 +202,7 @@ const TypingIndicator = () => (
 );
 
 /* ── Message bubble ────────────────────────────────────── */
-const AssistantMessage = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
+const AssistantMessage = ({ content, isStreaming, index, tts }: { content: string; isStreaming?: boolean; index?: number; tts?: { play: (text: string, idx: number) => void; stop: () => void; playingIdx: number | null; loadingIdx: number | null } }) => {
   const hasAnimated = useRef(false);
   const shouldAnimate = !hasAnimated.current;
   
@@ -254,6 +255,20 @@ const AssistantMessage = ({ content, isStreaming }: { content: string; isStreami
             }}
           >{content}</ReactMarkdown>
         </div>
+        {tts && typeof index === "number" && !isStreaming && content.length > 0 && (
+          <button
+            onClick={() => tts.playingIdx === index ? tts.stop() : tts.play(content, index)}
+            className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {tts.loadingIdx === index ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : tts.playingIdx === index ? (
+              <><Square className="h-3 w-3" /><span>Stop</span></>
+            ) : (
+              <><Volume2 className="h-3 w-3" /><span>Listen</span></>
+            )}
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -288,6 +303,7 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const reveal = useSmoothReveal();
+  const tts = useMavenTTS();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -543,7 +559,7 @@ const ChatPage = () => {
               msg.role === "user" ? (
                 <UserMessage key={i} content={msg.content} />
               ) : (
-                <AssistantMessage key={i} content={msg.content} isStreaming={msg.isStreaming} />
+                <AssistantMessage key={i} content={msg.content} isStreaming={msg.isStreaming} index={i} tts={tts} />
               )
             )}
 
