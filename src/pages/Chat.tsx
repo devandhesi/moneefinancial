@@ -12,6 +12,7 @@ import MavenIcon from "@/components/MavenIcon";
 import { useMavenChat } from "@/hooks/use-maven-chat";
 import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
 import { COMPANY_REGEX, lookupTicker } from "@/lib/company-tickers";
+import { useMavenTTS } from "@/hooks/use-maven-tts";
 
 const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
 
@@ -304,6 +305,7 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const reveal = useSmoothReveal();
+  const tts = useMavenTTS();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -559,7 +561,7 @@ const ChatPage = () => {
               msg.role === "user" ? (
                 <UserMessage key={i} content={msg.content} />
               ) : (
-                <AssistantMessage key={i} content={msg.content} isStreaming={msg.isStreaming} />
+                <AssistantMessage key={i} content={msg.content} isStreaming={msg.isStreaming} index={i} tts={tts} />
               )
             )}
 
