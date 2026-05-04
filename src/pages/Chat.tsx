@@ -14,8 +14,6 @@ import { DEMO_CHAT_CONVERSATION } from "@/data/demo-data";
 import { COMPANY_REGEX, lookupTicker } from "@/lib/company-tickers";
 import { useMavenTTS } from "@/hooks/use-maven-tts";
 
-const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
-
 /* ── Smooth character reveal hook ──────────────────────────
  * Reveals incoming stream as a steady, natural typing flow rather than
  * dumping bursts whenever the model sends a chunk. Uses requestAnimationFrame
